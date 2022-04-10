@@ -471,7 +471,6 @@ export const NamespacesPage = (props) => {
   return (
     <ListPage
       {...props}
-      rowFilters={getFilters()}
       ListComponent={NamespacesList}
       canCreate={true}
       createHandler={() => createNamespaceModal({ blocking: true })}
