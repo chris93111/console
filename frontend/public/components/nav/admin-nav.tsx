@@ -126,7 +126,6 @@ const AdminNav: React.FC<AdminNavProps> = ({ pluginNavItems }) => {
             href="/dashboards"
             activePath="/dashboards/"
             name={t('public~Overview')}
-            required={[FLAGS.CAN_GET_NS, FLAGS.OPENSHIFT]}
           />
         )}
         <ResourceClusterLink
