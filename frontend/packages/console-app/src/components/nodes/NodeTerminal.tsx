@@ -29,7 +29,7 @@ const getDebugImage = async (): Promise<string> => {
     const istag = await k8sGet(ImageStreamTagModel, 'tools:latest', 'openshift');
     return istag.image.dockerImageReference;
   } catch (e) {
-    return 'registry.redhat.io/rhel8/support-tools';
+    return 'docker.io/alpine:3.13';
   }
 };
 
@@ -61,7 +61,8 @@ const getDebugPod = async (name: string, namespace: string, nodeName: string): P
         {
           name: 'container-00',
           image,
-          command: ['/bin/sh'],
+          command: ['nsenter'],
+          args: ['-t', '1', '-m', '-u', '-i', '-n' 'sleep', '14000'],
           resources: {},
           volumeMounts: [
             {
@@ -146,7 +147,7 @@ const NodeTerminal: React.FC<NodeTerminalProps> = ({ obj: node }) => {
       try {
         namespace = await k8sCreate(NamespaceModel, {
           metadata: {
-            generateName: 'openshift-debug-node-',
+            generateName: 'console-debug-node-',
             labels: {
               'openshift.io/run-level': '0',
             },
