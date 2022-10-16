@@ -150,7 +150,7 @@ const NodeLogs: React.FC<NodeLogsProps> = ({ obj: node }) => {
     status,
   } = node;
   const isWindows = status?.nodeInfo?.operatingSystem === 'windows';
-  const pathItems = ['journal'];
+  const pathItems = ['messages'];
   isWindows
     ? pathItems.push('containers', 'hybrid-overlay', 'kube-proxy', 'kubelet')
     : labels['node-role.kubernetes.io/master'] === '' &&
@@ -177,7 +177,7 @@ const NodeLogs: React.FC<NodeLogsProps> = ({ obj: node }) => {
   );
   const { t } = useTranslation();
 
-  const isJournal = path === 'journal';
+  const isJournal = path === 'messages';
 
   const fetchLog = React.useCallback(
     (url: string) => {
