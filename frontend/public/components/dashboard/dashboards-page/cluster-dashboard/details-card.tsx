@@ -50,6 +50,8 @@ import { Link } from 'react-router-dom';
 import { useK8sWatchResource } from '../../../utils/k8s-watch-hook';
 import { ClusterDashboardContext } from './context';
 
+import { k8sVersion } from '../../../../module/status';
+
 const ClusterVersion: React.FC<ClusterVersionProps> = ({ cv }) => {
   const { t } = useTranslation();
   const desiredVersion = getDesiredClusterVersion(cv);
@@ -107,7 +109,14 @@ export const DetailsCard = withDashboardResources(
     const { infrastructure, infrastructureLoaded, infrastructureError } = React.useContext(
       ClusterDashboardContext,
     );
-    const [k8sVersion, setK8sVersion] = React.useState<Response>();
+    const [kubernetesVersion, setKubernetesVersion] = React.useState('');
+    React.useEffect(() => {
+      k8sVersion()
+        .then((response) => setKubernetesVersion(getK8sGitVersion(response) || '-'))
+        .catch(() => setKubernetesVersion(t('public~unknown')));
+    }, [t]);
+    const [k8sVersionn, setK8sVersion] = React.useState<Response>();
+
     const [k8sVersionError, setK8sVersionError] = React.useState();
     const [clusterVersionData, clusterVersionLoaded, clusterVersionError] = useK8sWatchResource<
       ClusterVersionKind
@@ -142,7 +151,7 @@ export const DetailsCard = withDashboardResources(
     const infrastructurePlatform = getInfrastructurePlatform(infrastructure);
     const infrastuctureApiUrl = getInfrastructureAPIURL(infrastructure);
 
-    const k8sGitVersion = getK8sGitVersion(k8sVersion);
+    const k8sGitVersion = getK8sGitVersion(k8sVersionn);
 
     return (
       <Card data-test-id="details-card">
@@ -283,15 +292,11 @@ export const DetailsCard = withDashboardResources(
                 <OverviewDetailItem
                   key="kubernetes"
                   title={t('public~Kubernetes version')}
-                  error={
-                    !!k8sVersionError || (k8sVersion && !k8sGitVersion)
-                      ? t('public~Not available')
-                      : undefined
-                  }
-                  isLoading={!k8sVersion}
+                  error={false}
+                  isLoading={false}
                   valueClassName="co-select-to-copy"
                 >
-                  {k8sGitVersion}
+                  {kubernetesVersion}
                 </OverviewDetailItem>
               )}
             </DetailsBody>
