@@ -1,7 +1,9 @@
 import * as React from 'react';
 import { Radio } from '@patternfly/react-core';
 import { mount, ReactWrapper } from 'enzyme';
+import i18n from 'i18next';
 import { act } from 'react-dom/test-utils';
+import { setI18n } from 'react-i18next';
 import { Provider } from 'react-redux';
 import { PageHeading, ButtonBar } from '@console/internal/components/utils/';
 import store from '@console/internal/redux';
@@ -11,7 +13,6 @@ import AppSection from '../app/AppSection';
 import DeployImage from '../DeployImage';
 import DeployImagePage from '../DeployImagePage';
 import ImageSearchSection from '../image-search/ImageSearchSection';
-import ResourceSection from '../section/ResourceSection';
 
 jest.mock('@console/shared/src/hooks/post-form-submit-action', () => ({
   usePostFormSubmitAction: () => () => {},
@@ -19,11 +20,6 @@ jest.mock('@console/shared/src/hooks/post-form-submit-action', () => ({
 
 jest.mock('@console/shared/src/hooks/useResizeObserver', () => ({
   useResizeObserver: () => {},
-}));
-
-jest.mock('@console/internal/components/utils/rbac', () => ({
-  // Called in ResourceSection to check knative ServicePlugin permissions
-  useAccessReview: () => false,
 }));
 
 jest.mock('../serverless/useUpdateKnScalingDefaultValues', () => ({
@@ -36,6 +32,15 @@ describe('DeployImage Page Test', () => {
   let deployImagePageProps: DeployImagePageProps;
   let deployImagePageWrapper: ReactWrapper;
   beforeEach(() => {
+    i18n.services.interpolator = {
+      init: () => undefined,
+      reset: () => undefined,
+      resetRegExp: () => undefined,
+      interpolate: (str: string) => str,
+      nest: (str: string) => str,
+    };
+    setI18n(i18n);
+
     deployImagePageProps = {
       history: null,
       location: {
@@ -71,6 +76,15 @@ describe('Deploy Image Test', () => {
   let deployImageProps: DeployImageProps;
   let deployImageWrapper: ReactWrapper;
   beforeEach(async () => {
+    i18n.services.interpolator = {
+      init: () => undefined,
+      reset: () => undefined,
+      resetRegExp: () => undefined,
+      interpolate: (str: string) => str,
+      nest: (str: string) => str,
+    };
+    setI18n(i18n);
+
     deployImageProps = {
       projects: {
         data: [],
@@ -103,9 +117,6 @@ describe('Deploy Image Test', () => {
 
   it('should load  correct app section', () => {
     expect(deployImageWrapper.find(AppSection).exists()).toBe(true);
-  });
-  it('should load  correct resource section', () => {
-    expect(deployImageWrapper.find(ResourceSection).exists()).toBe(true);
   });
   it('should load  correct advanced section', () => {
     expect(deployImageWrapper.find(AdvancedSection).exists()).toBe(true);

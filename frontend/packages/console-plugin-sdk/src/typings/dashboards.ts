@@ -80,10 +80,17 @@ namespace ExtensionProperties {
      */
     popupTitle?: string;
 
-    /**
-     * Cloud providers which for which the subsystem should be hidden.
-     */
-    disallowedProviders?: string[];
+    /** Optional classname for the popup top-level component. */
+    popupClassname?: string;
+
+    /** Content of the popup */
+    popupBodyContent?: React.ReactNode | ((hide: () => void) => React.ReactNode);
+
+    /** If true, the popup will stay open when clicked outside of its boundary. Default: false */
+    popupKeepOnOutsideClick?: boolean;
+
+    /** Control plane topology for which the subsystem should be hidden. */
+    disallowedControlPlaneTopology?: string[];
   }
 
   export interface DashboardsOverviewHealthResourceSubsystem<R extends ResourcesObject>

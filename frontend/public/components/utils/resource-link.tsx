@@ -6,20 +6,18 @@ import * as classNames from 'classnames';
 import { FLAGS } from '@console/shared/src/constants';
 import { ResourceLinkProps } from '@console/dynamic-plugin-sdk';
 import { ResourceIcon } from './resource-icon';
-import {
-  modelFor,
-  referenceForModel,
-  K8sKind,
-  K8sResourceKindReference,
-  K8sResourceKind,
-} from '../../module/k8s';
+import { K8sModel } from '@console/dynamic-plugin-sdk/src/api/common-types';
+import { K8sResourceKindReference } from '@console/dynamic-plugin-sdk/src/extensions/console-types';
+import { K8sResourceKind } from '../../module/k8s/types';
+import { modelFor } from '../../module/k8s/k8s-models';
+import { referenceForModel } from '../../module/k8s/k8s-ref';
 import { connectToFlags } from '../../reducers/connectToFlags';
 import { FlagsObject } from '../../reducers/features';
 import { getReference } from '@console/dynamic-plugin-sdk/src/utils/k8s/k8s-ref';
 
 const unknownKinds = new Set();
 
-export const resourcePathFromModel = (model: K8sKind, name?: string, namespace?: string) => {
+export const resourcePathFromModel = (model: K8sModel, name?: string, namespace?: string) => {
   const { plural, namespaced, crd } = model;
 
   let url = '/k8s/';
@@ -47,7 +45,7 @@ export const resourcePathFromModel = (model: K8sKind, name?: string, namespace?:
   return url;
 };
 
-export const resourceListPathFromModel = (model: K8sKind, namespace?: string) =>
+export const resourceListPathFromModel = (model: K8sModel, namespace?: string) =>
   resourcePathFromModel(model, null, namespace);
 
 /**
@@ -84,33 +82,39 @@ export const ResourceLink: React.FC<ResourceLinkProps> = ({
   children,
   dataTest,
   onClick,
+  truncate,
 }) => {
   if (!kind && !groupVersionKind) {
     return null;
   }
   const kindReference = groupVersionKind ? getReference(groupVersionKind) : kind;
-  const path = resourcePath(kindReference, name, namespace);
+  const path = linkTo ? resourcePath(kindReference, name, namespace) : undefined;
   const value = displayName ? displayName : name;
   const classes = classNames('co-resource-item', className, {
     'co-resource-item--inline': inline,
+    'co-resource-item--truncate': truncate,
   });
 
   return (
     <span className={classes}>
       {!hideIcon && <ResourceIcon kind={kindReference} />}
-      {path && linkTo ? (
+      {path ? (
         <Link
           to={path}
           title={title}
           className="co-resource-item__resource-name"
           data-test-id={value}
-          data-test={dataTest}
+          data-test={dataTest ?? value}
           onClick={onClick}
         >
           {value}
         </Link>
       ) : (
-        <span className="co-resource-item__resource-name" data-test-id={value} data-test={dataTest}>
+        <span
+          className="co-resource-item__resource-name"
+          data-test-id={value}
+          data-test={dataTest ?? value}
+        >
           {value}
         </span>
       )}

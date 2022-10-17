@@ -105,7 +105,7 @@ export const createOrUpdateImageStream = async (
   ).catch(() => createdImageStream);
 };
 
-const getMetadata = (formData: DeployImageFormData) => {
+const getMetadata = (resource: Resources, formData: DeployImageFormData) => {
   const {
     application: { name: applicationName },
     name,
@@ -123,7 +123,7 @@ const getMetadata = (formData: DeployImageFormData) => {
     namespace,
   });
   const labels = { ...defaultLabels, ...userLabels };
-  const podLabels = getPodLabels(name);
+  const podLabels = getPodLabels(resource, name);
 
   const volumes = [];
   const volumeMounts = [];
@@ -180,7 +180,7 @@ export const createOrUpdateDeployment = (
   };
   const templateAnnotations = getCommonAnnotations();
 
-  const { labels, podLabels, volumes, volumeMounts } = getMetadata(formData);
+  const { labels, podLabels, volumes, volumeMounts } = getMetadata(Resources.Kubernetes, formData);
 
   const imageRef =
     registry === RegistryType.External
@@ -250,7 +250,7 @@ export const createOrUpdateDeploymentConfig = (
     healthChecks,
   } = formData;
 
-  const { labels, podLabels, volumes, volumeMounts } = getMetadata(formData);
+  const { labels, podLabels, volumes, volumeMounts } = getMetadata(Resources.OpenShift, formData);
 
   const defaultAnnotations = {
     ...getCommonAnnotations(),
@@ -386,7 +386,8 @@ export const createOrUpdateDeployImageResources = async (
     }
     if (!_.isEmpty(ports)) {
       const originalService = appResources?.service?.data;
-      const service = createService(formData, undefined, originalService);
+      const originalRoute = appResources?.route?.data;
+      const service = createService(formData, undefined, originalService, originalRoute);
       const request =
         verb === 'update'
           ? !_.isEmpty(originalService)

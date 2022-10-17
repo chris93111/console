@@ -3,7 +3,13 @@ import { ChartDonut, ChartLegend, ChartLabel } from '@patternfly/react-charts';
 import { Stack, StackItem } from '@patternfly/react-core';
 import * as _ from 'lodash';
 import { useTranslation } from 'react-i18next';
-import { ExternalLink, isUpstream, openshiftHelpBase } from '@console/internal/components/utils';
+import { ErrorState } from '@console/internal/components/error';
+import {
+  documentationURLs,
+  ExternalLink,
+  getDocumentationURL,
+  Timestamp,
+} from '@console/internal/components/utils';
 import { K8sResourceKind } from '@console/internal/module/k8s';
 import { PrometheusHealthPopupProps } from '@console/plugin-sdk';
 import {
@@ -13,10 +19,10 @@ import {
   riskSorting,
   mapMetrics,
   isWaiting,
-  isDisabled,
   isError,
+  mapConditions,
+  errorUpload,
 } from './mappers';
-import './style.scss';
 
 const DataComponent: React.FC<DataComponentProps> = ({ x, y, datum }) => {
   const Icon = riskIcons[datum.id];
@@ -41,9 +47,11 @@ export const InsightsPopup: React.FC<PrometheusHealthPopupProps> = ({ responses,
   const [
     { response: metricsResponse, error: metricsError },
     { response: operatorStatusResponse, error: operatorStatusError },
+    { response: lastGatherResponse },
   ] = responses;
   const { t } = useTranslation();
   const metrics = mapMetrics(metricsResponse);
+  const conditions = mapConditions(operatorStatusResponse);
   const clusterID = (k8sResult as K8sResourceKind)?.data?.spec?.clusterID || '';
   const riskEntries = Object.entries(metrics).sort(
     ([k1], [k2]) => riskSorting[k2] - riskSorting[k1],
@@ -51,11 +59,9 @@ export const InsightsPopup: React.FC<PrometheusHealthPopupProps> = ({ responses,
   const numberOfIssues = Object.values(metrics).reduce((acc, cur) => acc + cur, 0);
   const waiting = isWaiting(metrics) || !metricsResponse || !operatorStatusResponse;
   const error = isError(metrics) || metricsError || operatorStatusError;
-  const disabled = isDisabled(operatorStatusResponse);
+  const disabled = !!conditions.Disabled;
 
-  const insightsLink = isUpstream()
-    ? `${openshiftHelpBase}support/remote_health_monitoring/using-insights-to-identify-issues-with-your-cluster.html`
-    : `${openshiftHelpBase}html/support/remote-health-monitoring-with-connected-clusters#using-insights-to-identify-issues-with-your-cluster`;
+  const insightsURL = getDocumentationURL(documentationURLs.usingInsights);
 
   const riskKeys = {
     // t('insights-plugin~low')
@@ -68,9 +74,17 @@ export const InsightsPopup: React.FC<PrometheusHealthPopupProps> = ({ responses,
     critical: 'insights-plugin~critical',
   };
 
-  return (
+  const lastRefreshTime =
+    parseInt(lastGatherResponse?.data?.result?.[0]?.value?.[1] || '0', 10) * 1000;
+
+  return errorUpload(conditions) ? (
+    <ErrorState />
+  ) : (
     <Stack hasGutter>
       <StackItem>
+        {t('insights-plugin~Last refresh')}: <Timestamp timestamp={lastRefreshTime} simple />
+      </StackItem>
+      <StackItem className="text-muted">
         {t(
           'insights-plugin~Insights Advisor identifies and prioritizes risks to security, performance, availability, and stability of your clusters.',
         )}
@@ -150,7 +164,7 @@ export const InsightsPopup: React.FC<PrometheusHealthPopupProps> = ({ responses,
         </StackItem>
       )}
       {(waiting || disabled || error) && (
-        <ExternalLink href={insightsLink} text={t('insights-plugin~More about Insights')} />
+        <ExternalLink href={insightsURL} text={t('insights-plugin~More about Insights')} />
       )}
     </Stack>
   );

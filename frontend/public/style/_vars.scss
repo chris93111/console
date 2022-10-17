@@ -37,7 +37,6 @@ $pf-global-gutter--md: 1.5rem; // Matches --pf-global--gutter--md
 
 // == Custom variables
 
-$co-m-label-line-height: 20px;
 $pf-header-icon-fontsize: 16px; // Patternfly 4 default
 // Manually set because our default font size is different than PF 4
 $co-side-nav-font-size: $font-size-base; // Matches PF 4 --pf-c-nav__subnav__link--FontSize
@@ -49,12 +48,11 @@ $co-m-catalog-tile-width: 260px;
 // == Colors
 
 $color-alertmanager-dark: $pf-color-orange-600;
-$color-co-m-row-hover: #fafafa;
 $color-application-dark: $pf-color-green-500;
 $color-configmap-dark: $pf-color-purple-600;
 $color-container-dark: $pf-color-blue-300;
 $color-error: $pf-color-red-100;
-$color-ingress-dark: $pf-color-purple-700;
+$color-ingress-dark: $pf-color-purple-600;
 $color-namespace-dark: $pf-color-green-600;
 $color-node-dark: $pf-color-purple-400;
 $color-pod-dark: $pf-color-cyan-300;

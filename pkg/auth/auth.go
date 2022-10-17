@@ -209,6 +209,7 @@ func NewAuthenticator(ctx context.Context, c *Config) (*Authenticator, error) {
 				clientID:      c.ClientID,
 				cookiePath:    c.CookiePath,
 				secureCookies: c.SecureCookies,
+                                clusterName:   c.ClusterName,
 			})
 			a.userFunc = func(r *http.Request) (*User, error) {
 				if oidcAuthSource == nil {

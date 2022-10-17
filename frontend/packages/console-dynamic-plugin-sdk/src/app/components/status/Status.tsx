@@ -15,10 +15,25 @@ import { YellowExclamationTriangleIcon } from './icons';
 import { ErrorStatus, InfoStatus, ProgressStatus, SuccessStatus } from './statuses';
 import StatusIconAndText from './StatusIconAndText';
 
-type StatusProps = StatusComponentProps & {
+export type StatusProps = StatusComponentProps & {
   status: string;
+  children?: React.ReactNode;
 };
 
+/**
+ * Component for displaying a status message
+ * @param {string} status - type of status to be displayed
+ * @param {string} [title] - (optional) status text
+ * @param {boolean} [iconOnly] - (optional) if true, only displays icon
+ * @param {boolean} [noTooltip] - (optional) if true, tooltip won't be displayed
+ * @param {string} [className] - (optional) additional class name for the component
+ * @param {string} [popoverTitle] - (optional) title for popover
+ * @param {ReactNode} [children] - (optional) children for the component
+ * @example
+ * ```tsx
+ * <Status status='Warning' />
+ * ```
+ */
 const Status: React.FC<StatusProps> = ({
   status,
   title,
@@ -33,7 +48,7 @@ const Status: React.FC<StatusProps> = ({
       return <StatusIconAndText {...statusProps} icon={<HourglassStartIcon />} />;
 
     case 'Pending':
-      return <StatusIconAndText {...statusProps} icon={<HourglassHalfIcon color="inherit" />} />;
+      return <StatusIconAndText {...statusProps} icon={<HourglassHalfIcon />} />;
 
     case 'Planning':
       return <StatusIconAndText {...statusProps} icon={<ClipboardListIcon />} />;
@@ -55,6 +70,7 @@ const Status: React.FC<StatusProps> = ({
     case 'Deleting':
     case 'Expired':
     case 'Not Ready':
+    case 'Cancelling':
     case 'Terminating':
       return <StatusIconAndText {...statusProps} icon={<BanIcon />} />;
 
@@ -90,6 +106,7 @@ const Status: React.FC<StatusProps> = ({
     case 'Up to date':
     case 'Provisioned as node':
     case 'Preferred':
+    case 'Connected':
       return <SuccessStatus {...statusProps} />;
 
     case 'Info':

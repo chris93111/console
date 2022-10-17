@@ -80,14 +80,15 @@ const TopologyListViewAppGroup: React.FC<TopologyListViewAppGroupProps> = ({
       aria-labelledby={`${id}_label`}
       isExpanded
     >
-      <DataListItemRow className={className}>
+      <DataListItemRow className={className} data-test={id}>
         <DataListItemCells dataListCells={cells} />
       </DataListItemRow>
       {!collapsed && (
-        <DataList aria-label={id} id={id}>
+        <DataList aria-label={id} id={`${id}_kinds`}>
           {kindKeys.map((key) => (
             <TopologyListViewKindGroup
               key={key}
+              groupLabel={appGroup.getLabel()}
               kind={key}
               childElements={kindsMap[key]}
               selectedIds={selectedIds}

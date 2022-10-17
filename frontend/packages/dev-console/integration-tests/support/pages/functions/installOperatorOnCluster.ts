@@ -1,11 +1,16 @@
 import { modal } from '@console/cypress-integration-tests/views/modal';
 import { pipelinesPage } from '@console/pipelines-plugin/integration-tests/support/pages';
+import { detailsPage } from '../../../../../integration-tests-cypress/views/details-page';
 import { pageTitle, operators, switchPerspective } from '../../constants';
 import { operatorsPO } from '../../pageObjects';
 import { app, perspective, projectNameSpace, sidePane } from '../app';
 import { operatorsPage } from '../operators-page';
 import { installCRW, waitForCRWToBeAvailable } from './installCRW';
-import { createKnativeEventing, createKnativeServing } from './knativeSubscriptions';
+import {
+  createKnativeEventing,
+  createKnativeServing,
+  createKnativeKafka,
+} from './knativeSubscriptions';
 
 export const installOperator = (operatorName: operators) => {
   operatorsPage.navigateToOperatorHubPage();
@@ -23,6 +28,9 @@ export const installOperator = (operatorName: operators) => {
     if ($sidePane.find(operatorsPO.sidePane.install).length) {
       cy.get(operatorsPO.sidePane.install).click({ force: true });
       cy.get(operatorsPO.installOperators.title).should('contain.text', pageTitle.InstallOperator);
+      if (operatorName === operators.WebTerminalOperator) {
+        cy.get(operatorsPO.warningAlert, { timeout: 3000 }).should('be.visible');
+      }
       cy.get(operatorsPO.operatorHub.install).click();
       cy.get(operatorsPO.operatorHub.installingOperatorModal).should('be.visible');
       app.waitForLoad();
@@ -96,6 +104,25 @@ export const waitForCRDs = (operator: operators) => {
       cy.get('[data-test-id="PipelineRun"]', { timeout: 80000 }).should('be.visible');
       cy.get('[data-test-id="Pipeline"]', { timeout: 80000 }).should('be.visible');
       break;
+
+    case operators.WebTerminalOperator:
+      cy.log(`Verify the CRD's for the "${operator}"`);
+      operatorsPage.navigateToCustomResourceDefinitions();
+      cy.byTestID('name-filter-input')
+        .clear()
+        .type('DevWorkspace');
+      cy.get('tr[data-test-rows="resource-row"]', { timeout: 300000 }).should(
+        'have.length.within',
+        4,
+        6,
+      );
+      cy.get('[data-test-id="DevWorkspace"]', { timeout: 80000 }).should('be.visible');
+      cy.get('[data-test-id="DevWorkspaceOperatorConfig"]', { timeout: 80000 }).should(
+        'be.visible',
+      );
+      cy.get('[data-test-id="DevWorkspaceRouting"]', { timeout: 80000 }).should('be.visible');
+      cy.get('[data-test-id="DevWorkspaceTemplate"]', { timeout: 80000 }).should('be.visible');
+      break;
     default:
       cy.log(`waiting for CRC's is not applicable for this ${operator} operator`);
   }
@@ -117,12 +144,43 @@ const waitForPipelineTasks = (retries: number = 30) => {
   });
 };
 
+const createShipwrightBuild = () => {
+  projectNameSpace.selectProject(Cypress.env('NAMESPACE'));
+  cy.get('body').then(($body) => {
+    if ($body.find(operatorsPO.installOperators.search)) {
+      cy.get(operatorsPO.installOperators.search)
+        .clear()
+        .type(operators.ShipwrightOperator);
+    }
+  });
+  cy.get(operatorsPO.installOperators.shipwrightBuildLink).click({ force: true });
+  cy.get('body').then(($body) => {
+    if ($body.text().includes('Page Not Found')) {
+      cy.reload();
+    }
+  });
+  detailsPage.titleShouldContain(pageTitle.ShipwrightBuild);
+  app.waitForLoad();
+  cy.get('body').then(($body) => {
+    if ($body.find('[role="grid"]').length > 0) {
+      cy.log(`${pageTitle.ShipwrightBuild} already subscribed`);
+    } else {
+      cy.byTestID('item-create').click();
+      detailsPage.titleShouldContain(pageTitle.ShipwrightBuild);
+      cy.byTestID('create-dynamic-form').click();
+      cy.byLegacyTestID('details-actions').should('be.visible');
+      cy.contains('Ready', { timeout: 150000 }).should('be.visible');
+    }
+  });
+};
+
 const performPostInstallationSteps = (operator: operators): void => {
   switch (operator) {
     case operators.ServerlessOperator:
       cy.log(`Performing Serverless post installation steps`);
       createKnativeServing();
       createKnativeEventing();
+      createKnativeKafka();
       operatorsPage.navigateToOperatorHubPage();
       break;
     case operators.RedHatCodereadyWorkspaces:
@@ -141,6 +199,14 @@ const performPostInstallationSteps = (operator: operators): void => {
       cy.visit('/pipelines/ns/default');
       pipelinesPage.clickOnCreatePipeline();
       waitForPipelineTasks();
+      break;
+    case operators.WebTerminalOperator:
+      cy.log(`Performing Web Terminal post-installation steps`);
+      waitForCRDs(operators.WebTerminalOperator);
+      break;
+    case operators.ShipwrightOperator:
+      cy.log(`Performing Shipwright Operator post-installation steps`);
+      createShipwrightBuild();
       break;
     default:
       cy.log(`Nothing to do in post-installation steps`);
@@ -173,4 +239,30 @@ export const verifyAndInstallKnativeOperator = () => {
 export const verifyAndInstallGitopsPrimerOperator = () => {
   perspective.switchTo(switchPerspective.Administrator);
   verifyAndInstallOperator(operators.GitopsPrimer);
+};
+
+export const verifyAndInstallWebTerminalOperator = () => {
+  perspective.switchTo(switchPerspective.Administrator);
+  operatorsPage.navigateToInstallOperatorsPage();
+  cy.get(operatorsPO.installOperators.search)
+    .should('be.visible')
+    .clear()
+    .type(operators.WebTerminalOperator);
+  cy.get('body', {
+    timeout: 50000,
+  }).then(($ele) => {
+    if ($ele.find(operatorsPO.installOperators.noOperatorsFound)) {
+      installOperator(operators.WebTerminalOperator);
+      operatorsPage.navigateToInstallOperatorsPage();
+      operatorsPage.searchOperatorInInstallPage('DevWorkspace Operator');
+      cy.get('.co-clusterserviceversion-logo__name__clusterserviceversion').should(
+        'include.text',
+        'DevWorkspace Operator',
+      );
+      cy.contains('Succeeded', { timeout: 300000 });
+      performPostInstallationSteps(operators.WebTerminalOperator);
+    } else {
+      cy.log('Web Terminal operator is installed in cluster');
+    }
+  });
 };

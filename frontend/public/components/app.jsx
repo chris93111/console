@@ -42,6 +42,7 @@ import {
 import { initConsolePlugins } from '@console/dynamic-plugin-sdk/src/runtime/plugin-init';
 import { GuidedTour } from '@console/app/src/components/tour';
 import QuickStartDrawer from '@console/app/src/components/quick-starts/QuickStartDrawerAsync';
+import { ModalProvider } from '@console/dynamic-plugin-sdk/src/app/modal-support/ModalProvider';
 import ToastProvider from '@console/shared/src/components/toast/ToastProvider';
 import { useToast } from '@console/shared/src/components/toast';
 import { useTelemetry } from '@console/shared/src/hooks/useTelemetry';
@@ -49,17 +50,18 @@ import { useDebounceCallback } from '@console/shared/src/hooks/debounce';
 import { URL_POLL_DEFAULT_DELAY } from '@console/internal/components/utils/url-poll-hook';
 import { ThemeProvider } from './ThemeProvider';
 import { init as initI18n } from '../i18n';
+import { Page, SkipToContent, AlertVariant } from '@patternfly/react-core'; // PF4 Imports
 import '../vendor.scss';
 import '../style.scss';
 import '@patternfly/quickstarts/dist/quickstarts.min.css';
-
-// PF4 Imports
-import { Page, SkipToContent, AlertVariant } from '@patternfly/react-core';
+// load dark theme here as MiniCssExtractPlugin ignores load order of sass and dark theme must load after all other css
+import '@patternfly/patternfly/patternfly-charts-theme-dark.css';
 
 const breakpointMD = 1200;
 const NOTIFICATION_DRAWER_BREAKPOINT = 1800;
 // Edge lacks URLSearchParams
 import 'url-search-params-polyfill';
+import { withoutSensitiveInformations } from './utils/telemetry';
 import { graphQLReady } from '../graphql/client';
 
 initI18n();
@@ -214,14 +216,16 @@ class App_ extends React.PureComponent {
       <DetectCluster>
         <DetectPerspective>
           <DetectNamespace>
-            {contextProviderExtensions.reduce(
-              (children, e) => (
-                <EnhancedProvider key={e.uid} {...e.properties}>
-                  {children}
-                </EnhancedProvider>
-              ),
-              content,
-            )}
+            <ModalProvider>
+              {contextProviderExtensions.reduce(
+                (children, e) => (
+                  <EnhancedProvider key={e.uid} {...e.properties}>
+                    {children}
+                  </EnhancedProvider>
+                ),
+                content,
+              )}
+            </ModalProvider>
           </DetectNamespace>
         </DetectPerspective>
         <DetectLanguage />
@@ -284,7 +288,7 @@ const CaptureTelemetry = React.memo(function CaptureTelemetry() {
   // Also because some pages update the URL as the user enters a search term.
   const fireUrlChangeEvent = useDebounceCallback(fireTelemetryEvent);
   React.useEffect(() => {
-    fireUrlChangeEvent('page', history.location);
+    fireUrlChangeEvent('page', withoutSensitiveInformations(history.location));
 
     let { pathname, search } = history.location;
     const unlisten = history.listen((location) => {
@@ -292,7 +296,7 @@ const CaptureTelemetry = React.memo(function CaptureTelemetry() {
       if (pathname !== nextPathname || search !== nextSearch) {
         pathname = nextPathname;
         search = nextSearch;
-        fireUrlChangeEvent('page', location);
+        fireUrlChangeEvent('page', withoutSensitiveInformations(location));
       }
     });
     return () => unlisten();

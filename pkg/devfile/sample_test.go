@@ -2,38 +2,37 @@ package devfile
 
 import (
 	"encoding/json"
-	"reflect"
+	"errors"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
+	"path"
+	"strings"
 	"testing"
 
 	"github.com/devfile/registry-support/index/generator/schema"
 )
 
 func TestGetRegistrySamples(t *testing.T) {
-
-	nodejsBase64Image := "https://nodejs.org/static/images/logos/nodejs-new-pantone-black.svg"
-
-	quarkusBase64Image := "https://design.jboss.org/quarkus/logo/final/SVG/quarkus_icon_rgb_default.svg"
-
-	springBootBase64Image := "https://spring.io/images/projects/spring-edf462fec682b9d48cf628eaf9e19521.svg"
-
-	pythonBase64Image := "https://www.python.org/static/community_logos/python-logo-generic.svg"
-
 	tests := []struct {
-		name        string
-		registry    string
-		wantSamples []schema.Schema
-		wantErr     bool
+		name            string
+		registryFolder  string
+		registryServer  string
+		expectedSamples []schema.Schema
+		expectedError   error
 	}{
 		{
-			name:     "Fetch the sample",
-			registry: DEVFILE_STAGING_REGISTRY_URL,
-			wantSamples: []schema.Schema{
+			// curl https://registry.stage.devfile.io/index/sample -o pkg/devfile/testdata/registrystagedevfileio/sample.json
+			name:           "Fetch samples from mock registry server",
+			registryFolder: "testdata/registrystagedevfileio",
+			expectedSamples: []schema.Schema{
 				{
 					Name:        "nodejs-basic",
 					DisplayName: "Basic Node.js",
 					Description: "A simple Hello World Node.js application",
 					Tags:        []string{"NodeJS", "Express"},
-					Icon:        nodejsBase64Image,
+					Icon:        "https://nodejs.org/static/images/logos/nodejs-new-pantone-black.svg",
 					Type:        schema.SampleDevfileType,
 					ProjectType: "nodejs",
 					Language:    "nodejs",
@@ -49,7 +48,7 @@ func TestGetRegistrySamples(t *testing.T) {
 					DisplayName: "Basic Quarkus",
 					Description: "A simple Hello World Java application using Quarkus",
 					Tags:        []string{"Java", "Quarkus"},
-					Icon:        quarkusBase64Image,
+					Icon:        "https://design.jboss.org/quarkus/logo/final/SVG/quarkus_icon_rgb_default.svg",
 					Type:        schema.SampleDevfileType,
 					ProjectType: "quarkus",
 					Language:    "java",
@@ -65,7 +64,7 @@ func TestGetRegistrySamples(t *testing.T) {
 					DisplayName: "Basic Spring Boot",
 					Description: "A simple Hello World Java Spring Boot application using Maven",
 					Tags:        []string{"Java", "Spring"},
-					Icon:        springBootBase64Image,
+					Icon:        "https://spring.io/images/projects/spring-edf462fec682b9d48cf628eaf9e19521.svg",
 					Type:        schema.SampleDevfileType,
 					ProjectType: "springboot",
 					Language:    "java",
@@ -81,7 +80,7 @@ func TestGetRegistrySamples(t *testing.T) {
 					DisplayName: "Basic Python",
 					Description: "A simple Hello World application using Python",
 					Tags:        []string{"Python"},
-					Icon:        pythonBase64Image,
+					Icon:        "https://raw.githubusercontent.com/devfile-samples/devfile-stack-icons/main/python.svg",
 					Type:        schema.SampleDevfileType,
 					ProjectType: "python",
 					Language:    "python",
@@ -92,32 +91,94 @@ func TestGetRegistrySamples(t *testing.T) {
 						},
 					},
 				},
+				{
+					Name:        "go-basic",
+					DisplayName: "Basic Go",
+					Description: "A simple Hello World application using Go",
+					Tags:        []string{"Go"},
+					Icon:        "https://go.dev/blog/go-brand/Go-Logo/SVG/Go-Logo_Blue.svg",
+					Type:        schema.SampleDevfileType,
+					ProjectType: "go",
+					Language:    "go",
+					Provider:    "Red Hat",
+					Git: &schema.Git{
+						Remotes: map[string]string{
+							"origin": "https://github.com/devfile-samples/devfile-sample-go-basic.git",
+						},
+					},
+				},
+				{
+					Name:        "dotnet60-basic",
+					DisplayName: "Basic .NET 6.0",
+					Description: "A simple application using .NET 6.0",
+					Tags:        []string{"dotnet"},
+					Icon:        "https://github.com/dotnet/brand/raw/main/logo/dotnet-logo.png",
+					Type:        schema.SampleDevfileType,
+					ProjectType: "dotnet",
+					Language:    "dotnet",
+					Provider:    "Red Hat",
+					Git: &schema.Git{
+						Remotes: map[string]string{
+							"origin": "https://github.com/devfile-samples/devfile-sample-dotnet60-basic.git",
+						},
+					},
+				},
 			},
 		},
 		{
-			name:     "Invalid registry",
-			registry: "invalid",
-			wantErr:  true,
+			name:           "Invalid registry",
+			registryServer: "invalid-server",
+			expectedError:  errors.New("registry invalid-server is invalid"),
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bytes, err := GetRegistrySamples(tt.registry)
-			if tt.wantErr && err == nil {
-				t.Errorf("Expected error from test but got nil")
-			} else if !tt.wantErr && err != nil {
-				t.Errorf("Got unexpected error: %s", err)
-			} else if !tt.wantErr {
-				var registryIndex []schema.Schema
-				err = json.Unmarshal(bytes, &registryIndex)
-				if err != nil {
-					t.Errorf("Got unexpected error: %s", err)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.registryFolder != "" {
+				registryServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					// fmt.Printf("Mock registry server handles %s\n", r.URL.Path)
+					if r.URL.Path == "/index/sample" {
+						samples, loadErr := ioutil.ReadFile(path.Join(test.registryFolder, "sample.json"))
+						if loadErr != nil {
+							t.Errorf("Could not read samples: %v", loadErr)
+							w.WriteHeader(http.StatusInternalServerError)
+							w.Write([]byte(fmt.Sprintf("Could not read samples\n%v", loadErr)))
+							return
+						}
+						w.WriteHeader(http.StatusOK)
+						w.Write(samples)
+					} else {
+						w.WriteHeader(http.StatusNotFound)
+					}
+				}))
+				defer registryServer.Close()
+
+				test.registryServer = registryServer.URL
+				testRegistryServer = test.registryServer
+			}
+
+			bytes, actualError := GetRegistrySamples(test.registryServer)
+
+			if test.expectedError == nil && actualError != nil {
+				t.Errorf("Error does not match expectation:\n%v\nbut got\n%v", test.expectedError, actualError)
+				return
+			} else if test.expectedError != nil && (actualError == nil || test.expectedError.Error() != actualError.Error()) {
+				t.Errorf("Error does not match expectation:\n%v\nbut got\n%v", test.expectedError, actualError)
+				return
+			}
+
+			if test.expectedSamples != nil {
+				var parsedRegistryIndex []schema.Schema
+				parseError := json.Unmarshal(bytes, &parsedRegistryIndex)
+				actualRegistryIndex, _ := json.MarshalIndent(parsedRegistryIndex, "", "  ")
+				expectedRegistryIndex, _ := json.MarshalIndent(test.expectedSamples, "", "  ")
+				if parseError != nil {
+					t.Errorf("Got unexpected error: %s", parseError)
 					return
 				}
-				if !reflect.DeepEqual(registryIndex, tt.wantSamples) {
-					t.Errorf("expected %+v does not match actual %+v", registryIndex, tt.wantSamples)
+				if strings.Compare(string(expectedRegistryIndex), string(actualRegistryIndex)) != 0 {
+					t.Errorf("expected %s does not match actual %s", expectedRegistryIndex, actualRegistryIndex)
 				}
-
 			}
 		})
 	}

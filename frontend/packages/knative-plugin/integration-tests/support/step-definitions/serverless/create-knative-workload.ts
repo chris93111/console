@@ -5,6 +5,7 @@ import {
   catalogCards,
   catalogTypes,
   devNavigationMenu,
+  gitAdvancedOptions,
 } from '@console/dev-console/integration-tests/support/constants';
 import { gitPO } from '@console/dev-console/integration-tests/support/pageObjects';
 import {
@@ -37,7 +38,7 @@ When('user clicks on From Catalog card', () => {
 });
 
 When('create the application with s2i builder image', () => {
-  catalogPage.selectCatalogType('Builder Image');
+  catalogPage.selectCatalogType(catalogTypes.BuilderImage);
   catalogPage.selectCardInCatalog(catalogCards.nodeJs);
   catalogPage.clickButtonOnCatalogPageSidePane();
 });
@@ -61,7 +62,7 @@ When('user searches and selects the {string} card', (cardName: string) => {
 });
 
 When('user creates the application with the selected builder image', () => {
-  catalogPage.selectCatalogType('Builder Image');
+  catalogPage.selectCatalogType(catalogTypes.BuilderImage);
   catalogPage.selectCardInCatalog(catalogCards.nodeJs);
   catalogPage.clickButtonOnCatalogPageSidePane();
 });
@@ -75,7 +76,11 @@ Then('user will be redirected to page with header name {string}', (headerName: s
 });
 
 Then('Knative Service option is displayed under Resources section', () => {
-  cy.get(gitPO.resources.knative)
+  gitPage.selectAdvancedOptions(gitAdvancedOptions.Resources);
+  cy.get(gitPO.advancedOptions.resourcesDropdown)
+    .scrollIntoView()
+    .click();
+  cy.get(gitPO.advancedOptions.resources.knative)
     .scrollIntoView()
     .should('be.visible');
 });

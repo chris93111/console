@@ -7,7 +7,7 @@ Feature: Topology chart area
               And user has created or selected namespace "aut-topology-delete-workload"
 
 
-        @smoke @to-do
+        @smoke
         Scenario: Empty state of topology: T-06-TC01
              When user navigates to Topology page
              Then user sees Topology page with message "No resources found"
@@ -93,20 +93,32 @@ Feature: Topology chart area
               And user checks knative service having label "KSVC" and then the name of service
 
 
-        @smoke @to-do
+        @smoke
         Scenario: Context menu of node: T-06-TC09
-            Given user has created a workload named "nodejs-ex-git"
+            Given user has created a deployment workload "nodejs-ex-git3"
               And user is at the Topology page
-             When user right clicks on the node "nodejs-ex-git" to open context menu
+             When user right clicks on the node "nodejs-ex-git3" to open context menu
              Then user is able to see context menu options like Edit Application Grouping, Edit Pod Count, Pause Rollouts, Add Health Checks, Add Horizontal Pod Autoscaler, Add Storage, Edit Update Strategy, Edit Labels, Edit Annotations, Edit Deployment, Delete Deployment
 
 
-        @regression @manual
-        Scenario: Zoom In in topology: T-06-TC10
+        @regression @odc-4944 @manual
+        Scenario: Zoom In to 50% in topology: T-06-TC10
             Given user has created a workload named "nodejs-ex-git"
               And user is at the Topology page
-             When user clicks on Zoom In option
-             Then user sees the chart area is zoomed
+             When user clicks on Zoom In option to zoom to 50% scale
+             Then user can see the chart area is zoomed
+              And user can see all labels & decorators are hidden
+              And label are shown when hovering over the node
+
+
+        @regression @odc-4944 @manual
+        Scenario: Zoom In to 30% in topology: T-06-TC11
+            Given user has created a workload named "nodejs-ex-git"
+              And user is at the Topology page
+             When user clicks on Zoom In option to zoom to 30% scale
+             Then user can see the chart area is zoomed
+              And user can see all labels, decorators, pod rings & icons are hidden
+              And user can see background of node as white
 
 
         @regression @manual
@@ -151,43 +163,45 @@ Feature: Topology chart area
                   | DeploymentConfig |
 
 
-        @regression @to-do
+        @regression
         Scenario: Context menu on empty area: T-06-TC15
-            Given user is at the Topology page
+            Given user has installed OpenShift Serverless Operator
+              And user has installed Crunchy Postgres for Kubernetes operator
+              And user navigates to Topology Page
              When user right clicks on the empty chart area
               And user hovers on Add to Project
-             Then user is able to see options like Samples, From Git, Container Image, From Dockerfile, From Devfile, From Catalog, Database, Operator Backed, Helm Charts, Event Source, Channel
+             Then user is able to see options like Samples, Import from Git, Container Image, From Dockerfile, From Devfile, From Catalog, Database, Operator Backed, Helm Charts, Event Source, Channel
 
 
-        @regression @to-do
+        @regression
         Scenario: Add to Project in topology: T-06-TC16
             Given user is at the Topology page
              When user right clicks on the empty chart area
               And user hovers on Add to Project
               And user clicks on Samples
-              And user selects go sample and clicks Create
-              And user hovers on Add to Project and clicks on Import from Git
-              And user fills the form and clicks Create
-              And user hovers on Add to Project and clicks on Container Image
-              And user fills the form and clicks Create
-              And user fills the form and clicks Create
-              And user hovers on Add to Project and clicks on From Catalog
+              And user selects go sample
+              And user fills the "Go Sample" form and clicks Create
+              And user hovers on Add to Project and clicks on "Import from Git"
+              And user fills the "Import From Git" form and clicks Create
+              And user hovers on Add to Project and clicks on "Container Image"
+              And user fills the "Container Image" form and clicks Create
+              And user hovers on Add to Project and clicks on "From Catalog"
               And user selects Python Builder Image and clicks Create Application
-              And user fills the form and clicks Create
-              And user hovers on Add to Project and clicks on Database
-              And user selects Postgres Database and clicks on Create
-              And user fills the form and clicks Create
-              And user hovers on Add to Project and clicks on Operator Backed
+              And user fills the "Catalog" form and clicks Create
+              And user hovers on Add to Project and clicks on "Database"
+              And user selects Postgres Database and clicks on Instantiate Template
+              And user clicks on Create button
+              And user hovers on Add to Project and clicks on "Operator Backed"
               And user selects Postgres and clicks on Create
-              And user fills the form and clicks Create
-              And user hovers on Add to Project and clicks on Helm Charts
+              And user fills the "Operator Backed" form with yaml at "test-data/postgres-operator-backed.yaml" and clicks Create
+              And user hovers on Add to Project and clicks on "Helm Charts"
               And user selects Nodejs and clicks on Install Helm Charts
-              And user clicks on Install
-              And user hovers on Add to Project and clicks on From Event Source
+              And user fills the "Helm Chart" form and clicks Create
+              And user hovers on Add to Project and clicks on "Event Source"
               And user selects Api Server Source and clicks on Create Event Source
-              And user fills the form and clicks Create
-              And user hovers on Add to Project and clicks on From Channel
-              And user clicks on Create
+              And user fills the "Event Source" form and clicks Create
+              And user hovers on Add to Project and clicks on "Channel"
+              And user fills the "Channel" form and clicks Create
              Then user is able to see different applications created from Samples, Import from Git, Container Image, From Catalog, Database, Operator Backed, Helm Charts, Event Source, Channel
 
 
@@ -277,7 +291,7 @@ Feature: Topology chart area
         @regression @manual
         Scenario: Display of External Bindable resources: T-06-TC24
             Given user has installed Service Binding operator
-            #Please refer to test case KM-01-TC01 for creating kafka connection
+    #Please refer to test case KM-01-TC01 for creating kafka connection
               And user has created external bindable resource Kafka Connection "kafka-instance-123"
              When user navigates to Topology chart view
              Then user will see the bindable resource "kafka-instance-123" in trapezoid shape
@@ -286,7 +300,7 @@ Feature: Topology chart area
         @regression @manual
         Scenario: Connect to External Bindable resources: T-06-TC25
             Given user has installed Service Binding operator
-            #Please refer to test case KM-01-TC01 for creating kafka connection
+    #Please refer to test case KM-01-TC01 for creating kafka connection
               And user has created external bindable resource Kafka Connection "kafka-instance-123"
               And user is at the Topology chart view
              When user created a deployment workload "node-js-git-1"
@@ -316,9 +330,10 @@ Feature: Topology chart area
              Then user will see the the workload "nodejs-2" selected with sidebar open
 
 
-        @regression @odc-5947 @broken-test
+        @regression @odc-5947
         Scenario: Create Service Binding option in nodes actions menu: T-06-TC27
             Given user has installed Service Binding operator
+              And user has created or selected namespace "binding-service"
               And user is at developer perspective
               And user is at Topology page chart view
               And user has created a deployment workload "node-js1"
@@ -333,7 +348,7 @@ Feature: Topology chart area
             Given user has installed Service Binding operator
               And user is at Topology page chart view
               And user has created a deployment workload "node-js2"
-            #Please refer to test case KM-01-TC01 for creating kafka connection
+    #Please refer to test case KM-01-TC01 for creating kafka connection
               And user has created external bindable resource Kafka Connection "kafka-instance-ex"
               And user has created operator-backed service of postgresSQL "example-pg"
               And user has applied '/testdata/bindableresource1.yaml' yaml
@@ -349,7 +364,7 @@ Feature: Topology chart area
             Given user has installed Service Binding operator
               And user is at Topology page chart view
               And user has created a deployment workload "node-s"
-            #Please refer to test case KM-01-TC01 for creating kafka connection
+    #Please refer to test case KM-01-TC01 for creating kafka connection
               And user has created external bindable resource Kafka Connection "kafka-instance-ex"
              When user drag and drop the connector to Kafka Connection
               And user clicks on Create with name "node-s-d-kafka-instance-ex-akc"
@@ -378,10 +393,60 @@ Feature: Topology chart area
         Scenario: Create connection to already existing service binding connection: T-06-TC31
             Given user has installed Service Binding operator
               And user is at Topology page chart view
-            #Please refer to test case KM-01-TC01 for creating kafka connection
+    #Please refer to test case KM-01-TC01 for creating kafka connection
               And user has created service binding connnector between deployment workload "node-j" and Kafka Connection "kafka-instance-ex1"
              When user right clicks on workload "node-j"
               And user clicks on "Create Service Binding" option from context menu
               And user selects Bindable service as "kafka-instance-ex1"
               And user clicks on Save
              Then user will see error "Service binding already exists. Select a different service to connect to."
+
+
+        @regression @odc-4944 @manual
+        Scenario: Status on Service binding in topology: T-06-TC32
+            Given user has installed Service Binding operator
+              And user has installed Redis Operator
+              And user has installed Crunchy Postgres for Kubernetes operator
+              And user is at developer perspective
+              And user is at Topology page chart view
+              And user has created a deployment workload named "node-j"
+              And user has created a operator backed service of "Redis" operator named "redis-standalone"
+              And user has created a operator backed service "hippo" from yaml "test-data/hippo-postgres-cluster.yaml"
+              And user has created service binding connnector "test-connector1" between "node-j" and "redis-standalone"
+              And user has created service binding connnector "test-connector2" between "node-j" and "hippo"
+             When user clicks on service binding connector for "hippo"
+              And user clicks on service binding connector for "redis-standalone"
+             Then user will see black colored connector for "hippo"
+              And user can see "Connected" in Status section on service binding connnector topology sidebar
+              And user will see red colored connector for "redis-standalone"
+              And user can see "Error" in Status section on service binding connnector topology sidebar
+
+
+        @regression @odc-4944
+        Scenario: Connected status on Service binding details page: T-06-TC33
+            Given user has created namespace "aut-connected-sb"
+              And user has installed Service Binding operator
+              And user has installed Crunchy Postgres for Kubernetes operator
+              And user is at developer perspective
+              And user is at Topology page chart view
+              And user has created a deployment workload named "node-ej"
+              And user has created a operator backed service "hippo" from yaml "test-data/hippo-postgres-cluster.yaml"
+              And user has created service binding connnector "test-connector2" between "node-ej" and "hippo"
+             When user clicks on service binding connector
+              And user clicks on the service binding name "test-connector2" at the sidebar
+             Then user will see "Connected" Status on Service binding details page
+
+
+        @regression @odc-4944
+        Scenario: Error status on Service binding details page: T-06-TC34
+            Given user has created namespace "aut-error-sb"
+              And user has installed Service Binding operator
+              And user has installed Redis Operator
+              And user is at developer perspective
+              And user is at Topology page chart view
+              And user has created a deployment workload named "node-ej"
+              And user has created a operator backed service of "Redis" operator named "redis-standalone-test"
+              And user has created service binding connnector "test-connector3" between "node-ej" and "redis-standalone-test"
+             When user clicks on service binding connector
+              And user clicks on the service binding name "test-connector3" at the sidebar
+             Then user will see "Error" Status on Service binding details page

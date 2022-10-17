@@ -1,12 +1,23 @@
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as _ from 'lodash-es';
+import {
+  PrometheusData,
+  PrometheusEndpoint,
+  PrometheusLabels,
+  YellowExclamationTriangleIcon,
+} from '@console/dynamic-plugin-sdk';
 import {
   ActionGroup,
   Button,
+  Dropdown,
+  DropdownItem,
+  DropdownPosition,
+  DropdownToggle,
   EmptyState,
   EmptyStateBody,
   EmptyStateIcon,
   EmptyStateVariant,
+  KebabToggle,
   Switch,
   Title,
 } from '@patternfly/react-core';
@@ -33,125 +44,39 @@ import { useTranslation } from 'react-i18next';
 // @ts-ignore
 import { useDispatch, useSelector } from 'react-redux';
 
-import { PrometheusEndpoint } from '@console/dynamic-plugin-sdk/src/api/internal-types';
-import CloseButton from '@console/shared/src/components/close-button';
-import { withFallback } from '@console/shared/src/components/error/error-boundary';
-import { RedExclamationCircleIcon, YellowExclamationTriangleIcon } from '@console/shared';
+import { withFallback } from '@console/shared/src/components/error';
 
 import {
   queryBrowserAddQuery,
+  queryBrowserDuplicateQuery,
   queryBrowserDeleteAllQueries,
   queryBrowserDeleteQuery,
-  queryBrowserInsertText,
   queryBrowserPatchQuery,
   queryBrowserRunQueries,
   queryBrowserSetAllExpanded,
-  queryBrowserSetMetrics,
   queryBrowserSetPollInterval,
+  queryBrowserToggleAllSeries,
   queryBrowserToggleIsEnabled,
   queryBrowserToggleSeries,
   toggleGraphs,
 } from '../../actions/observe';
 import { RootState } from '../../redux';
-import { fuzzyCaseInsensitive } from '../factory/table-filters';
-import { PrometheusData, PrometheusLabels, PROMETHEUS_BASE_PATH } from '../graphs';
 import { getPrometheusURL } from '../graphs/helpers';
-import {
-  ActionsMenu,
-  Dropdown,
-  getURLSearchParams,
-  Kebab,
-  LoadingInline,
-  usePoll,
-  useSafeFetch,
-} from '../utils';
+import { AsyncComponent, getURLSearchParams, LoadingInline, usePoll, useSafeFetch } from '../utils';
 import { setAllQueryArguments } from '../utils/router';
+import { useBoolean } from './hooks/useBoolean';
 import IntervalDropdown from './poll-interval-dropdown';
 import { colors, Error, QueryBrowser } from './query-browser';
 import TablePagination from './table-pagination';
 import { PrometheusAPIError } from './types';
-
-const operators = [
-  'and',
-  'by()',
-  'group_left()',
-  'group_right()',
-  'ignoring()',
-  'offset',
-  'on()',
-  'or',
-  'unless',
-  'without()',
-];
-
-const aggregationOperators = [
-  'avg()',
-  'bottomk()',
-  'count()',
-  'count_values()',
-  'max()',
-  'min()',
-  'quantile()',
-  'stddev()',
-  'stdvar()',
-  'sum()',
-  'topk()',
-];
-
-const prometheusFunctions = [
-  'abs()',
-  'absent()',
-  'avg_over_time()',
-  'ceil()',
-  'changes()',
-  'clamp_max()',
-  'clamp_min()',
-  'count_over_time()',
-  'day_of_month()',
-  'day_of_week()',
-  'days_in_month()',
-  'delta()',
-  'deriv()',
-  'exp()',
-  'floor()',
-  'histogram_quantile()',
-  'holt_winters()',
-  'hour()',
-  'idelta()',
-  'increase()',
-  'irate()',
-  'label_join()',
-  'label_replace()',
-  'ln()',
-  'log10()',
-  'log2()',
-  'max_over_time()',
-  'min_over_time()',
-  'minute()',
-  'month()',
-  'predict_linear()',
-  'quantile_over_time()',
-  'rate()',
-  'resets()',
-  'round()',
-  'scalar()',
-  'sort()',
-  'sort_desc()',
-  'sqrt()',
-  'stddev_over_time()',
-  'stdvar_over_time()',
-  'sum_over_time()',
-  'time()',
-  'timestamp()',
-  'vector()',
-  'year()',
-];
 
 // Stores information about the currently focused query input
 let focusedQuery;
 
 const MetricsActionsMenu: React.FC<{}> = () => {
   const { t } = useTranslation();
+
+  const [isOpen, setIsOpen, , setClosed] = useBoolean(false);
 
   const isAllExpanded = useSelector(({ observe }: RootState) =>
     observe.getIn(['queryBrowser', 'queries']).every((q) => q.get('isExpanded')),
@@ -165,21 +90,31 @@ const MetricsActionsMenu: React.FC<{}> = () => {
     focusedQuery = undefined;
   };
 
-  const actionsMenuActions = [
-    { label: t('public~Add query'), callback: addQuery },
-    {
-      label: isAllExpanded
-        ? t('public~Collapse all query tables')
-        : t('public~Expand all query tables'),
-      callback: () => dispatch(queryBrowserSetAllExpanded(!isAllExpanded)),
-    },
-    { label: t('public~Delete all queries'), callback: doDelete },
+  const dropdownItems = [
+    <DropdownItem key="add-query" component="button" onClick={addQuery}>
+      {t('public~Add query')}
+    </DropdownItem>,
+    <DropdownItem
+      key="collapse-all"
+      component="button"
+      onClick={() => dispatch(queryBrowserSetAllExpanded(!isAllExpanded))}
+    >
+      {isAllExpanded ? t('public~Collapse all query tables') : t('public~Expand all query tables')}
+    </DropdownItem>,
+    <DropdownItem key="delete-all" component="button" onClick={doDelete}>
+      {t('public~Delete all queries')}
+    </DropdownItem>,
   ];
 
   return (
-    <div className="co-actions">
-      <ActionsMenu actions={actionsMenuActions} />
-    </div>
+    <Dropdown
+      className="co-actions-menu"
+      dropdownItems={dropdownItems}
+      isOpen={isOpen}
+      onSelect={setClosed}
+      position={DropdownPosition.right}
+      toggle={<DropdownToggle onToggle={setIsOpen}>Actions</DropdownToggle>}
+    />
   );
 };
 
@@ -202,77 +137,6 @@ export const ToggleGraph: React.FC<{}> = () => {
     >
       {icon} {hideGraphs ? t('public~Show graph') : t('public~Hide graph')}
     </Button>
-  );
-};
-
-const MetricsDropdown: React.FC<{}> = () => {
-  const { t } = useTranslation();
-
-  const dispatch = useDispatch();
-
-  const [items, setItems] = React.useState<MetricsDropdownItems>();
-  const [error, setError] = React.useState<PrometheusAPIError>();
-
-  const safeFetch = React.useCallback(useSafeFetch(), []);
-
-  React.useEffect(() => {
-    safeFetch(`${PROMETHEUS_BASE_PATH}/${PrometheusEndpoint.LABEL}/__name__/values`)
-      .then((response) => {
-        const metrics = response?.data;
-        setItems(_.zipObject(metrics, metrics));
-        dispatch(queryBrowserSetMetrics(metrics));
-      })
-      .catch((err) => {
-        if (err.name !== 'AbortError') {
-          setError(err);
-        }
-      });
-  }, [dispatch, safeFetch]);
-
-  const onChange = (metric: string) => {
-    // Replace the currently selected text with the metric
-    const { index = 0, selection = {}, target = undefined } = focusedQuery || {};
-    dispatch(queryBrowserInsertText(index, metric, selection.start, selection.end));
-
-    if (target) {
-      target.focus();
-
-      // Restore cursor position / currently selected text (use _.defer() to delay until after the input value is set)
-      _.defer(() => target.setSelectionRange(selection.start, selection.start + metric.length));
-    }
-  };
-
-  let title: React.ReactNode = t('public~Insert metric at cursor');
-  if (error !== undefined) {
-    const message =
-      error?.response?.status === 403
-        ? t('public~Access restricted.')
-        : t('public~Failed to load metrics list.');
-    title = (
-      <span>
-        <RedExclamationCircleIcon /> {message}
-      </span>
-    );
-  } else if (items === undefined) {
-    title = <LoadingInline />;
-  } else if (_.isEmpty(items)) {
-    title = (
-      <span>
-        <YellowExclamationTriangleIcon /> {t('public~No metrics found.')}
-      </span>
-    );
-  }
-
-  return (
-    <Dropdown
-      autocompleteFilter={fuzzyCaseInsensitive}
-      disabled={error !== undefined}
-      id="metrics-dropdown"
-      items={items || {}}
-      menuClassName="query-browser__metrics-dropdown-menu query-browser__metrics-dropdown-menu--insert"
-      onChange={onChange}
-      title={title}
-    />
   );
 };
 
@@ -348,193 +212,16 @@ const SeriesButton: React.FC<SeriesButtonProps> = ({ index, labels }) => {
   );
 };
 
-// Highlight characters in `text` based on the search string `token`
-const HighlightMatches: React.FC<{ text: string; token: string }> = ({ text, token }) => {
-  // Autocompletion uses fuzzy matching, so the entire `token` string may not be a substring of
-  // `text`. Instead, we find the longest starting substring of `token` that exists in `text` and
-  // highlight it. Then we repeat with the remainder of `token` and `text` and continue until all
-  // the characters of `token` have been found somewhere in `text`.
-  for (let sub = token; sub.length > 0; sub = sub.slice(0, -1)) {
-    const i = text.toLowerCase().indexOf(sub);
-    if (i !== -1) {
-      return (
-        <>
-          {text.slice(0, i)}
-          <span className="query-browser__autocomplete-match">{text.slice(i, i + sub.length)}</span>
-          <HighlightMatches text={text.slice(i + sub.length)} token={token.slice(sub.length)} />
-        </>
-      );
-    }
-  }
-  return <>{text}</>;
-};
-
-export const QueryInput: React.FC<QueryInputProps> = ({ index }) => {
-  const { t } = useTranslation();
-
-  const [token, setToken] = React.useState('');
-
-  const metrics = useSelector(({ observe }: RootState) =>
-    observe.getIn(['queryBrowser', 'metrics']),
-  );
-
-  const text = useSelector(({ observe }: RootState) =>
-    observe.getIn(['queryBrowser', 'queries', index, 'text'], ''),
-  );
-
-  const dispatch = useDispatch();
-
-  const inputRef = React.useRef(null);
-
-  const getTextBeforeCursor = () =>
-    inputRef.current.value.substring(0, inputRef.current.selectionEnd);
-
-  const updateToken = _.debounce(() => {
-    // Metric and function names can only contain the characters a-z, A-Z, 0-9, '_' and ':'
-    const allTokens = getTextBeforeCursor().split(/[^a-zA-Z0-9_:]+/);
-
-    // We always do case insensitive autocompletion, so convert to lower case immediately
-    setToken(_.toLower(_.last(allTokens)));
-  }, 200);
-
-  const onChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    dispatch(queryBrowserPatchQuery(index, { text: e.target.value }));
-    updateToken();
-  };
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    // Enter+Shift inserts newlines, Enter alone runs the query
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      dispatch(queryBrowserRunQueries());
-      setToken('');
-    }
-  };
-
-  const onBlur = (e: React.FocusEvent<HTMLTextAreaElement>) => {
-    focusedQuery = {
-      index,
-      selection: {
-        start: e.target.selectionStart,
-        end: e.target.selectionEnd,
-      },
-      target: e.target,
-    };
-    setToken('');
-  };
-
-  // Use onMouseDown instead of onClick so that this is run before the onBlur handler
-  const onMouseDown = (e: React.MouseEvent<HTMLButtonElement>) => {
-    // Replace the autocomplete token with the selected autocomplete option (case insensitive)
-    const re = new RegExp(`${_.escapeRegExp(token)}$`, 'i');
-    const newTextBeforeCursor = getTextBeforeCursor().replace(
-      re,
-      e.currentTarget.dataset.autocomplete,
-    );
-    dispatch(
-      queryBrowserPatchQuery(index, {
-        text: newTextBeforeCursor + text.substring(inputRef.current.selectionEnd),
-      }),
-    );
-
-    // Move cursor to just after the text we inserted (use _.defer() so this is called after the textarea value is set)
-    const cursorPosition = newTextBeforeCursor.length;
-    _.defer(() => {
-      inputRef.current.setSelectionRange(cursorPosition, cursorPosition);
-      inputRef.current.focus();
-    });
-  };
-
-  const onClear = () => {
-    dispatch(queryBrowserPatchQuery(index, { text: '' }));
-    inputRef.current.focus();
-  };
-
-  // Order autocompletion suggestions so that exact matches (token as a substring) are first, then fuzzy matches after
-  // Exact matches are sorted first by how early the token appears and secondarily by string length (shortest first)
-  // Fuzzy matches are sorted by string length (shortest first)
-  const isMatch = (v: string) => fuzzyCaseInsensitive(token, v);
-  const matchScore = (v: string): number => {
-    const i = v.toLowerCase().indexOf(token);
-    return i === -1 ? Infinity : i;
-  };
-  const filterSuggestions = (options: string[]): string[] =>
-    _.sortBy(options.filter(isMatch), [matchScore, 'length']);
-
-  const allSuggestions =
-    token.length < 2
-      ? {}
-      : _.omitBy(
-          {
-            ['Operators']: filterSuggestions(operators),
-            ['Aggregation Operators']: filterSuggestions(aggregationOperators),
-            ['Functions']: filterSuggestions(prometheusFunctions),
-            ['Metrics']: filterSuggestions(metrics),
-          },
-          _.isEmpty,
-        );
-
-  // Set the default textarea height to the number of lines in the query text
-  const rows = _.clamp((text.match(/\n/g) || []).length + 1, 2, 10);
-
-  const placeholder = t('public~Expression (press Shift+Enter for newlines)');
-
-  return (
-    <div className="query-browser__query pf-c-dropdown">
-      <textarea
-        aria-label={placeholder}
-        autoFocus
-        className="pf-c-form-control query-browser__query-input"
-        onBlur={onBlur}
-        onChange={onChange}
-        onKeyDown={onKeyDown}
-        placeholder={placeholder}
-        ref={inputRef}
-        rows={rows}
-        spellCheck={false}
-        value={text}
-      />
-      <CloseButton
-        additionalClassName="query-browser__clear-icon"
-        ariaLabel={t('public~Clear query')}
-        onClick={onClear}
-      />
-      {!_.isEmpty(allSuggestions) && (
-        <ul className="pf-c-dropdown__menu query-browser__metrics-dropdown-menu">
-          {_.map(allSuggestions, (suggestions, title) => (
-            <React.Fragment key={title}>
-              <div className="text-muted query-browser__dropdown--subtitle">{title}</div>
-              {_.map(suggestions, (s) => (
-                <li key={s}>
-                  <button
-                    className="pf-c-dropdown__menu-item"
-                    data-autocomplete={s}
-                    onMouseDown={onMouseDown}
-                    type="button"
-                  >
-                    <HighlightMatches text={s} token={token} />
-                  </button>
-                </li>
-              ))}
-            </React.Fragment>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-};
-
 const QueryKebab: React.FC<{ index: number }> = ({ index }) => {
   const { t } = useTranslation();
+
+  const [isOpen, setIsOpen, , setClosed] = useBoolean(false);
 
   const isDisabledSeriesEmpty = useSelector(({ observe }: RootState) =>
     _.isEmpty(observe.getIn(['queryBrowser', 'queries', index, 'disabledSeries'])),
   );
   const isEnabled = useSelector(({ observe }: RootState) =>
     observe.getIn(['queryBrowser', 'queries', index, 'isEnabled']),
-  );
-  const series = useSelector(({ observe }: RootState) =>
-    observe.getIn(['queryBrowser', 'queries', index, 'series']),
   );
 
   const dispatch = useDispatch();
@@ -544,34 +231,44 @@ const QueryKebab: React.FC<{ index: number }> = ({ index }) => {
     index,
   ]);
 
-  const toggleAllSeries = React.useCallback(
-    () =>
-      dispatch(
-        queryBrowserPatchQuery(index, {
-          disabledSeries: isDisabledSeriesEmpty ? series : [],
-        }),
-      ),
-    [dispatch, index, isDisabledSeriesEmpty, series],
-  );
+  const toggleAllSeries = React.useCallback(() => dispatch(queryBrowserToggleAllSeries(index)), [
+    dispatch,
+    index,
+  ]);
 
   const doDelete = React.useCallback(() => {
     dispatch(queryBrowserDeleteQuery(index));
     focusedQuery = undefined;
   }, [dispatch, index]);
 
+  const doClone = React.useCallback(() => {
+    dispatch(queryBrowserDuplicateQuery(index));
+  }, [dispatch, index]);
+
+  const dropdownItems = [
+    <DropdownItem key="toggle-query" component="button" onClick={toggleIsEnabled}>
+      {isEnabled ? t('public~Disable query') : t('public~Enable query')}
+    </DropdownItem>,
+    <DropdownItem key="toggle-all-series" component="button" onClick={toggleAllSeries}>
+      {isDisabledSeriesEmpty ? t('public~Hide all series') : t('public~Show all series')}
+    </DropdownItem>,
+    <DropdownItem key="delete" component="button" onClick={doDelete}>
+      {t('public~Delete query')}
+    </DropdownItem>,
+    <DropdownItem key="duplicate" component="button" onClick={doClone}>
+      {t('public~Duplicate query')}
+    </DropdownItem>,
+  ];
+
   return (
-    <Kebab
-      options={[
-        {
-          label: isEnabled ? t('public~Disable query') : t('public~Enable query'),
-          callback: toggleIsEnabled,
-        },
-        {
-          label: isDisabledSeriesEmpty ? t('public~Hide all series') : t('public~Show all series'),
-          callback: toggleAllSeries,
-        },
-        { label: t('public~Delete query'), callback: doDelete },
-      ]}
+    <Dropdown
+      data-test-id="kebab-button"
+      dropdownItems={dropdownItems}
+      isOpen={isOpen}
+      isPlain
+      onSelect={setClosed}
+      position={DropdownPosition.right}
+      toggle={<KebabToggle id="toggle-kebab" onToggle={setIsOpen} />}
     />
   );
 };
@@ -600,6 +297,22 @@ export const QueryTable: React.FC<QueryTableProps> = ({ index, namespace }) => {
   const series = useSelector(({ observe }: RootState) =>
     observe.getIn(['queryBrowser', 'queries', index, 'series']),
   );
+  const span = useSelector(({ observe }: RootState) => observe.getIn(['queryBrowser', 'timespan']));
+
+  const lastRequestTime = useSelector(({ observe }: RootState) =>
+    observe.getIn(['queryBrowser', 'lastRequestTime']),
+  );
+
+  const dispatch = useDispatch();
+
+  const toggleAllSeries = React.useCallback(() => dispatch(queryBrowserToggleAllSeries(index)), [
+    dispatch,
+    index,
+  ]);
+
+  const isDisabledSeriesEmpty = useSelector(({ observe }: RootState) =>
+    _.isEmpty(observe.getIn(['queryBrowser', 'queries', index, 'disabledSeries'])),
+  );
 
   const safeFetch = React.useCallback(useSafeFetch(), []);
 
@@ -619,7 +332,7 @@ export const QueryTable: React.FC<QueryTableProps> = ({ index, namespace }) => {
     }
   };
 
-  usePoll(tick, pollInterval, namespace, query);
+  usePoll(tick, pollInterval, namespace, query, span, lastRequestTime);
 
   React.useEffect(() => {
     setData(undefined);
@@ -664,19 +377,16 @@ export const QueryTable: React.FC<QueryTableProps> = ({ index, namespace }) => {
     );
   }
 
-  const cellProps = {
-    props: { className: 'query-browser__table-cell' },
-    transforms: [sortable, wrappable],
-  };
+  const transforms = [sortable, wrappable];
 
   const buttonCell = (labels) => ({ title: <SeriesButton index={index} labels={labels} /> });
 
   let columns, rows;
   if (data.resultType === 'scalar') {
-    columns = ['', { title: t('public~Value'), ...cellProps }];
+    columns = ['', { title: t('public~Value'), transforms }];
     rows = [[buttonCell({}), _.get(result, '[1]')]];
   } else if (data.resultType === 'string') {
-    columns = [{ title: t('public~Value'), ...cellProps }];
+    columns = [{ title: t('public~Value'), transforms }];
     rows = [[result?.[1]]];
   } else {
     const allLabelKeys = _.uniq(_.flatMap(result, ({ metric }) => Object.keys(metric))).sort();
@@ -685,9 +395,9 @@ export const QueryTable: React.FC<QueryTableProps> = ({ index, namespace }) => {
       '',
       ...allLabelKeys.map((k) => ({
         title: <span>{k === '__name__' ? t('public~Name') : k}</span>,
-        ...cellProps,
+        transforms,
       })),
-      { title: t('public~Value'), ...cellProps },
+      { title: t('public~Value'), transforms },
     ];
 
     let rowMapper;
@@ -737,18 +447,28 @@ export const QueryTable: React.FC<QueryTableProps> = ({ index, namespace }) => {
   return (
     <>
       <div className="query-browser__table-wrapper">
-        <Table
-          aria-label={t('public~query results table')}
-          cells={columns}
-          gridBreakPoint={TableGridBreakpoint.none}
-          onSort={onSort}
-          rows={tableRows}
-          sortBy={sortBy}
-          variant={TableVariant.compact}
-        >
-          <TableHeader />
-          <TableBody />
-        </Table>
+        <div className="horizontal-scroll">
+          <Button
+            variant="link"
+            isInline
+            onClick={toggleAllSeries}
+            className="query-browser__series-select-all-btn"
+          >
+            {isDisabledSeriesEmpty ? t('public~Unselect all') : t('public~Select all')}
+          </Button>
+          <Table
+            aria-label={t('public~query results table')}
+            cells={columns}
+            gridBreakPoint={TableGridBreakpoint.none}
+            onSort={onSort}
+            rows={tableRows}
+            sortBy={sortBy}
+            variant={TableVariant.compact}
+          >
+            <TableHeader />
+            <TableBody />
+          </Table>
+        </div>
       </div>
       <TablePagination
         itemCount={rows.length}
@@ -761,6 +481,13 @@ export const QueryTable: React.FC<QueryTableProps> = ({ index, namespace }) => {
   );
 };
 
+const PromQLExpressionInput = (props) => (
+  <AsyncComponent
+    loader={() => import('./promql-expression-input').then((c) => c.PromQLExpressionInput)}
+    {...props}
+  />
+);
+
 const Query: React.FC<{ index: number }> = ({ index }) => {
   const { t } = useTranslation();
 
@@ -772,6 +499,9 @@ const Query: React.FC<{ index: number }> = ({ index }) => {
   );
   const isExpanded = useSelector(({ observe }: RootState) =>
     observe.getIn(['queryBrowser', 'queries', index, 'isExpanded']),
+  );
+  const text = useSelector(({ observe }: RootState) =>
+    observe.getIn(['queryBrowser', 'queries', index, 'text'], ''),
   );
 
   const dispatch = useDispatch();
@@ -786,6 +516,25 @@ const Query: React.FC<{ index: number }> = ({ index }) => {
     [dispatch, index, isExpanded],
   );
 
+  const handleTextChange = React.useCallback(
+    (value: string) => {
+      dispatch(queryBrowserPatchQuery(index, { text: value }));
+    },
+    [dispatch, index],
+  );
+
+  const handleExecuteQueries = React.useCallback(() => {
+    dispatch(queryBrowserRunQueries());
+  }, [dispatch]);
+
+  const handleSelectionChange = (
+    target: { focus: () => void; setSelectionRange: (start: number, end: number) => void },
+    start: number,
+    end: number,
+  ) => {
+    focusedQuery = { index, selection: { start, end }, target };
+  };
+
   const switchKey = `${id}-${isEnabled}`;
   const switchLabel = isEnabled ? t('public~Disable query') : t('public~Enable query');
 
@@ -797,7 +546,12 @@ const Query: React.FC<{ index: number }> = ({ index }) => {
     >
       <div className="query-browser__query-controls">
         <ExpandButton isExpanded={isExpanded} onClick={toggleIsExpanded} />
-        <QueryInput index={index} />
+        <PromQLExpressionInput
+          value={text}
+          onValueChange={handleTextChange}
+          onExecuteQuery={handleExecuteQueries}
+          onSelectionChange={handleSelectionChange}
+        />
         <div title={switchLabel}>
           <Switch
             aria-label={switchLabel}
@@ -845,8 +599,8 @@ const QueryBrowserWrapper: React.FC<{}> = () => {
   }, [dispatch]);
 
   /* eslint-disable react-hooks/exhaustive-deps */
-  // Use React.useMemo() to prevent these two arrays being recreated on every render, which would trigger unnecessary
-  // re-renders of QueryBrowser, which can be quite slow
+  // Use React.useMemo() to prevent these two arrays being recreated on every render, which would
+  // trigger unnecessary re-renders of QueryBrowser, which can be quite slow
   const queriesMemoKey = JSON.stringify(_.map(queries, 'query'));
   const queryStrings = React.useMemo(() => _.map(queries, 'query'), [queriesMemoKey]);
   const disabledSeriesMemoKey = JSON.stringify(
@@ -987,16 +741,15 @@ const QueryBrowserPage_: React.FC<{}> = () => {
       <div className="co-m-pane__body">
         <div className="row">
           <div className="col-xs-12">
-            <ToggleGraph />
+            <div className="query-browser__toggle-graph-container">
+              <ToggleGraph />
+            </div>
           </div>
         </div>
         <div className="row">
           <div className="col-xs-12">
             <QueryBrowserWrapper />
             <div className="query-browser__controls">
-              <div className="query-browser__controls--left">
-                <MetricsDropdown />
-              </div>
               <div className="query-browser__controls--right">
                 <ActionGroup className="pf-c-form pf-c-form__group--no-top-margin">
                   <AddQueryButton />
@@ -1012,15 +765,6 @@ const QueryBrowserPage_: React.FC<{}> = () => {
   );
 };
 export const QueryBrowserPage = withFallback(QueryBrowserPage_);
-
-type MetricsDropdownItems = {
-  [key: string]: string;
-};
-
-type QueryInputProps = {
-  index: number;
-  namespace?: string;
-};
 
 type QueryTableProps = {
   index: number;

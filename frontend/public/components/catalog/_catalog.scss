@@ -22,6 +22,10 @@ $catalog-tile-width: $co-m-catalog-tile-width;
   min-width: 515px; // in order to accommodate filters and tiles at mobile
 }
 
+.co-catalog-item-info {
+  margin-bottom: 20px;
+}
+
 // Prevents our tile text from inheriting the link color
 .co-catalog-tile {
   color: var(--pf-global--Color--100);
@@ -41,6 +45,7 @@ $catalog-tile-width: $co-m-catalog-tile-width;
 }
 
 .co-catalog-item-details {
+  align-items: flex-start;
   display: flex;
   margin: 0 0 10px;
 
@@ -62,7 +67,7 @@ $catalog-tile-width: $co-m-catalog-tile-width;
   }
 
   &__tag {
-    color: $pf-color-black-600;
+    color: var(--pf-global--Color--200);
     font-size: ($font-size-base - 1);
     margin-right: 5px;
     text-transform: uppercase;
@@ -70,7 +75,15 @@ $catalog-tile-width: $co-m-catalog-tile-width;
 }
 
 .co-catalog-item-icon {
-  padding-right: 10px;
+  @include catalog-logo-background();
+  margin-right: 15px;
+
+  &__bg {
+    align-items: center;
+    display: flex;
+    min-height: 40px;
+    min-width: 40px; // prevent Firefox from collapsing the img since it assigns base64 encoded svg without height and width values to 0 https://bugzilla.mozilla.org/show_bug.cgi?id=1328124 and https://jsbin.com/kuzovihumo/edit?js,console
+  }
 
   &__icon {
     font-size: $catalog-item-icon-size-sm;
@@ -83,6 +96,7 @@ $catalog-tile-width: $co-m-catalog-tile-width;
   &__img {
     max-height: $catalog-item-icon-size-sm;
     max-width: $catalog-item-icon-size-sm;
+    width: 100%; // prevent image size collapse to 0
 
     &[src$='.svg'] {
       width: $catalog-item-icon-size-sm;
@@ -223,11 +237,6 @@ $catalog-tile-width: $co-m-catalog-tile-width;
       --pf-c-modal-box__body--last-child--PaddingBottom: 0 !important;
     }
 
-    .modal-body-inner-shadow-covers {
-      padding-left: 0 !important;
-      padding-right: 0 !important;
-    }
-
     h1 {
       white-space: normal;
     }
@@ -264,8 +273,6 @@ $catalog-tile-width: $co-m-catalog-tile-width;
 
   &__overlay-body {
     margin: 0;
-    padding-left: var(--pf-global--spacer--lg);
-    padding-right: var(--pf-global--spacer--lg);
     padding-top: var(--pf-global--spacer--md);
     @media (min-width: $screen-sm-min) {
       display: flex;
@@ -281,7 +288,9 @@ $catalog-tile-width: $co-m-catalog-tile-width;
     h1,
     h2,
     h3 {
-      color: var(--pf-global--Color--100); // same color as styles hardcoded in markdown text component
+      color: var(
+        --pf-global--Color--100
+      ); // same color as styles hardcoded in markdown text component
     }
 
     h2 {
@@ -291,7 +300,9 @@ $catalog-tile-width: $co-m-catalog-tile-width;
     p,
     li,
     ol {
-      color: var(--pf-global--Color--100); // same color as styles hardcoded in markdown text component
+      color: var(
+        --pf-global--Color--100
+      ); // same color as styles hardcoded in markdown text component
       font-size: $font-size-base !important;
     }
 
@@ -305,6 +316,10 @@ $catalog-tile-width: $co-m-catalog-tile-width;
   &__tabs {
     flex: 0 0 220px;
     margin: 0 $pf-global-gutter 0 0;
+  }
+
+  &__searchfilter {
+    display: inline-flex;
   }
 }
 

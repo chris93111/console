@@ -21,10 +21,12 @@ export const topologyHelper = {
       }
     });
     cy.get(topologyPO.graph.reset).click();
+    cy.get(topologyPO.graph.fitToScreen).click();
     cy.get(topologyPO.highlightNode, options).should('be.visible');
     app.waitForDocumentLoad();
   },
-  verifyWorkloadDeleted: (workloadName: string) => {
-    topologyHelper.search(workloadName).should('not.be.visible');
+  verifyWorkloadDeleted: (workloadName: string, options?: { timeout: number }) => {
+    topologyHelper.search(workloadName);
+    cy.get(topologyPO.highlightNode, options).should('not.exist');
   },
 };

@@ -6,6 +6,8 @@ import {
   Button,
   Card,
   CardBody,
+  CodeBlock,
+  CodeBlockCode,
   Page,
   PageSection,
   Title,
@@ -131,14 +133,14 @@ const K8sAPIConsumer: React.FC = () => {
     <Page
       additionalGroupedContent={
         <PageSection variant="light">
-          <Title headingLevel="h1">{t('K8s API from Dynamic Plugin SDK')}</Title>
+          <Title headingLevel="h1" data-test="test-k8sapi-title">{t('K8s API from Dynamic Plugin SDK')}</Title>
         </PageSection>
       }
     >
       <PageSection>
         {errData && (
           <AlertGroup>
-            <Alert title={errData} variant="warning" isInline />
+            <Alert data-test="test-k8api-error" title={errData} variant="warning" isInline />
           </AlertGroup>
         )}
         <Card>
@@ -146,7 +148,7 @@ const K8sAPIConsumer: React.FC = () => {
             <Button isBlock onClick={k8sCreateClick}>
               {t('k8sCreate')}
             </Button>
-            <ConsoleK8sAPIConsumer data={k8sCreateData} />
+            <ConsoleK8sAPIConsumer data-test="test-k8s-create" data={k8sCreateData} />
           </CardBody>
         </Card>
         <Card>
@@ -154,7 +156,7 @@ const K8sAPIConsumer: React.FC = () => {
             <Button isBlock onClick={k8sGetClick}>
               {t('k8sGet')}
             </Button>
-            <ConsoleK8sAPIConsumer data={k8sGetData} />
+            <ConsoleK8sAPIConsumer data-test="test-k8s-get" data={k8sGetData} />
           </CardBody>
         </Card>
         <Card>
@@ -162,7 +164,7 @@ const K8sAPIConsumer: React.FC = () => {
             <Button isBlock onClick={k8sPatchClick}>
               {t('k8sPatch')}
             </Button>
-            <ConsoleK8sAPIConsumer data={k8sPatchData} />
+            <ConsoleK8sAPIConsumer data-test="test-k8s-patch" data={k8sPatchData} />
           </CardBody>
         </Card>
         <Card>
@@ -170,7 +172,7 @@ const K8sAPIConsumer: React.FC = () => {
             <Button isBlock onClick={k8sUpdateClick}>
               {t('k8sUpdate')}
             </Button>
-            <ConsoleK8sAPIConsumer data={k8sUpdateData} />
+            <ConsoleK8sAPIConsumer data-test="test-k8s-update" data={k8sUpdateData} />
           </CardBody>
         </Card>
         <Card>
@@ -178,7 +180,7 @@ const K8sAPIConsumer: React.FC = () => {
             <Button isBlock onClick={k8sListClick}>
               {t('k8sList')}
             </Button>
-            <ConsoleK8sAPIConsumer data={k8sListData} />
+            <ConsoleK8sAPIConsumer data-test="test-k8s-list" data={k8sListData} />
           </CardBody>
         </Card>
         <Card>
@@ -186,7 +188,7 @@ const K8sAPIConsumer: React.FC = () => {
             <Button isBlock onClick={k8sDeleteClick}>
               {t('k8sDelete')}
             </Button>
-            <ConsoleK8sAPIConsumer data={k8sDeleteData} />
+            <ConsoleK8sAPIConsumer data-test="test-k8s-delete" data={k8sDeleteData} />
           </CardBody>
         </Card>
       </PageSection>
@@ -195,7 +197,13 @@ const K8sAPIConsumer: React.FC = () => {
 };
 
 const ConsoleK8sAPIConsumer: React.FC<{ data: any }> = ({ data }) => {
-  return <pre>{JSON.stringify(data, null, 2)}</pre>;
+  return (
+    <CodeBlock>
+      <CodeBlockCode>
+        {JSON.stringify(data, null, 2)}
+      </CodeBlockCode>
+    </CodeBlock>
+  );
 };
 
 export default K8sAPIConsumer;

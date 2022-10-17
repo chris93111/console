@@ -1,32 +1,22 @@
 import * as _ from 'lodash-es';
 import * as fuzzy from 'fuzzysearch';
 import { nodeStatus, volumeSnapshotStatus } from '@console/app/src/status';
-import { getNodeRole, getLabelsAsString } from '@console/shared';
-import { FilterValue, RowFilter } from '@console/dynamic-plugin-sdk';
+import { getNodeRoles, getLabelsAsString } from '@console/shared';
+import { Alert, FilterValue, RowFilter, Rule, Silence } from '@console/dynamic-plugin-sdk';
 import { routeStatus } from '../routes';
 import { secretTypeFilterReducer } from '../secret';
 import { roleType } from '../RBAC';
 import {
   K8sResourceKind,
   MachineKind,
-  serviceCatalogStatus,
-  serviceClassDisplayName,
-  servicePlanDisplayName,
   getClusterOperatorStatus,
   getTemplateInstanceStatus,
   VolumeSnapshotKind,
+  CustomResourceDefinitionKind,
 } from '../../module/k8s';
-import {
-  alertDescription,
-  alertingRuleHasAlertState,
-  alertingRuleSource,
-  alertSource,
-  alertState,
-  silenceState,
-  targetSource,
-} from '../monitoring/utils';
+import { alertDescription } from '../monitoring/utils';
 
-import { Alert, AlertStates, Rule, Silence, Target } from '../monitoring/types';
+import { Target } from '../monitoring/types';
 import { requesterFilter } from '@console/shared/src/components/namespace';
 
 export const fuzzyCaseInsensitive = (a: string, b: string): boolean =>
@@ -67,33 +57,11 @@ export const tableFilters: FilterMap = {
     return !!values.all.every((v) => labels.includes(v));
   },
 
-  'alert-severity': (filter, { labels }: Alert | Rule) =>
-    filter.selected?.includes(labels?.severity) || _.isEmpty(filter.selected),
-
-  'alert-source': (filter, alert: Alert) =>
-    filter.selected?.includes(alertSource(alert)) || _.isEmpty(filter.selected),
-
-  'alert-state': (filter, alert: Alert) =>
-    filter.selected?.includes(alertState(alert)) || _.isEmpty(filter.selected),
-
-  'alerting-rule-has-alert-state': (filter, rule: Rule) =>
-    alertingRuleHasAlertState(rule, filter.selected?.[0] as AlertStates) ||
-    _.isEmpty(filter.selected),
-
   'alerting-rule-name': (filter, rule: Rule) =>
     fuzzyCaseInsensitive(filter.selected?.[0], rule.name),
 
-  'alerting-rule-source': (filter, rule: Rule) =>
-    filter.selected?.includes(alertingRuleSource(rule)) || _.isEmpty(filter.selected),
-
   'observe-target-labels': (values, target: Target) =>
     !values.all || values.all.every((v) => getLabelsAsString(target, 'labels').includes(v)),
-
-  'observe-target-health': (filter, target: Target) =>
-    filter.selected?.includes(target.health) || _.isEmpty(filter.selected),
-
-  'observe-target-source': (filter, target: Target) =>
-    filter.selected?.includes(targetSource(target)) || _.isEmpty(filter.selected),
 
   'observe-target-text': (filter, target: Target) =>
     fuzzyCaseInsensitive(filter.selected?.[0], target.scrapeUrl) ||
@@ -101,9 +69,6 @@ export const tableFilters: FilterMap = {
 
   'silence-name': (filter, silence: Silence) =>
     fuzzyCaseInsensitive(filter.selected?.[0], silence.name),
-
-  'silence-state': (filter, silence: Silence) =>
-    filter.selected?.includes(silenceState(silence)) || _.isEmpty(filter.selected),
 
   // Filter role by role kind
   'role-kind': (filter, role) =>
@@ -148,8 +113,9 @@ export const tableFilters: FilterMap = {
     if (!roles || !roles.selected || !roles.selected.length) {
       return true;
     }
-    const role = getNodeRole(node);
-    return roles.selected.includes(role);
+
+    const roleList = getNodeRoles(node);
+    return roles.selected.filter((elem) => roleList.includes(elem)).length > 0;
   },
 
   'clusterserviceversion-resource-kind': (filters, resource) => {
@@ -195,15 +161,6 @@ export const tableFilters: FilterMap = {
     return statuses.selected.includes(status) || !_.includes(statuses.all, status);
   },
 
-  'catalog-status': (statuses, catalog) => {
-    if (!statuses || !statuses.selected || !statuses.selected.length) {
-      return true;
-    }
-
-    const status = serviceCatalogStatus(catalog);
-    return statuses.selected.includes(status) || !_.includes(statuses.all, status);
-  },
-
   'secret-type': (types, secret) => {
     if (!types || !types.selected || !types.selected.length) {
       return true;
@@ -227,17 +184,6 @@ export const tableFilters: FilterMap = {
 
     const phase = pvc.status.phase;
     return phases.selected.includes(phase) || !_.includes(phases.all, phase);
-  },
-
-  // Filter service classes by text match
-  'service-class': (str, serviceClass) => {
-    const displayName = serviceClassDisplayName(serviceClass);
-    return fuzzyCaseInsensitive(str.selected?.[0], displayName);
-  },
-
-  'service-plan': (str, servicePlan) => {
-    const displayName = servicePlanDisplayName(servicePlan);
-    return fuzzyCaseInsensitive(str.selected?.[0], displayName);
   },
 
   'cluster-operator-status': (statuses, operator) => {
@@ -284,6 +230,13 @@ export const tableFilters: FilterMap = {
   'cluster-service-version': (str, csv) => {
     const value = clusterServiceVersionDisplayName(csv);
     return fuzzyCaseInsensitive(str.selected?.[0], value);
+  },
+  'custom-resource-definition-name': (str, crd: CustomResourceDefinitionKind) => {
+    const displayName = _.get(crd, 'spec.names.kind');
+    return (
+      fuzzyCaseInsensitive(str.selected?.[0], crd.metadata.name) ||
+      fuzzyCaseInsensitive(str.selected?.[0], displayName)
+    );
   },
 };
 

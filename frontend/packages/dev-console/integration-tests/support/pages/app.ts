@@ -3,8 +3,15 @@ import { guidedTour } from '@console/cypress-integration-tests/views/guided-tour
 import { modal } from '@console/cypress-integration-tests/views/modal';
 import { nav } from '@console/cypress-integration-tests/views/nav';
 import * as yamlView from '../../../../integration-tests-cypress/views/yaml-editor';
-import { devNavigationMenu, switchPerspective, pageTitle } from '../constants';
-import { devNavigationMenuPO, formPO, gitPO, topologyPO, yamlPO } from '../pageObjects';
+import { devNavigationMenu, switchPerspective, pageTitle, adminNavigationBar } from '../constants';
+import {
+  devNavigationMenuPO,
+  formPO,
+  gitPO,
+  yamlPO,
+  topologyPO,
+  adminNavigationMenuPO,
+} from '../pageObjects';
 
 export const app = {
   waitForDocumentLoad: () => {
@@ -113,7 +120,7 @@ export const navigateTo = (opt: devNavigationMenu) => {
     }
     case devNavigationMenu.Builds: {
       cy.get(devNavigationMenuPO.builds).click();
-      detailsPage.titleShouldContain(pageTitle.BuildConfigs);
+      detailsPage.titleShouldContain(pageTitle.Builds);
       cy.testA11y('Builds Page in dev perspective');
       break;
     }
@@ -132,18 +139,21 @@ export const navigateTo = (opt: devNavigationMenu) => {
     }
     case devNavigationMenu.Helm: {
       cy.get(devNavigationMenuPO.helm).click();
-      detailsPage.titleShouldContain(pageTitle.HelmReleases);
+      detailsPage.titleShouldContain(pageTitle.Helm);
       cy.testA11y('Helm Releases Page in dev perspective');
       break;
     }
     case devNavigationMenu.Project: {
       cy.get(devNavigationMenuPO.project).click();
-      detailsPage.titleShouldContain(pageTitle.Project);
+      detailsPage.titleShouldContain(Cypress.env('NAMESPACE'));
       cy.testA11y('Projects Page in dev perspective');
       break;
     }
     case devNavigationMenu.ConfigMaps: {
-      cy.get(devNavigationMenuPO.configMaps).click();
+      perspective.switchTo(switchPerspective.Developer);
+      cy.byTestID('nav')
+        .contains('ConfigMaps')
+        .click();
       detailsPage.titleShouldContain(pageTitle.ConfigMaps);
       cy.testA11y('Config maps Page in dev perspective');
       break;
@@ -158,6 +168,66 @@ export const navigateTo = (opt: devNavigationMenu) => {
       cy.get(devNavigationMenuPO.environments).click();
       detailsPage.titleShouldContain(pageTitle.Environments);
       cy.testA11y('Environments Page in dev perspective');
+      break;
+    }
+    case devNavigationMenu.Routes: {
+      cy.get('body').then(($body) => {
+        if ($body.text().includes('Routes')) {
+          cy.byTestID('nav')
+            .contains('Routes')
+            .click();
+        } else {
+          cy.get(devNavigationMenuPO.search).click();
+          cy.get('[aria-label="Options menu"]').click();
+          cy.get('[placeholder="Select Resource"]')
+            .should('be.visible')
+            .type('route');
+          cy.get('[data-filter-text="RTRoute"]').then(($el) => {
+            if ($el.text().includes('route.openshift.io/v1')) {
+              cy.wrap($el)
+                .contains('route.openshift.io/v1')
+                .click();
+            } else {
+              cy.wrap($el).click();
+            }
+          });
+          cy.get('.co-search-group__pin-toggle')
+            .should('be.visible')
+            .click();
+          cy.byTestID('nav')
+            .contains('Routes')
+            .should('be.visible')
+            .click();
+        }
+      });
+      detailsPage.titleShouldContain(pageTitle.Routes);
+      cy.testA11y('Routes Page in dev perspective');
+      break;
+    }
+    case devNavigationMenu.Deployments: {
+      cy.get('body').then(($body) => {
+        if ($body.text().includes('Deployments')) {
+          cy.byTestID('nav')
+            .contains('Deployments')
+            .click();
+        } else {
+          cy.get(devNavigationMenuPO.search).click();
+          cy.get('[aria-label="Options menu"]').click();
+          cy.get('[placeholder="Select Resource"]')
+            .should('be.visible')
+            .type('Deployment');
+          cy.get('[data-filter-text="DDeployment"]').click();
+          cy.get('.co-search-group__pin-toggle')
+            .should('be.visible')
+            .click();
+          cy.byTestID('nav')
+            .contains('Deployments')
+            .should('be.visible')
+            .click();
+        }
+      });
+      detailsPage.titleShouldContain(pageTitle.Deployments);
+      cy.testA11y('Deployments Page in dev perspective');
       break;
     }
     default: {
@@ -189,6 +259,11 @@ export const projectNameSpace = {
 
   selectOrCreateProject: (projectName: string) => {
     app.waitForLoad();
+    cy.url().then((url) => {
+      if (url.includes('add/all-namespaces')) {
+        cy.get('tr[data-test-rows="resource-row"]').should('have.length.at.least', 1);
+      }
+    });
     projectNameSpace.clickProjectDropdown();
     cy.byTestID('showSystemSwitch').check(); // Ensure that all projects are showing
     cy.byTestID('dropdown-menu-item-link').should('have.length.gt', 5);
@@ -287,6 +362,11 @@ export const createForm = {
       .get(formPO.save)
       .should('be.enabled')
       .click(),
+  clickConfirm: () =>
+    cy
+      .get(formPO.confirm)
+      .should('be.enabled')
+      .click(),
   sectionTitleShouldContain: (sectionTitle: string) =>
     cy.get(gitPO.sectionTitle).should('have.text', sectionTitle),
 };
@@ -314,4 +394,40 @@ export const yamlEditor = {
   clickSave: () => {
     cy.byTestID('save-changes').click();
   },
+};
+
+export const kebabMenu = {
+  openKebabMenu: (name: string) => {
+    cy.get('input[data-test-id="item-filter"]')
+      .should('be.visible')
+      .clear()
+      .type(name);
+    // eslint-disable-next-line cypress/no-unnecessary-waiting
+    cy.wait(3000);
+    cy.get('div[role="grid"]').should('be.visible');
+    cy.get('div[role="grid"]').within(() => {
+      cy.get('tr td:nth-child(1)').each(($el, index) => {
+        if ($el.text().includes(name)) {
+          cy.get('tbody tr')
+            .eq(index)
+            .find('[data-test-id="kebab-button"]')
+            .then(($ele1) => {
+              cy.wrap($ele1).click({ force: true });
+            });
+        }
+      });
+    });
+  },
+};
+
+export const navigateToAdminMenu = (opt: adminNavigationBar) => {
+  switch (opt) {
+    case adminNavigationBar.Home: {
+      cy.get(adminNavigationMenuPO.home.main).click();
+      break;
+    }
+    default: {
+      throw new Error('Option is not available');
+    }
+  }
 };

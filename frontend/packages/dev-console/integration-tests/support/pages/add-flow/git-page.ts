@@ -42,6 +42,11 @@ export const gitPage = {
         statusCode: responses.packageResponse ? 200 : 404,
         body: responses.packageResponse,
       }).as('getPackage');
+
+      cy.intercept('POST', '/api/devfile/', {
+        statusCode: responses.devFileResources ? 200 : 404,
+        body: responses.devFileResources,
+      }).as('getDevfileResources');
     }
 
     cy.get(gitPO.gitRepoUrl)
@@ -143,26 +148,30 @@ export const gitPage = {
   verifyNodeName: (componentName: string) =>
     cy.get(gitPO.nodeName).should('have.value', componentName),
   selectResource: (resource: string = 'deployment') => {
+    gitPage.selectAdvancedOptions(gitAdvancedOptions.Resources);
+    cy.get(gitPO.advancedOptions.resourcesDropdown)
+      .scrollIntoView()
+      .click();
     switch (resource) {
       case 'deployment':
       case 'Deployment':
-        cy.get(gitPO.resources.deployment)
+        cy.get(gitPO.advancedOptions.resources.deployment)
           .scrollIntoView()
-          .check();
+          .click();
         break;
       case 'deployment config':
       case 'Deployment Config':
       case 'DeploymentConfig':
-        cy.get(gitPO.resources.deploymentConfig)
+        cy.get(gitPO.advancedOptions.resources.deploymentConfig)
           .scrollIntoView()
-          .check();
+          .click();
         break;
       case 'Knative':
       case 'Knative Service':
       case 'Serverless Deployment':
-        cy.get(gitPO.resources.knative)
+        cy.get(gitPO.advancedOptions.resources.knative)
           .scrollIntoView()
-          .check();
+          .click();
         break;
       default:
         throw new Error('Resource option is not available');
@@ -192,6 +201,9 @@ export const gitPage = {
         break;
       case gitAdvancedOptions.HealthChecks:
         cy.byButtonText('Health Checks').click();
+        break;
+      case gitAdvancedOptions.Resources:
+        cy.byButtonText('Resource type').click();
         break;
       default:
         throw new Error('Advanced option is not available');

@@ -1,5 +1,14 @@
 $co-external-link-padding-right: 15px;
 
+.co-breadcrumb {
+  padding-bottom: var(--pf-global--spacer--sm);
+}
+
+.co-divider {
+  margin-bottom: var(--pf-global--spacer--lg);
+  margin-top: var(--pf-global--spacer--lg);
+}
+
 dl.co-inline {
   dd {
     margin-bottom: 1em;
@@ -55,14 +64,9 @@ dl.co-inline {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  .co-m-pane__filter-bar-dropdown,
   .co-m-primary-action,
   .pf-c-form-control {
     margin-bottom: 10px;
-  }
-  .co-m-pane__filter-bar-dropdown {
-    margin-right: 10px;
-    min-width: 0; // enables truncation of selected item, if needed
   }
 }
 
@@ -161,6 +165,13 @@ dl.co-inline {
   margin: 15px 0;
 }
 
+// TODO: remove when $font-size-base goes away or to 16px
+// and when override `label` font-weight style from _bootstrap-residual.scss is removed
+.co-switch-label .pf-c-switch__label {
+  font-size: $font-size-base;
+  font-weight: var(--pf-global--FontWeight--normal);
+}
+
 .co-table-container {
   overflow: auto;
   margin-bottom: 30px;
@@ -169,7 +180,6 @@ dl.co-inline {
 .co-m-pane__details {
   line-height: 1.66;
   // TODO: refactor so <dl>s have margin-bottom by default
-  margin-bottom: 20px;
   min-width: 0; // enable break-word
   white-space: normal; // override inheritence from co-detail-table
   .co-detail-table__row & {
@@ -194,7 +204,7 @@ dl.co-inline {
 }
 
 .co-help-text {
-  color: $pf-color-black-600;
+  color: var(--pf-global--Color--200);
 }
 
 .co-m-pane__explanation code {
@@ -526,10 +536,6 @@ dl.co-inline {
     position: relative;
     vertical-align: middle;
   }
-}
-
-.co-m-row:hover {
-  background-color: $color-co-m-row-hover;
 }
 
 .co-m-loader {

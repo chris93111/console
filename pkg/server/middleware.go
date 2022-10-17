@@ -26,6 +26,7 @@ func authMiddlewareWithUser(authers map[string]*auth.Authenticator, handlerFunc 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Get the correct Auther for the cluster.
 		cluster := serverutils.GetCluster(r)
+                klog.Errorf("cluster: %v", cluster)
 		auther, autherFound := authers[cluster]
 
 		if !autherFound {
@@ -53,17 +54,17 @@ func authMiddlewareWithUser(authers map[string]*auth.Authenticator, handlerFunc 
 			safe = true
 		}
 		if !safe {
-			if err := auther.VerifySourceOrigin(r); err != nil {
-				klog.Errorf("invalid source origin: %v", err)
-				w.WriteHeader(http.StatusForbidden)
-				return
-			}
+			//if err := auther.VerifySourceOrigin(r); err != nil {
+			//	klog.Errorf("invalid source origin: %v", err)
+			//	w.WriteHeader(http.StatusForbidden)
+			//	return
+			//}
 
-			if err := auther.VerifyCSRFToken(r); err != nil {
-				klog.Errorf("invalid CSRFToken: %v", err)
-				w.WriteHeader(http.StatusForbidden)
-				return
-			}
+			//if err := auther.VerifyCSRFToken(r); err != nil {
+			//	klog.Errorf("invalid CSRFToken: %v", err)
+			//	w.WriteHeader(http.StatusForbidden)
+			//	return
+			//}
 		}
 
 		handlerFunc(user, w, r)

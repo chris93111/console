@@ -40,14 +40,15 @@ import {
 const osBaseLabel = 'operatorframework.io/os.';
 const targetGOOSLabel = window.SERVER_FLAGS.GOOS ? `${osBaseLabel}${window.SERVER_FLAGS.GOOS}` : '';
 const archBaseLabel = 'operatorframework.io/arch.';
-const targetGOARCHLabel = window.SERVER_FLAGS.GOARCH
-  ? `${archBaseLabel}${window.SERVER_FLAGS.GOARCH}`
-  : '';
+const targetNodeArchitectures = window.SERVER_FLAGS.nodeArchitectures ?? [];
+const targetNodeArchitecturesLabels = targetNodeArchitectures.map(
+  (arch) => `${archBaseLabel}${arch}`,
+);
 // if no label present, these are the assumed defaults
 const archDefaultAMD64Label = 'operatorframework.io/arch.amd64';
 const osDefaultLinuxLabel = 'operatorframework.io/os.linux';
 const filterByArchAndOS = (items: OperatorHubItem[]): OperatorHubItem[] => {
-  if (!window.SERVER_FLAGS.GOARCH || !window.SERVER_FLAGS.GOOS) {
+  if (_.isEmpty(targetNodeArchitectures) || !window.SERVER_FLAGS.GOOS) {
     return items;
   }
   return items.filter((item: OperatorHubItem) => {
@@ -80,7 +81,7 @@ const filterByArchAndOS = (items: OperatorHubItem[]): OperatorHubItem[] => {
 
     return (
       _.includes(relevantLabels.os, targetGOOSLabel) &&
-      _.includes(relevantLabels.arch, targetGOARCHLabel)
+      _.some(relevantLabels.arch, (arch) => _.includes(targetNodeArchitecturesLabels, arch))
     );
   });
 };
@@ -362,14 +363,7 @@ const OperatorHubTile: React.FC<OperatorHubTileProps> = ({ item, onClick }) => {
   const badges = item?.catalogSourceDisplayName
     ? [<Badge text={item.catalogSourceDisplayName} />]
     : [];
-  const icon = (
-    <img
-      className="catalog-tile-pf-icon catalog-tile-pf-icon--align-top"
-      loading="lazy"
-      src={imgUrl}
-      alt=""
-    />
-  );
+  const icon = <img className="co-catalog--logo" loading="lazy" src={imgUrl} alt="" />;
 
   return (
     <CatalogTile
@@ -589,7 +583,7 @@ export const OperatorHubTileView: React.FC<OperatorHubTileViewProps> = (props) =
           onClose={closeOverlay}
           title={detailsItem.name}
         >
-          <OperatorHubItemDetails namespace={props.namespace} item={detailsItem} />
+          <OperatorHubItemDetails item={detailsItem} />
         </Modal>
       )}
     </>

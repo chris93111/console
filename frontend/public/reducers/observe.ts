@@ -1,12 +1,12 @@
 import * as _ from 'lodash-es';
 import { List as ImmutableList, Map as ImmutableMap } from 'immutable';
+import { Alert, AlertStates, RuleStates, SilenceStates } from '@console/dynamic-plugin-sdk';
 
 import { ActionType, ObserveAction } from '../actions/observe';
 import {
   MONITORING_DASHBOARDS_DEFAULT_TIMESPAN,
   MONITORING_DASHBOARDS_VARIABLE_ALL_OPTION_KEY,
 } from '../components/monitoring/dashboards/types';
-import { Alert, AlertStates, RuleStates, SilenceStates } from '../components/monitoring/types';
 import { isSilenced } from '../components/monitoring/utils';
 
 export type ObserveState = ImmutableMap<string, any>;
@@ -66,9 +66,17 @@ export default (state: ObserveState, action: ObserveAction): ObserveState => {
         metrics: [],
         pollInterval: null,
         queries: ImmutableList([newQueryBrowserQuery()]),
+        timespan: MONITORING_DASHBOARDS_DEFAULT_TIMESPAN,
       }),
     });
   }
+
+  const queryBrowserPatchQueryHelper = (index: number, patch: { [key: string]: unknown }) => {
+    const query = state.hasIn(['queryBrowser', 'queries', index])
+      ? ImmutableMap(patch)
+      : newQueryBrowserQuery().merge(patch);
+    return state.mergeIn(['queryBrowser', 'queries', index], query);
+  };
 
   switch (action.type) {
     case ActionType.DashboardsPatchVariable:
@@ -161,6 +169,19 @@ export default (state: ObserveState, action: ObserveAction): ObserveState => {
         state.getIn(['queryBrowser', 'queries']).push(newQueryBrowserQuery()),
       );
 
+    case ActionType.QueryBrowserDuplicateQuery: {
+      const index = action.payload.index;
+      const originQueryText = state.getIn(['queryBrowser', 'queries', index, 'text']);
+      const duplicate = newQueryBrowserQuery().merge({
+        text: originQueryText,
+        isEnabled: false,
+      });
+      return state.setIn(
+        ['queryBrowser', 'queries'],
+        state.getIn(['queryBrowser', 'queries']).push(duplicate),
+      );
+    }
+
     case ActionType.QueryBrowserDeleteAllQueries:
       return state.setIn(['queryBrowser', 'queries'], ImmutableList([newQueryBrowserQuery()]));
 
@@ -182,22 +203,9 @@ export default (state: ObserveState, action: ObserveAction): ObserveState => {
     case ActionType.QueryBrowserDismissNamespaceAlert:
       return state.setIn(['queryBrowser', 'dismissNamespaceAlert'], true);
 
-    case ActionType.QueryBrowserInsertText: {
-      const { index, newText, replaceFrom, replaceTo } = action.payload;
-      const oldText = state.getIn(['queryBrowser', 'queries', index, 'text'], '');
-      const text =
-        _.isInteger(replaceFrom) && _.isInteger(replaceTo)
-          ? oldText.substring(0, replaceFrom) + newText + oldText.substring(replaceTo)
-          : oldText + newText;
-      return state.setIn(['queryBrowser', 'queries', index, 'text'], text);
-    }
-
     case ActionType.QueryBrowserPatchQuery: {
       const { index, patch } = action.payload;
-      const query = state.hasIn(['queryBrowser', 'queries', index])
-        ? ImmutableMap(patch)
-        : newQueryBrowserQuery().merge(patch);
-      return state.mergeIn(['queryBrowser', 'queries', index], query);
+      return queryBrowserPatchQueryHelper(index, patch);
     }
 
     case ActionType.QueryBrowserRunQueries: {
@@ -207,7 +215,10 @@ export default (state: ObserveState, action: ObserveAction): ObserveState => {
         const text = _.trim(q.get('text'));
         return isEnabled && query !== text ? q.merge({ query: text, series: undefined }) : q;
       });
-      return state.setIn(['queryBrowser', 'queries'], queries);
+
+      return state
+        .setIn(['queryBrowser', 'queries'], queries)
+        .setIn(['queryBrowser', 'lastRequestTime'], Date.now());
     }
 
     case ActionType.QueryBrowserSetAllExpanded: {
@@ -222,6 +233,19 @@ export default (state: ObserveState, action: ObserveAction): ObserveState => {
 
     case ActionType.QueryBrowserSetPollInterval:
       return state.setIn(['queryBrowser', 'pollInterval'], action.payload.pollInterval);
+
+    case ActionType.QueryBrowserSetTimespan:
+      return state.setIn(['queryBrowser', 'timespan'], action.payload.timespan);
+
+    case ActionType.QueryBrowserToggleAllSeries: {
+      const index = action.payload.index;
+      const isDisabledSeriesEmpty = _.isEmpty(
+        state.getIn(['queryBrowser', 'queries', index, 'disabledSeries']),
+      );
+      const series = state.getIn(['queryBrowser', 'queries', index, 'series']);
+      const patch = { disabledSeries: isDisabledSeriesEmpty ? series : [] };
+      return queryBrowserPatchQueryHelper(index, patch);
+    }
 
     case ActionType.QueryBrowserToggleIsEnabled: {
       const query = state.getIn(['queryBrowser', 'queries', action.payload.index]);

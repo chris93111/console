@@ -26,23 +26,14 @@ Then(
   },
 );
 
-Then(
-  'user can see Pipeline success ratio, Number of Pipeline Runs, Pipeline Run duration, Task Run duration graphs',
-  () => {
-    cy.get(pipelineDetailsPO.metrics.graphTitle)
-      .eq(0)
-      .should('contain.text', pipelineDetailsText.metrics.graphs.pipelineSuccessRatio);
-    cy.get(pipelineDetailsPO.metrics.graphTitle)
-      .eq(1)
-      .should('contain.text', pipelineDetailsText.metrics.graphs.numberOfPipelineRuns);
-    cy.get(pipelineDetailsPO.metrics.graphTitle)
-      .eq(2)
-      .should('contain.text', pipelineDetailsText.metrics.graphs.pipelineRunDuration);
-    cy.get(pipelineDetailsPO.metrics.graphTitle)
-      .eq(3)
-      .should('contain.text', pipelineDetailsText.metrics.graphs.taskRunDuration);
-  },
-);
+Then('user can see Pipeline success ratio, Number of Pipeline Runs', () => {
+  cy.get(pipelineDetailsPO.metrics.graphTitle)
+    .eq(0)
+    .should('contain.text', pipelineDetailsText.metrics.graphs.pipelineSuccessRatio);
+  cy.get(pipelineDetailsPO.metrics.graphTitle)
+    .eq(1)
+    .should('contain.text', pipelineDetailsText.metrics.graphs.numberOfPipelineRuns);
+});
 
 When('user can see message "No datapoints found" inside graphs', () => {
   cy.byTestID('datapoints-msg').should('include.text', 'No datapoints found.');

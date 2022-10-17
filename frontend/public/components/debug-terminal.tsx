@@ -19,6 +19,7 @@ const getDebugPod = (debugPodName: string, podToDebug: PodKind, containerName: s
   delete debugPod.metadata.uid;
   delete debugPod.metadata.managedFields;
   delete debugPod.metadata.name;
+  delete debugPod.metadata.ownerReferences;
   delete debugPod.metadata.labels;
   debugPod.metadata.generateName = debugPodName;
   debugPod.metadata.annotations['debug.openshift.io/source-container'] = containerName;
@@ -119,6 +120,10 @@ export const DebugTerminal: React.FC<DebugTerminalProps> = ({ podData, container
       }
     };
     let newDebugPod;
+    const closeTab = (event) => {
+      event.preventDefault();
+      deleteDebugPod(newDebugPod.metadata.name);
+    };
     const createDebugPod = async () => {
       try {
         newDebugPod = await k8sCreate(PodModel, podToCreate);
@@ -129,12 +134,12 @@ export const DebugTerminal: React.FC<DebugTerminalProps> = ({ podData, container
     };
     createDebugPod();
 
-    window.addEventListener('beforeunload', deleteDebugPod);
+    window.addEventListener('beforeunload', closeTab);
     return () => {
       if (newDebugPod) {
         deleteDebugPod(newDebugPod.metadata.name);
       }
-      window.removeEventListener('beforeunload', deleteDebugPod);
+      window.removeEventListener('beforeunload', closeTab);
     };
   }, [debugPodName, podNamespace, podToCreate]);
 

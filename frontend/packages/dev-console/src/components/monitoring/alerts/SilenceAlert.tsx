@@ -5,6 +5,7 @@ import * as _ from 'lodash';
 // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
 // @ts-ignore
 import { useDispatch } from 'react-redux';
+import { Rule, RuleStates } from '@console/dynamic-plugin-sdk';
 import { alertingSetRules } from '@console/internal/actions/observe';
 import { coFetchJSON } from '@console/internal/co-fetch';
 import {
@@ -12,12 +13,10 @@ import {
   PROMETHEUS_TENANCY_BASE_PATH,
 } from '@console/internal/components/graphs';
 import { StateTimestamp } from '@console/internal/components/monitoring/alerting';
-import { Rule, RuleStates } from '@console/internal/components/monitoring/types';
 import {
   alertingRuleStateOrder,
   getAlertsAndRules,
 } from '@console/internal/components/monitoring/utils';
-import { refreshNotificationPollers } from '@console/internal/components/notification-drawer';
 import SilenceDurationDropDown from './SilenceDurationDropdown';
 
 type SilenceAlertProps = {
@@ -52,9 +51,10 @@ const SilenceAlert: React.FC<SilenceAlertProps> = ({ rule, namespace }) => {
     if (checked) {
       _.each(rule.silencedBy, (silence) => {
         coFetchJSON
-          .delete(`${ALERTMANAGER_TENANCY_BASE_PATH}/api/v2/silence/${silence.id}`)
+          .delete(
+            `${ALERTMANAGER_TENANCY_BASE_PATH}/api/v2/silence/${silence.id}?namespace=${namespace}`,
+          )
           .then(() => {
-            refreshNotificationPollers();
             // eslint-disable-next-line promise/no-nesting
             return coFetchJSON(
               `${PROMETHEUS_TENANCY_BASE_PATH}/api/v1/rules?namespace=${namespace}`,
@@ -86,6 +86,7 @@ const SilenceAlert: React.FC<SilenceAlertProps> = ({ rule, namespace }) => {
           <SilenceDurationDropDown
             silenceInProgress={(progress) => setIsInprogress(progress)}
             rule={rule}
+            namespace={namespace}
           />
         )
       }

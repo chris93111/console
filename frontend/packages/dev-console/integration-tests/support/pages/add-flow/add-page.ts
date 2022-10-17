@@ -94,6 +94,26 @@ export const addPage = {
         detailsPage.titleShouldContain(pageTitle.Broker);
         cy.testA11y(pageTitle.Broker);
         break;
+      case 'Event Sink':
+      case addOptions.EventSink:
+        cy.byTestID('item knative-event-sink').click();
+        app.waitForLoad();
+        detailsPage.titleShouldContain(pageTitle.EventSink);
+        cy.testA11y(pageTitle.EventSink);
+        break;
+      case 'Sharing':
+      case addOptions.Sharing:
+        cy.byTestID('item project-access').click();
+        detailsPage.titleShouldContain(pageTitle.ProjectAccess);
+        // Due to Acceessibility issue below line is commented
+        // cy.testA11y(pageTitle.ProjectAccess);
+        break;
+      case 'Helm Chart Repositories':
+      case addOptions.HelmChartRepositories:
+        cy.byTestID('item project-helm-chart-repositories').click();
+        cy.get('[data-test="form-title"]').should('have.text', pageTitle.CreateHelmChartRepository);
+        cy.testA11y(pageTitle.CreateHelmChartRepository);
+        break;
       default:
         throw new Error(`Unable to find the "${card}" card on Add page`);
     }

@@ -1,6 +1,7 @@
 import * as React from 'react';
+import { ActionList, ActionListItem, Button } from '@patternfly/react-core';
 import { useTranslation } from 'react-i18next';
-import { match as Rmatch } from 'react-router-dom';
+import { Link, match as Rmatch } from 'react-router-dom';
 import {
   history,
   PageHeading,
@@ -9,7 +10,7 @@ import {
   Dropdown,
 } from '@console/internal/components/utils';
 import { referenceForModel } from '@console/internal/module/k8s';
-import { MenuActions, MenuAction } from './multi-tab-list-page-types';
+import { MenuActions, MenuAction, SecondaryButtonAction } from './multi-tab-list-page-types';
 
 interface MultiTabListPageProps {
   title: string;
@@ -17,6 +18,7 @@ interface MultiTabListPageProps {
   menuActions?: MenuActions;
   pages: Page[];
   match: Rmatch<any>;
+  secondaryButtonAction?: SecondaryButtonAction;
 }
 
 const MultiTabListPage: React.FC<MultiTabListPageProps> = ({
@@ -25,6 +27,7 @@ const MultiTabListPage: React.FC<MultiTabListPageProps> = ({
   pages,
   menuActions,
   match,
+  secondaryButtonAction,
 }) => {
   const { t } = useTranslation();
   const {
@@ -46,30 +49,50 @@ const MultiTabListPage: React.FC<MultiTabListPageProps> = ({
     }
   };
 
-  const items = Object.keys(menuActions).reduce((acc, key) => {
-    const menuAction: MenuAction = menuActions[key];
-    const label =
-      menuAction.label ||
-      (menuAction.model?.labelKey ? t(menuAction.model.labelKey) : menuAction.model?.label);
-    if (!label) return acc;
+  const items = menuActions
+    ? Object.keys(menuActions).reduce<Record<string, string>>((acc, key) => {
+        const menuAction: MenuAction = menuActions[key];
+        const label =
+          menuAction.label ||
+          (menuAction.model?.labelKey ? t(menuAction.model.labelKey) : menuAction.model?.label);
+        if (!label) return acc;
 
-    return {
-      ...acc,
-      [key]: label,
-    };
-  }, {});
+        return {
+          ...acc,
+          [key]: label,
+        };
+      }, {})
+    : undefined;
 
   return (
     <>
       <PageHeading className="co-m-nav-title--row" title={title} badge={badge}>
-        <Dropdown
-          buttonClassName="pf-m-primary"
-          menuClassName="pf-m-align-right-on-md"
-          title={t('console-shared~Create')}
-          noSelection
-          items={items}
-          onChange={onSelectCreateAction}
-        />
+        <ActionList>
+          <ActionListItem>
+            {secondaryButtonAction && (
+              <Button
+                type="button"
+                variant="secondary"
+                data-test="secondary-action"
+                component={(props) => <Link {...props} to={secondaryButtonAction.href} />}
+              >
+                {secondaryButtonAction.label}
+              </Button>
+            )}
+          </ActionListItem>
+          <ActionListItem>
+            {items && (
+              <Dropdown
+                buttonClassName="pf-m-primary"
+                menuClassName="pf-m-align-right-on-md"
+                title={t('console-shared~Create')}
+                noSelection
+                items={items}
+                onChange={onSelectCreateAction}
+              />
+            )}
+          </ActionListItem>
+        </ActionList>
       </PageHeading>
       <HorizontalNav pages={pages} match={match} noStatusBox />
     </>

@@ -47,7 +47,7 @@ const (
 	// Well-known location of Alert Manager service for OpenShift. This is only accessible in-cluster.
 	openshiftAlertManagerHost = "alertmanager-main.openshift-monitoring.svc:9094"
 
-	// Well-known location of the tenant aware Alert Manager service for OpenShift. This is only accessible in-cluster.
+	// Default location of the tenant aware Alert Manager service for OpenShift. This is only accessible in-cluster.
 	openshiftAlertManagerTenancyHost = "alertmanager-main.openshift-monitoring.svc:9092"
 
 	// Well-known location of metering service for OpenShift. This is only accessible in-cluster.
@@ -115,6 +115,8 @@ func main() {
 	fStatuspageID := fs.String("statuspage-id", "", "Unique ID assigned by statuspage.io page that provides status info.")
 	fDocumentationBaseURL := fs.String("documentation-base-url", "", "The base URL for documentation links.")
 
+	fAlertmanagerUserWorkloadHost := fs.String("alermanager-user-workload-host", openshiftAlertManagerHost, "Location of the Alertmanager service for user-defined alerts.")
+	fAlertmanagerTenancyHost := fs.String("alermanager-tenancy-host", openshiftAlertManagerTenancyHost, "Location of the tenant-aware Alertmanager service.")
 	fAlermanagerPublicURL := fs.String("alermanager-public-url", "", "Public URL of the cluster's AlertManager server.")
 	fGrafanaPublicURL := fs.String("grafana-public-url", "", "Public URL of the cluster's Grafana server.")
 	fPrometheusPublicURL := fs.String("prometheus-public-url", "", "Public URL of the cluster's Prometheus server.")
@@ -123,16 +125,24 @@ func main() {
 	consolePluginsFlags := serverconfig.MultiKeyValue{}
 	fs.Var(&consolePluginsFlags, "plugins", "List of plugin entries that are enabled for the console. Each entry consist of plugin-name as a key and plugin-endpoint as a value.")
 	fPluginProxy := fs.String("plugin-proxy", "", "Defines various service types to which will console proxy plugins requests. (JSON as string)")
+	fI18NamespacesFlags := fs.String("i18n-namespaces", "", "List of namespaces separated by comma. Example --i18n-namespaces=plugin__acm,plugin__kubevirt")
+
+	telemetryFlags := serverconfig.MultiKeyValue{}
+	fs.Var(&telemetryFlags, "telemetry", "Telemetry configuration that can be used by console plugins. Each entry should be a key=value pair.")
 
 	fLoadTestFactor := fs.Int("load-test-factor", 0, "DEV ONLY. The factor used to multiply k8s API list responses for load testing purposes.")
 
 	fDevCatalogCategories := fs.String("developer-catalog-categories", "", "Allow catalog categories customization. (JSON as string)")
+	fDevCatalogTypes := fs.String("developer-catalog-types", "", "Allow enabling/disabling of sub-catalog types from the developer catalog. (JSON as string)")
 	fUserSettingsLocation := fs.String("user-settings-location", "configmap", "DEV ONLY. Define where the user settings should be stored. (configmap | localstorage).")
 	fQuickStarts := fs.String("quick-starts", "", "Allow customization of available ConsoleQuickStart resources in console. (JSON as string)")
 	fAddPage := fs.String("add-page", "", "DEV ONLY. Allow add page customization. (JSON as string)")
 	fProjectAccessClusterRoles := fs.String("project-access-cluster-roles", "", "The list of Cluster Roles assignable for the project access page. (JSON as string)")
+	fPerspectives := fs.String("perspectives", "", "Allow enabling/disabling of perspectives in the console. (JSON as string)")
 	fManagedClusterConfigs := fs.String("managed-clusters", "", "List of managed cluster configurations. (JSON as string)")
 	fControlPlaneTopology := fs.String("control-plane-topology-mode", "", "Defines the topology mode of the control/infra nodes (External | HighlyAvailable | SingleReplica)")
+	fReleaseVersion := fs.String("release-version", "", "Defines the release version of the cluster")
+	fNodeArchitectures := fs.String("node-architectures", "", "List of node architectures. Example --node-architecture=amd64,arm64")
 
 	if err := serverconfig.Parse(fs, os.Args[1:], "BRIDGE"); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
@@ -219,39 +229,68 @@ func main() {
 		klog.Infof("Setting user inactivity timout to %d seconds", *fInactivityTimeout)
 	}
 
-	consolePluginsMap := consolePluginsFlags.ToMap()
-	if len(consolePluginsMap) > 0 {
+	if len(consolePluginsFlags) > 0 {
 		klog.Infoln("The following console plugins are enabled:")
-		for pluginName := range consolePluginsMap {
+		for pluginName := range consolePluginsFlags {
 			klog.Infof(" - %s\n", pluginName)
 		}
 	}
 
+	i18nNamespaces := []string{}
+	if *fI18NamespacesFlags != "" {
+		for _, str := range strings.Split(*fI18NamespacesFlags, ",") {
+			str = strings.TrimSpace(str)
+			if str == "" {
+				bridge.FlagFatalf("i18n-namespaces", "list must contain name of i18n namespaces separated by comma")
+			}
+			i18nNamespaces = append(i18nNamespaces, str)
+		}
+	}
+
+	nodeArchitectures := []string{}
+	if *fNodeArchitectures != "" {
+		for _, str := range strings.Split(*fNodeArchitectures, ",") {
+			str = strings.TrimSpace(str)
+			if str == "" {
+				bridge.FlagFatalf("node-architectures", "list must contain name of node architectures separated by comma")
+			}
+			nodeArchitectures = append(nodeArchitectures, str)
+		}
+	}
+
 	srv := &server.Server{
-		PublicDir:                 *fPublicDir,
-		BaseURL:                   baseURL,
-		LogoutRedirect:            logoutRedirect,
-		Branding:                  branding,
-		CustomProductName:         *fCustomProductName,
-		CustomLogoFile:            *fCustomLogoFile,
-		ControlPlaneTopology:      *fControlPlaneTopology,
-		StatuspageID:              *fStatuspageID,
-		DocumentationBaseURL:      documentationBaseURL,
-		AlertManagerPublicURL:     alertManagerPublicURL,
-		GrafanaPublicURL:          grafanaPublicURL,
-		PrometheusPublicURL:       prometheusPublicURL,
-		ThanosPublicURL:           thanosPublicURL,
-		LoadTestFactor:            *fLoadTestFactor,
-		InactivityTimeout:         *fInactivityTimeout,
-		DevCatalogCategories:      *fDevCatalogCategories,
-		UserSettingsLocation:      *fUserSettingsLocation,
-		EnabledConsolePlugins:     consolePluginsMap,
-		PluginProxy:               *fPluginProxy,
-		QuickStarts:               *fQuickStarts,
-		AddPage:                   *fAddPage,
-		ProjectAccessClusterRoles: *fProjectAccessClusterRoles,
-		K8sProxyConfigs:           make(map[string]*proxy.Config),
-		K8sClients:                make(map[string]*http.Client),
+		PublicDir:                    *fPublicDir,
+		BaseURL:                      baseURL,
+		LogoutRedirect:               logoutRedirect,
+		Branding:                     branding,
+		CustomProductName:            *fCustomProductName,
+		CustomLogoFile:               *fCustomLogoFile,
+		ControlPlaneTopology:         *fControlPlaneTopology,
+		StatuspageID:                 *fStatuspageID,
+		DocumentationBaseURL:         documentationBaseURL,
+		AlertManagerUserWorkloadHost: *fAlertmanagerUserWorkloadHost,
+		AlertManagerTenancyHost:      *fAlertmanagerTenancyHost,
+		AlertManagerPublicURL:        alertManagerPublicURL,
+		GrafanaPublicURL:             grafanaPublicURL,
+		PrometheusPublicURL:          prometheusPublicURL,
+		ThanosPublicURL:              thanosPublicURL,
+		LoadTestFactor:               *fLoadTestFactor,
+		InactivityTimeout:            *fInactivityTimeout,
+		DevCatalogCategories:         *fDevCatalogCategories,
+		DevCatalogTypes:              *fDevCatalogTypes,
+		UserSettingsLocation:         *fUserSettingsLocation,
+		EnabledConsolePlugins:        consolePluginsFlags,
+		I18nNamespaces:               i18nNamespaces,
+		PluginProxy:                  *fPluginProxy,
+		QuickStarts:                  *fQuickStarts,
+		AddPage:                      *fAddPage,
+		ProjectAccessClusterRoles:    *fProjectAccessClusterRoles,
+		Perspectives:                 *fPerspectives,
+		K8sProxyConfigs:              make(map[string]*proxy.Config),
+		K8sClients:                   make(map[string]*http.Client),
+		Telemetry:                    telemetryFlags,
+		ReleaseVersion:               *fReleaseVersion,
+		NodeArchitectures:            nodeArchitectures,
 	}
 
 	managedClusterConfigs := []serverconfig.ManagedClusterConfig{}
@@ -411,10 +450,15 @@ func main() {
 				HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
 				Endpoint:        &url.URL{Scheme: "https", Host: openshiftAlertManagerHost, Path: "/api"},
 			}
+			srv.AlertManagerUserWorkloadProxyConfig = &proxy.Config{
+				TLSClientConfig: serviceProxyTLSConfig,
+				HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
+				Endpoint:        &url.URL{Scheme: "https", Host: *fAlertmanagerUserWorkloadHost, Path: "/api"},
+			}
 			srv.AlertManagerTenancyProxyConfig = &proxy.Config{
 				TLSClientConfig: serviceProxyTLSConfig,
 				HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
-				Endpoint:        &url.URL{Scheme: "https", Host: openshiftAlertManagerTenancyHost, Path: "/api"},
+				Endpoint:        &url.URL{Scheme: "https", Host: *fAlertmanagerTenancyHost, Path: "/api"},
 			}
 			srv.MeteringProxyConfig = &proxy.Config{
 				TLSClientConfig: serviceProxyTLSConfig,
@@ -471,6 +515,11 @@ func main() {
 				Endpoint:        offClusterAlertManagerURL,
 			}
 			srv.AlertManagerTenancyProxyConfig = &proxy.Config{
+				TLSClientConfig: serviceProxyTLSConfig,
+				HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
+				Endpoint:        offClusterAlertManagerURL,
+			}
+			srv.AlertManagerUserWorkloadProxyConfig = &proxy.Config{
 				TLSClientConfig: serviceProxyTLSConfig,
 				HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
 				Endpoint:        offClusterAlertManagerURL,

@@ -15,12 +15,11 @@ import { TektonResourceLabel } from '../components/pipelines/const';
 import {
   ClusterTaskModel,
   ClusterTriggerBindingModel,
-  PipelineRunModel,
   TaskModel,
   TriggerBindingModel,
   PipelineModel,
 } from '../models';
-import { PipelineKind, PipelineRunKind, PipelineTask } from '../types';
+import { ComputedStatus, PipelineKind, PipelineRunKind, PipelineTask } from '../types';
 import { pipelineRunFilterReducer, SucceedConditionReason } from './pipeline-filter-reducer';
 
 interface Metadata {
@@ -48,74 +47,33 @@ export interface TaskStatus {
   Skipped: number;
 }
 
-export interface Resource {
-  propsReferenceForRuns: string[];
-  resources: FirehoseResource[];
-}
-
-export interface Runs {
-  data?: PipelineRunKind[];
-}
-
-export type KeyedRuns = { [key: string]: Runs };
-
-interface FirehoseResource {
-  kind: string;
-  namespace?: string;
-  isList?: boolean;
-  selector?: object;
-}
-
-export const getResources = (data: PropPipelineData[]): Resource => {
-  const resources = [];
-  const propsReferenceForRuns = [];
-  if (data && data.length > 0) {
-    data.forEach((pipeline, i) => {
-      if (pipeline.metadata && pipeline.metadata.namespace && pipeline.metadata.name) {
-        propsReferenceForRuns.push(`PipelineRun_${i}`);
-        resources.push({
-          kind: referenceForModel(PipelineRunModel),
-          namespace: pipeline.metadata.namespace,
-          isList: true,
-          prop: `PipelineRun_${i}`,
-          selector: {
-            'tekton.dev/pipeline': pipeline.metadata.name,
-          },
-        });
-      }
-    });
-    return { propsReferenceForRuns, resources };
-  }
-  return { propsReferenceForRuns: null, resources: null };
-};
-
-export const getLatestRun = (runs: Runs, field: string): PipelineRunKind => {
-  if (!runs || !runs.data || !(runs.data.length > 0) || !field) {
+export const getLatestRun = (runs: PipelineRunKind[], field: string): PipelineRunKind => {
+  if (!runs || !(runs.length > 0) || !field) {
     return null;
   }
-  let latestRun = runs.data[0];
+  let latestRun = runs[0];
   if (field === 'creationTimestamp') {
-    for (let i = 1; i < runs.data.length; i++) {
+    for (let i = 1; i < runs.length; i++) {
       latestRun =
-        runs.data[i] &&
-        runs.data[i].metadata &&
-        runs.data[i].metadata[field] &&
-        new Date(runs.data[i].metadata[field]) > new Date(latestRun.metadata[field])
-          ? runs.data[i]
+        runs[i] &&
+        runs[i].metadata &&
+        runs[i].metadata[field] &&
+        new Date(runs[i].metadata[field]) > new Date(latestRun.metadata[field])
+          ? runs[i]
           : latestRun;
     }
   } else if (field === 'startTime' || field === 'completionTime') {
-    for (let i = 1; i < runs.data.length; i++) {
+    for (let i = 1; i < runs.length; i++) {
       latestRun =
-        runs.data[i] &&
-        runs.data[i].status &&
-        runs.data[i].status[field] &&
-        new Date(runs.data[i].status[field]) > new Date(latestRun.status[field])
-          ? runs.data[i]
+        runs[i] &&
+        runs[i].status &&
+        runs[i].status[field] &&
+        new Date(runs[i].status[field]) > new Date(latestRun.status[field])
+          ? runs[i]
           : latestRun;
     }
   } else {
-    latestRun = runs.data[runs.data.length - 1];
+    latestRun = runs[runs.length - 1];
   }
   if (!latestRun.status) {
     latestRun = { ...latestRun, status: { pipelineSpec: { tasks: [] } } };
@@ -128,61 +86,42 @@ export const getLatestRun = (runs: Runs, field: string): PipelineRunKind => {
 };
 
 export const augmentRunsToData = (
-  data: PropPipelineData[],
-  propsReferenceForRuns: string[],
-  runs: { [key: string]: Runs },
+  pipelines: PropPipelineData[],
+  pipelineruns: PipelineRunKind[],
 ): PropPipelineData[] => {
-  if (propsReferenceForRuns) {
-    const newData: PropPipelineData[] = [];
-    propsReferenceForRuns.forEach((reference, i) => {
-      const latestRun = getLatestRun(runs[reference], 'creationTimestamp');
-      if (latestRun !== data[i].latestRun) {
-        // ensure we create a new data object if the latestRun has changed so that shallow compare fails
-        newData.push({ ...data[i], latestRun });
-      } else {
-        newData.push(data[i]);
-      }
-    });
-    return newData;
-  }
-  return data;
+  return pipelines.map((pipeline) => {
+    const prsForPipeline = pipelineruns.filter(
+      (pr) => pr.metadata.labels?.['tekton.dev/pipeline'] === pipeline.metadata.name,
+    );
+    pipeline.latestRun = getLatestRun(prsForPipeline, 'creationTimestamp');
+    return pipeline;
+  });
 };
-
-export enum runStatus {
-  Succeeded = 'Succeeded',
-  Failed = 'Failed',
-  Running = 'Running',
-  'In Progress' = 'In Progress',
-  FailedToStart = 'FailedToStart',
-  PipelineNotStarted = 'PipelineNotStarted',
-  Skipped = 'Skipped',
-  Cancelled = 'Cancelled',
-  Pending = 'Pending',
-  Idle = 'Idle',
-}
 
 export const getRunStatusColor = (status: string): StatusMessage => {
   switch (status) {
-    case runStatus.Succeeded:
+    case ComputedStatus.Succeeded:
       return { message: i18next.t('pipelines-plugin~Succeeded'), pftoken: successColor };
-    case runStatus.Failed:
+    case ComputedStatus.Failed:
       return { message: i18next.t('pipelines-plugin~Failed'), pftoken: failureColor };
-    case runStatus.FailedToStart:
+    case ComputedStatus.FailedToStart:
       return {
         message: i18next.t('pipelines-plugin~PipelineRun failed to start'),
         pftoken: failureColor,
       };
-    case runStatus.Running:
+    case ComputedStatus.Running:
       return { message: i18next.t('pipelines-plugin~Running'), pftoken: runningColor };
-    case runStatus['In Progress']:
+    case ComputedStatus['In Progress']:
       return { message: i18next.t('pipelines-plugin~Running'), pftoken: runningColor };
 
-    case runStatus.Skipped:
+    case ComputedStatus.Skipped:
       return { message: i18next.t('pipelines-plugin~Skipped'), pftoken: skippedColor };
-    case runStatus.Cancelled:
+    case ComputedStatus.Cancelled:
       return { message: i18next.t('pipelines-plugin~Cancelled'), pftoken: cancelledColor };
-    case runStatus.Idle:
-    case runStatus.Pending:
+    case ComputedStatus.Cancelling:
+      return { message: i18next.t('pipelines-plugin~Cancelling'), pftoken: cancelledColor };
+    case ComputedStatus.Idle:
+    case ComputedStatus.Pending:
       return { message: i18next.t('pipelines-plugin~Pending'), pftoken: pendingColor };
     default:
       return {
@@ -243,38 +182,39 @@ export const getTaskStatus = (pipelinerun: PipelineRunKind, pipeline: PipelineKi
   if (pipelinerun?.status?.taskRuns) {
     plrTasks.forEach((taskRun) => {
       const status = pipelineRunFilterReducer(pipelinerun.status.taskRuns[taskRun]);
-      if (status === 'Succeeded' || status === 'Completed' || status === 'Complete') {
-        taskStatus[runStatus.Succeeded]++;
+      if (status === 'Succeeded') {
+        taskStatus[ComputedStatus.Succeeded]++;
       } else if (status === 'Running') {
-        taskStatus[runStatus.Running]++;
+        taskStatus[ComputedStatus.Running]++;
       } else if (status === 'Failed') {
-        taskStatus[runStatus.Failed]++;
+        taskStatus[ComputedStatus.Failed]++;
       } else if (status === 'Cancelled') {
-        taskStatus[runStatus.Cancelled]++;
+        taskStatus[ComputedStatus.Cancelled]++;
       } else {
-        taskStatus[runStatus.Pending]++;
+        taskStatus[ComputedStatus.Pending]++;
       }
     });
 
-    const pipelineRunHasFailure = taskStatus[runStatus.Failed] > 0;
-    const pipelineRunIsCancelled = pipelineRunFilterReducer(pipelinerun) === runStatus.Cancelled;
+    const pipelineRunHasFailure = taskStatus[ComputedStatus.Failed] > 0;
+    const pipelineRunIsCancelled =
+      pipelineRunFilterReducer(pipelinerun) === ComputedStatus.Cancelled;
     const unhandledTasks =
       totalTasks >= plrTaskLength ? totalTasks - plrTaskLength - skippedTaskLength : totalTasks;
 
     if (pipelineRunHasFailure || pipelineRunIsCancelled) {
-      taskStatus[runStatus.Cancelled] += unhandledTasks;
+      taskStatus[ComputedStatus.Cancelled] += unhandledTasks;
     } else {
-      taskStatus[runStatus.Pending] += unhandledTasks;
+      taskStatus[ComputedStatus.Pending] += unhandledTasks;
     }
   } else if (
     pipelinerun?.status?.conditions?.[0]?.status === 'False' ||
     pipelinerun?.spec.status === SucceedConditionReason.PipelineRunCancelled
   ) {
-    taskStatus[runStatus.Cancelled] = totalTasks;
+    taskStatus[ComputedStatus.Cancelled] = totalTasks;
   } else if (pipelinerun?.spec.status === SucceedConditionReason.PipelineRunPending) {
-    taskStatus[runStatus.Pending] += totalTasks;
+    taskStatus[ComputedStatus.Pending] += totalTasks;
   } else {
-    taskStatus[runStatus.PipelineNotStarted]++;
+    taskStatus[ComputedStatus.PipelineNotStarted]++;
   }
   return taskStatus;
 };
@@ -330,5 +270,12 @@ export const shouldHidePipelineRunStop = (pipelineRun: PipelineRunKind): boolean
   !(
     pipelineRun &&
     (countRunningTasks(pipelineRun) > 0 ||
-      pipelineRunFilterReducer(pipelineRun) === runStatus.Running)
+      pipelineRunFilterReducer(pipelineRun) === ComputedStatus.Running)
+  );
+
+export const shouldHidePipelineRunCancel = (pipelineRun: PipelineRunKind): boolean =>
+  !(
+    pipelineRun &&
+    countRunningTasks(pipelineRun) > 0 &&
+    pipelineRunFilterReducer(pipelineRun) !== ComputedStatus.Cancelled
   );

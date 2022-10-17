@@ -62,7 +62,9 @@ func (s *Server) devfileHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Get devfile content and parse it using a library call in the future
 	devfileContentBytes := []byte(data.Devfile.DevfileContent)
-	devfileObj, _, err = devfile.ParseDevfileAndValidate(parser.ParserArgs{Data: devfileContentBytes})
+	//reduce the http request and response timeouts on the devfile library parser to 10s
+	httpTimeout := 10
+	devfileObj, _, err = devfile.ParseDevfileAndValidate(parser.ParserArgs{Data: devfileContentBytes, HTTPTimeout: &httpTimeout})
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to parse devfile:")
 		if strings.Contains(err.Error(), "schemaVersion not present in devfile") {
@@ -196,9 +198,9 @@ func getDeployResource(data devfileForm, devfileObj parser.DevfileObj, filterOpt
 		PodSelectorLabels: map[string]string{"app": data.Name},
 	}
 
-	deployment := generator.GetDeployment(deployParams)
+	deployment, err := generator.GetDeployment(devfileObj, deployParams)
 
-	return *deployment, nil
+	return *deployment, err
 }
 
 func getService(devfileObj parser.DevfileObj, filterOptions common.DevfileOptions, imagePort string) (corev1.Service, error) {
@@ -239,5 +241,5 @@ func getRouteForDockerImage(data devfileForm, imagePort string) routev1.Route {
 		},
 	}
 
-	return *generator.GetRoute(routeParams)
+	return *generator.GetRoute(devfilev1.Endpoint{}, routeParams)
 }

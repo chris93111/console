@@ -1,6 +1,6 @@
 import { checkErrors } from '../../../integration-tests-cypress/support';
 
-describe('Check noobaa link in obejct service dashboard and perform SSO', () => {
+xdescribe('Check noobaa link in obejct service dashboard and perform SSO', () => {
   before(() => {
     cy.login();
     cy.install();
@@ -15,7 +15,7 @@ describe('Check noobaa link in obejct service dashboard and perform SSO', () => 
     cy.logout();
   });
 
-  it('Check that noobaa dashboard is opening and links available.', () => {
+  it.skip('Check that noobaa dashboard is opening and links available.', () => {
     cy.byLegacyTestID('system-name-mcg')
       .invoke('attr', 'href')
       .then((href) => {

@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { formatPrometheusDuration } from '@openshift-console/plugin-shared/src/datetime/prometheus';
 import {
   ChartLegend,
   getInteractiveLegendEvents,
@@ -11,7 +12,6 @@ import Measure from 'react-measure';
 import { CursorVoronoiContainer } from '@console/internal/components/graphs';
 import { GraphEmpty } from '@console/internal/components/graphs/graph-empty';
 import { LoadingInline, truncateMiddle } from '@console/internal/components/utils';
-import { formatPrometheusDuration } from '@console/internal/components/utils/datetime';
 import { PipelineTask } from '../../../types';
 import { DEFAULT_CHART_HEIGHT, DEFAULT_LEGEND_CHART_HEIGHT } from '../const';
 import { usePipelineRunTaskRunPoll } from '../hooks';
@@ -31,6 +31,7 @@ const PipelineRunTaskRunGraph: React.FC<PipelineMetricsGraphProps> = ({
   loaded = true,
   onLoad: onInitialLoad,
   queryPrefix,
+  metricsLevel,
 }) => {
   const {
     metadata: { name, namespace },
@@ -44,6 +45,7 @@ const PipelineRunTaskRunGraph: React.FC<PipelineMetricsGraphProps> = ({
     timespan,
     delay: interval,
     queryPrefix,
+    metricsLevel,
   });
 
   const taskNameMap = pipeline.spec.tasks
@@ -139,6 +141,9 @@ const PipelineRunTaskRunGraph: React.FC<PipelineMetricsGraphProps> = ({
                 itemsPerRow={4}
                 name="legend"
                 data={getLegendData()}
+                style={{
+                  labels: { fill: 'var(--pf-global--Color--100)' },
+                }}
               />
             }
             containerComponent={

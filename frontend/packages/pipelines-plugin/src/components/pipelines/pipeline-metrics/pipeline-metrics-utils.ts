@@ -1,3 +1,4 @@
+import { parsePrometheusDuration } from '@openshift-console/plugin-shared/src/datetime/prometheus';
 import i18next from 'i18next';
 import * as _ from 'lodash';
 import {
@@ -6,11 +7,9 @@ import {
   PrometheusResult,
 } from '@console/internal/components/graphs';
 import { humanizeNumberSI } from '@console/internal/components/utils';
-import {
-  dateFormatterNoYear,
-  parsePrometheusDuration,
-} from '@console/internal/components/utils/datetime';
+import { dateFormatterNoYear } from '@console/internal/components/utils/datetime';
 import { PipelineKind } from '../../../types';
+import { PipelineMetricsLevel } from '../const';
 
 export interface GraphData {
   chartName: string;
@@ -20,6 +19,7 @@ export interface PipelineMetricsGraphProps {
   pipeline: PipelineKind;
   timespan: number;
   queryPrefix: string;
+  metricsLevel: string;
   interval: number;
   width?: number;
 
@@ -37,19 +37,46 @@ export enum MetricsQueryPrefix {
   TEKTON = 'tekton',
   TEKTON_PIPELINES_CONTROLLER = 'tekton_pipelines_controller',
 }
-export const metricQueries = (prefix: string = MetricsQueryPrefix.TEKTON_PIPELINES_CONTROLLER) => ({
-  [PipelineQuery.NUMBER_OF_PIPELINE_RUNS]: _.template(
-    `sum(count by (pipelinerun) (${prefix}_pipelinerun_duration_seconds_count{pipeline="<%= name %>",exported_namespace="<%= namespace %>"}))`,
-  ),
-  [PipelineQuery.PIPELINE_RUN_TASK_RUN_DURATION]: _.template(
-    `sum(${prefix}_pipelinerun_taskrun_duration_seconds_sum{pipeline="<%= name %>",exported_namespace="<%= namespace %>"})  by (pipelinerun, task)`,
-  ),
-  [PipelineQuery.PIPELINE_RUN_DURATION]: _.template(
-    `sum(${prefix}_pipelinerun_duration_seconds_sum{pipeline="<%= name %>",exported_namespace="<%= namespace %>"})  by (pipelinerun)`,
-  ),
-  [PipelineQuery.PIPELINE_SUCCESS_RATIO]: _.template(
-    `count(sort_desc(${prefix}_pipelinerun_duration_seconds_count{pipeline="<%= name %>",exported_namespace="<%= namespace %>"})) by (status)`,
-  ),
+
+export const metricsQueries = (
+  prefix: string = MetricsQueryPrefix.TEKTON_PIPELINES_CONTROLLER,
+) => ({
+  [PipelineMetricsLevel.PIPELINE_TASK_LEVEL]: {
+    [PipelineQuery.PIPELINE_SUCCESS_RATIO]: _.template(
+      `${prefix}_pipelinerun_duration_seconds_count{pipeline="<%= name %>",namespace="<%= namespace %>"}`,
+    ),
+    [PipelineQuery.NUMBER_OF_PIPELINE_RUNS]: _.template(
+      `sum(${prefix}_pipelinerun_duration_seconds_count{pipeline="<%= name %>",namespace="<%= namespace %>"})`,
+    ),
+  },
+  [PipelineMetricsLevel.PIPELINERUN_TASKRUN_LEVEL]: {
+    [PipelineQuery.NUMBER_OF_PIPELINE_RUNS]: _.template(
+      `sum(count by (pipelinerun) (${prefix}_pipelinerun_duration_seconds{pipeline="<%= name %>",namespace="<%= namespace %>"}))`,
+    ),
+    [PipelineQuery.PIPELINE_RUN_TASK_RUN_DURATION]: _.template(
+      `sum(${prefix}_pipelinerun_taskrun_duration_seconds{pipeline="<%= name %>",namespace="<%= namespace %>"})  by (pipelinerun, task)`,
+    ),
+    [PipelineQuery.PIPELINE_RUN_DURATION]: _.template(
+      `sum(${prefix}_pipelinerun_duration_seconds{pipeline="<%= name %>",namespace="<%= namespace %>"})  by (pipelinerun)`,
+    ),
+    [PipelineQuery.PIPELINE_SUCCESS_RATIO]: _.template(
+      `count(sort_desc(${prefix}_pipelinerun_duration_seconds{pipeline="<%= name %>",namespace="<%= namespace %>"})) by(status)`,
+    ),
+  },
+  [PipelineMetricsLevel.UNSIMPLIFIED_METRICS_LEVEL]: {
+    [PipelineQuery.NUMBER_OF_PIPELINE_RUNS]: _.template(
+      `sum(count by (pipelinerun) (${prefix}_pipelinerun_duration_seconds_count{pipeline="<%= name %>",exported_namespace="<%= namespace %>"}))`,
+    ),
+    [PipelineQuery.PIPELINE_RUN_TASK_RUN_DURATION]: _.template(
+      `sum(${prefix}_pipelinerun_taskrun_duration_seconds_sum{pipeline="<%= name %>",exported_namespace="<%= namespace %>"})  by (pipelinerun, task)`,
+    ),
+    [PipelineQuery.PIPELINE_RUN_DURATION]: _.template(
+      `sum(${prefix}_pipelinerun_duration_seconds_sum{pipeline="<%= name %>",exported_namespace="<%= namespace %>"})  by (pipelinerun)`,
+    ),
+    [PipelineQuery.PIPELINE_SUCCESS_RATIO]: _.template(
+      `count(sort_desc(${prefix}_pipelinerun_duration_seconds_count{pipeline="<%= name %>",exported_namespace="<%= namespace %>"})) by(status)`,
+    ),
+  },
 });
 
 const formatPositiveValue = (v: number): string =>

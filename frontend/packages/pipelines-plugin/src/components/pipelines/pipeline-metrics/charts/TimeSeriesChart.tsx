@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { parsePrometheusDuration } from '@openshift-console/plugin-shared/src/datetime/prometheus';
 import {
   Chart,
   ChartAxis,
@@ -13,7 +14,6 @@ import {
 } from '@patternfly/react-charts';
 import * as _ from 'lodash';
 import { DomainPropType } from 'victory-core';
-import { parsePrometheusDuration } from '@console/internal/components/utils/datetime';
 import { DEFAULT_CHART_HEIGHT } from '../../const';
 import { formatDate, formatValue, getXaxisValues } from '../pipeline-metrics-utils';
 
@@ -63,10 +63,13 @@ export const TimeSeriesChart: React.FC<TimeSeriesChart & ChartProps & ChartLineP
   }
 
   const xTickFormat = (d) => formatDate(d);
-  let xAxisStyle;
+  let xAxisStyle: any = {
+    tickLabels: { fill: 'var(--pf-global--Color--100)' },
+  };
   if (tickValues.length > 7 || width < 225) {
     xAxisStyle = {
       tickLabels: {
+        fill: 'var(--pf-global--Color--100)',
         angle: 320,
         fontSize: 10,
         textAnchor: 'end',
@@ -104,7 +107,14 @@ export const TimeSeriesChart: React.FC<TimeSeriesChart & ChartProps & ChartLineP
       width={width}
     >
       <ChartAxis style={xAxisStyle} tickValues={tickValues} tickFormat={xTickFormat} />
-      <ChartAxis dependentAxis showGrid tickFormat={yTickFormatter || yTickFormat} />
+      <ChartAxis
+        dependentAxis
+        showGrid
+        tickFormat={yTickFormatter || yTickFormat}
+        style={{
+          tickLabels: { fill: 'var(--pf-global--Color--100)' },
+        }}
+      />
       <ChartGroup>
         {!bar &&
           Object.values(gData).map((d, index) => (

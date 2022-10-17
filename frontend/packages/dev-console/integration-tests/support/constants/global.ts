@@ -12,6 +12,12 @@ export enum devNavigationMenu {
   Secrets = 'Secrets',
   GitOps = 'GitOps',
   Environments = 'Environments',
+  Routes = 'Routes',
+  Deployments = 'Deployments',
+}
+
+export enum adminNavigationBar {
+  Home = 'Home',
 }
 
 export enum switchPerspective {
@@ -33,6 +39,12 @@ export enum operators {
   RedHatCodereadyWorkspaces = 'Red Hat CodeReady Workspaces',
   GitopsPrimer = 'gitops-primer',
   ServiceBinding = 'Service Binding Operator',
+  CrunchyPostgresforKubernetes = 'Crunchy Postgres for Kubernetes',
+  QuayContainerSecurity = 'Quay Container Security',
+  ShipwrightOperator = 'Shipwright Operator',
+  RedisOperator = 'Redis Operator',
+  AMQStreams = 'AMQ Streams',
+  RHOAS = 'RHOAS',
 }
 
 export enum authenticationType {

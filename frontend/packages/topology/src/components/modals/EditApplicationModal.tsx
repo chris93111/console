@@ -43,13 +43,13 @@ const EditApplicationForm: React.FC<FormikProps<FormikValues> & EditApplicationF
   const { t } = useTranslation();
   const dirty = _.get(values, 'application.selectedKey') !== initialApplication;
   return (
-    <form onSubmit={handleSubmit} className="modal-content modal-content--no-inner-scroll">
+    <form onSubmit={handleSubmit} className="modal-content">
       <ModalTitle>{t('topology~Edit application grouping')}</ModalTitle>
       <ModalBody>
         <Title headingLevel="h2" size="md" className="co-m-form-row">
           <Trans ns="topology">
             Select an Application group to add the component{' '}
-            <strong>{resource.metadata.name}</strong> to
+            <strong>{{ resourceName: resource.metadata.name }}</strong> to
           </Trans>
         </Title>
         <div className="pf-c-form">

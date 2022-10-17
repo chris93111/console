@@ -2,16 +2,20 @@ import * as _ from 'lodash-es';
 import * as semver from 'semver';
 import i18next from 'i18next';
 
-import { ClusterVersionModel } from '../../models';
+import { ClusterVersionModel, MachineConfigPoolModel } from '../../models';
 import { referenceForModel } from './k8s-ref';
 import {
-  ClusterVersionKind,
-  ClusterUpdate,
-  ClusterVersionConditionType,
-  K8sResourceConditionStatus,
   ClusterVersionCondition,
+  ClusterVersionConditionType,
+  ClusterVersionKind,
+  ConditionalUpdate,
+  k8sPatch,
+  K8sResourceCondition,
+  K8sResourceConditionStatus,
+  Release,
   UpdateHistory,
 } from '.';
+import { MachineConfigPoolKind } from './types';
 
 export enum ClusterUpdateStatus {
   UpToDate = 'Up to Date',
@@ -25,18 +29,49 @@ export enum ClusterUpdateStatus {
 
 export const clusterVersionReference = referenceForModel(ClusterVersionModel);
 
-export const getAvailableClusterUpdates = (cv: ClusterVersionKind): ClusterUpdate[] => {
-  return _.get(cv, 'status.availableUpdates', []);
+const getAvailableClusterUpdates = (cv: ClusterVersionKind): Release[] => {
+  return cv?.status?.availableUpdates || [];
 };
 
-export const getSortedUpdates = (cv: ClusterVersionKind): ClusterUpdate[] => {
-  const available = getAvailableClusterUpdates(cv) || [];
+export const getSortedAvailableUpdates = (cv: ClusterVersionKind): Release[] => {
+  const available = getAvailableClusterUpdates(cv);
   try {
     return available.sort(({ version: left }, { version: right }) => semver.rcompare(left, right));
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.error('error sorting cluster updates', e);
+    console.error('error sorting available cluster updates', e);
     return available;
+  }
+};
+
+const getConditionalClusterUpdates = (cv: ClusterVersionKind): ConditionalUpdate[] => {
+  return cv?.status?.conditionalUpdates || [];
+};
+
+export const getNotRecommendedUpdateCondition = (
+  conditions: K8sResourceCondition[],
+): K8sResourceCondition => {
+  return conditions?.find(
+    (condition) => condition.type === 'Recommended' && condition.status !== 'True',
+  );
+};
+
+const getNotRecommendedUpdates = (cv: ClusterVersionKind): ConditionalUpdate[] => {
+  return getConditionalClusterUpdates(cv).filter((update) =>
+    getNotRecommendedUpdateCondition(update.conditions),
+  );
+};
+
+export const getSortedNotRecommendedUpdates = (cv: ClusterVersionKind): ConditionalUpdate[] => {
+  const notRecommended = getNotRecommendedUpdates(cv);
+  try {
+    return notRecommended.sort(({ release: { version: left } }, { release: { version: right } }) =>
+      semver.rcompare(left, right),
+    );
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.error('error sorting conditional cluster updates', e);
+    return notRecommended;
   }
 };
 
@@ -153,6 +188,10 @@ export const hasAvailableUpdates = (cv: ClusterVersionKind): boolean => {
   return !_.isEmpty(getAvailableClusterUpdates(cv));
 };
 
+export const hasNotRecommendedUpdates = (cv: ClusterVersionKind): boolean => {
+  return !_.isEmpty(getNotRecommendedUpdates(cv));
+};
+
 export const getClusterUpdateStatus = (cv: ClusterVersionKind): ClusterUpdateStatus => {
   if (invalid(cv)) {
     return ClusterUpdateStatus.Invalid;
@@ -201,21 +240,43 @@ export const getReportBugLink = (cv: ClusterVersionKind): { label: string; href:
     return null;
   }
 
-  // Show a Bugzilla link for prerelease versions and a support case link for supported versions.
   const { major, minor, prerelease } = parsed;
-  const bugzillaVersion = major === 4 && minor <= 3 ? `${major}.${minor}.0` : `${major}.${minor}`;
-  const environment = encodeURIComponent(`Version: ${version}
-Cluster ID: ${cv.spec.clusterID}
-Browser: ${window.navigator.userAgent}
-`);
+  let productName;
+  switch (window.SERVER_FLAGS.branding) {
+    case 'openshift':
+    case 'ocp':
+      productName = 'OpenShift Container Platform';
+      break;
+    case 'online':
+      productName = 'OpenShift Online';
+      break;
+    case 'dedicated':
+      productName = 'OpenShift Dedicated';
+      break;
+    case 'azure':
+      productName = 'Azure Red Hat OpenShift';
+      break;
+    default:
+      productName = 'OKD';
+  }
+
+  // Do not show a link for OKD until the new OKD Jira project is ready.
+  if (productName === 'OKD') {
+    return null;
+  }
+
+  // Show a support case link for supported versions and a Jira link for prerelease versions.
   return _.isEmpty(prerelease)
     ? {
         label: i18next.t('public~Open support case with Red Hat'),
-        href: `https://access.redhat.com/support/cases/#/case/new?product=OpenShift%20Container%20Platform&version=${major}.${minor}&clusterId=${cv.spec.clusterID}`,
+        href: `https://access.redhat.com/support/cases/#/case/new?product=${encodeURIComponent(
+          productName,
+        )}&version=${major}.${minor}&clusterId=${cv.spec.clusterID}`,
       }
     : {
         label: i18next.t('public~Report bug to Red Hat'),
-        href: `https://bugzilla.redhat.com/enter_bug.cgi?product=OpenShift%20Container%20Platform&version=${bugzillaVersion}&cf_environment=${environment}`,
+        // It is not currently possible to pre-populate `component`, etc. per https://jira.atlassian.com/browse/JRASERVER-23590
+        href: `https://issues.redhat.com/secure/CreateIssue.jspa?pid=12332330&issuetype=1`,
       };
 };
 
@@ -256,3 +317,38 @@ export const getConditionUpgradeableFalse = (resource) =>
 
 export const getNotUpgradeableResources = (resources) =>
   resources.filter((resource) => getConditionUpgradeableFalse(resource));
+
+export enum NodeTypes {
+  master = 'master',
+  worker = 'worker',
+}
+
+/**
+ * Intentionally not translated as they are capitalized versions
+ * of the Node names for display purposes
+ */
+export enum NodeTypeNames {
+  Master = 'Master',
+  Worker = 'Worker',
+}
+
+export const isMCPMaster = (mcp: MachineConfigPoolKind) => mcp.metadata.name === NodeTypes.master;
+
+export const isMCPWorker = (mcp: MachineConfigPoolKind) => mcp.metadata.name === NodeTypes.worker;
+
+export const isMCPPaused = (mcp: MachineConfigPoolKind) => mcp.spec?.paused;
+
+export const sortMCPsByCreationTimestamp = (a: MachineConfigPoolKind, b: MachineConfigPoolKind) =>
+  a.metadata.creationTimestamp.localeCompare(b.metadata.creationTimestamp);
+
+export const clusterIsUpToDateOrUpdateAvailable = (status: ClusterUpdateStatus) =>
+  status === ClusterUpdateStatus.UpToDate || status === ClusterUpdateStatus.UpdatesAvailable;
+
+export const getMCPsToPausePromises = (
+  machineConfigPools: MachineConfigPoolKind[],
+  paused: boolean,
+) =>
+  machineConfigPools.map((mcp) => {
+    const patch = [{ op: 'add', path: '/spec/paused', value: paused }];
+    return k8sPatch(MachineConfigPoolModel, mcp, patch);
+  });

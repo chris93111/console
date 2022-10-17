@@ -1,5 +1,7 @@
 import * as _ from 'lodash-es';
 import * as React from 'react';
+import { PrometheusEndpoint, PrometheusResponse } from '@console/dynamic-plugin-sdk';
+import { PerPageOptions } from '@patternfly/react-core';
 import {
   ISortBy,
   sortable,
@@ -10,12 +12,10 @@ import {
   TableVariant,
 } from '@patternfly/react-table';
 
-import { PrometheusEndpoint } from '@console/dynamic-plugin-sdk/src/api/internal-types';
 import ErrorAlert from '@console/shared/src/components/alerts/error';
 
 import { formatNumber } from '../format';
 import { ColumnStyle, Panel } from './types';
-import { PrometheusResponse } from '../../graphs';
 import { getPrometheusURL } from '../../graphs/helpers';
 import { EmptyBox, usePoll, useSafeFetch } from '../../utils';
 import TablePagination from '../table-pagination';
@@ -39,6 +39,9 @@ const getColumns = (styles: ColumnStyle[]): AugmentedColumnStyle[] => {
 
     if (col.pattern.startsWith('Value #')) {
       valueColumns.push(col);
+    } else if (col.pattern === 'Value') {
+      // Set the column to use the first group pattern because the panel has a single target
+      valueColumns.push({ ...col, pattern: 'Value #A' });
     } else {
       labelColumns.push({
         ...col,
@@ -51,7 +54,7 @@ const getColumns = (styles: ColumnStyle[]): AugmentedColumnStyle[] => {
   return [...labelColumns, ...valueColumns];
 };
 
-const paginationOptions = [5, 10, 20, 50, 100].map((n) => ({
+const perPageOptions: PerPageOptions[] = [5, 10, 20, 50, 100].map((n) => ({
   title: n.toString(),
   value: n,
 }));
@@ -181,9 +184,9 @@ const Table: React.FC<Props> = ({ panel, pollInterval, queries, namespace }) => 
       </div>
       <TablePagination
         itemCount={sortedData.length}
-        paginationOptions={paginationOptions}
         page={page}
         perPage={perPage}
+        perPageOptions={perPageOptions}
         setPage={setPage}
         setPerPage={setPerPage}
       />

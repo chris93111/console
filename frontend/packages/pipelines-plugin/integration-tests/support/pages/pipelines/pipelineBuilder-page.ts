@@ -14,8 +14,11 @@ export const pipelineBuilderSidePane = {
 
   removeTask: () => {
     cy.get(pipelineBuilderPO.formView.sidePane.dialog).within(() => {
-      cy.selectByDropDownText(pipelineBuilderPO.formView.sidePane.actions, 'Remove Task');
+      cy.selectByDropDownText(pipelineBuilderPO.formView.sidePane.actions, 'Remove task');
     });
+    cy.get('[data-test="confirm-action"]')
+      .should('be.visible')
+      .click();
   },
 
   enterParameterUrl: (url: string = 'https://github.com/sclorg/golang-ex.git') => {
@@ -172,6 +175,7 @@ export const pipelineBuilderPage = {
     taskName: string = 'git-clone',
     workspaceName: string = 'git',
   ) => {
+    cy.byTestID('form-view-input').check();
     pipelineBuilderPage.enterPipelineName(pipelineName);
     pipelineBuilderPage.selectTask(taskName);
     pipelineBuilderPage.clickOnAddWorkSpace();
@@ -181,6 +185,20 @@ export const pipelineBuilderPage = {
     pipelineBuilderSidePane.selectWorkspace(workspaceName);
     pipelineBuilderPage.clickCreateButton();
     pipelineDetailsPage.verifyTitle(pipelineName);
+  },
+
+  createPipelineWithParameters: (
+    pipelineName: string,
+    paramName: string = 'testName',
+    description: string = 'parameter description',
+    defaultValue: string = 'testValue',
+    taskName: string = 'kn',
+  ) => {
+    pipelineBuilderPage.enterPipelineName(pipelineName);
+    pipelineBuilderPage.selectTask(taskName);
+    pipelineBuilderPage.addParameters(paramName, description, defaultValue);
+    pipelineBuilderPage.clickCreateButton();
+    cy.get(pipelineDetailsPO.title).should('be.visible');
   },
 
   selectSampleInYamlView: (yamlSample: string) => {

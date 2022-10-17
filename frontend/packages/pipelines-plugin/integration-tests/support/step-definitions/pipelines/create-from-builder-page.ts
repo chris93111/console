@@ -1,6 +1,7 @@
 import { And, Given, When, Then } from 'cypress-cucumber-preprocessor/steps';
 import * as yamlEditor from '@console/cypress-integration-tests/views/yaml-editor';
 import { devNavigationMenu } from '@console/dev-console/integration-tests/support/constants/global';
+import { quickSearchAddPO } from '@console/dev-console/integration-tests/support/pageObjects';
 import { navigateTo, sidePane } from '@console/dev-console/integration-tests/support/pages/app';
 import { safeYAMLToJS } from '@console/shared/src/utils/yaml';
 import {
@@ -14,6 +15,7 @@ import {
   pipelineDetailsPage,
   pipelineBuilderSidePane,
   pipelineRunDetailsPage,
+  startPipelineInPipelinesPage,
 } from '../../pages';
 
 When('user clicks Create Pipeline button on Pipelines page', () => {
@@ -296,7 +298,10 @@ And('user has named pipeline as {string}', (pipelineName: string) => {
 });
 
 And('user has tasks {string} and {string} in series', (task1: string, task2: string) => {
-  pipelineBuilderPage.selectTask(task1);
+  cy.byTestID('task-list').click();
+  cy.get(pipelineBuilderPO.formView.quickSearch).type(task1);
+  cy.byTestID(`item-name-${task1}-Red Hat`).click();
+  cy.get(pipelineBuilderPO.formView.addInstallTask).click();
   pipelineBuilderPage.selectSeriesTask(task2);
 });
 
@@ -546,7 +551,89 @@ When('user should see the Create button enabled after installation', () => {
 });
 
 When('user selects {string} from Add task quick search', (searchItem: string) => {
-  cy.get('[data-test="task-list"]').click();
+  cy.byTestID('task-list').click();
   cy.get(pipelineBuilderPO.formView.quickSearch).type(searchItem);
+  cy.byTestID(`item-name-${searchItem}-Red Hat`).click();
+  cy.get(pipelineBuilderPO.formView.addInstallTask).click();
+});
+
+When('user hovers over the newly added task', () => {
+  cy.mouseHover('[data-test="task-list"]');
+  cy.get('[data-test="task-list"] .odc-task-list-node__trigger-underline')
+    .trigger('mouseenter')
+    .invoke('show');
+});
+
+When('user clicks on delete icon', () => {
+  cy.get(pipelineBuilderPO.formView.deleteTaskIcon)
+    .first()
+    .click({ force: true });
+});
+
+Then('user can see the task in series gets removed', () => {
+  cy.get('[data-test="task-list"]').should('not.exist');
+});
+
+When(
+  'user searches and select {string} in the list of items based on the {string} provider in quick search bar',
+  (taskName: string, provider: string) => {
+    cy.get(pipelineBuilderPO.formView.quickSearch).type(taskName);
+    cy.get(quickSearchAddPO.quickSearchListItem(taskName, provider)).click();
+  },
+);
+
+When(
+  'user installs and removes {string} of {string} provider',
+  (task: string, provider: string) => {
+    pipelineBuilderPage.clickAddTask();
+    cy.get(pipelineBuilderPO.formView.quickSearch).type(task);
+    cy.get('[aria-label="Quick search list"]').should('be.visible');
+    cy.get(quickSearchAddPO.quickSearchListItem(task, provider)).click();
+    cy.byTestID('task-cta').click();
+    pipelineBuilderPage.clickOnTask(task);
+    pipelineBuilderSidePane.removeTask();
+  },
+);
+
+When('user changes version to {string}', (menuItem: string) => {
+  cy.get(pipelineBuilderPO.formView.versionTask).click();
+  cy.get("[role='menu']")
+    .find('li')
+    .contains(menuItem)
+    .should('be.visible')
+    .click();
+});
+
+When('user clicks on Update and Add button', () => {
   cy.byTestID('task-cta').click();
+});
+
+When('user will see array type parameter {string} field', (param: string) => {
+  cy.byTestID(`${param}-text-column-field`).should('be.visible');
+});
+
+When('user add array type parameter {string} value {string}', (param: string, value: string) => {
+  cy.byTestID(`${param}-text-column-field`)
+    .get('[data-test="add-action"]')
+    .should('be.visible')
+    .click();
+  cy.get('#form-input-parameters-0-value-2-field').type(value);
+});
+
+When('user click on pipeline start modal Start button', () => {
+  startPipelineInPipelinesPage.clickStart();
+});
+
+Then('user see the added parameter value', () => {
+  cy.get('#form-input-parameters-0-value-field').should('have.value', 'foo,bar,value1');
+});
+
+When('user will see pipeline {string} in pipelines page', (name: string) => {
+  navigateTo(devNavigationMenu.Add);
+  navigateTo(devNavigationMenu.Pipelines);
+  pipelinesPage.search(name);
+});
+
+Then('user see the pipeline succeeded', () => {
+  cy.byTestID('status-text').should('have.text', 'Succeeded');
 });

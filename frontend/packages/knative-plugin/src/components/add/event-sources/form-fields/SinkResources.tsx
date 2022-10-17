@@ -11,6 +11,7 @@ import {
   knativeServingResourcesServices,
   knativeEventingResourcesBroker,
   k8sServices,
+  knativeKafkaSinks,
 } from '../../../../utils/get-knative-resources';
 import { craftResourceKey } from '../../../pub-sub/pub-sub-utils';
 import { SinkType } from '../../import-types';
@@ -37,10 +38,13 @@ const SinkResources: React.FC<SinkResourcesProps> = ({ namespace, isMoveSink }) 
       const modelData = valueObj?.props?.model;
       const name = valueObj?.props?.name;
       if (name && modelData) {
-        const { apiGroup = 'core', apiVersion, kind } = modelData;
+        const { apiGroup, apiVersion, kind } = modelData;
         setFieldValue('formData.sink.name', name);
         setFieldTouched('formData.sink.name', true);
-        setFieldValue('formData.sink.apiVersion', `${apiGroup}/${apiVersion}`);
+        setFieldValue(
+          'formData.sink.apiVersion',
+          apiGroup ? `${apiGroup}/${apiVersion}` : apiVersion,
+        );
         setFieldTouched('formData.sink.apiVersion', true);
         setFieldValue('formData.sink.kind', kind);
         setFieldTouched('formData.sink.kind', true);
@@ -55,6 +59,7 @@ const SinkResources: React.FC<SinkResourcesProps> = ({ namespace, isMoveSink }) 
     ...knativeServingResourcesServices(namespace),
     ...getDynamicChannelResourceList(namespace),
     ...knativeEventingResourcesBroker(namespace),
+    ...knativeKafkaSinks(namespace),
   ];
 
   const handleOnLoad = (resourceList: { [key: string]: string }) => {

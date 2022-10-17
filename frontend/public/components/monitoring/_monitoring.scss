@@ -1,4 +1,8 @@
-$tooltip-background-color: var(--pf-global--BackgroundColor--dark-100);
+%tooltip-background-color-theme-dark {
+  .pf-theme-dark & {
+    --pf-global--BackgroundColor--dark-100: var(--pf-global--palette--black-1000);
+  }
+}
 
 .co-alert-manager {
   margin-bottom: var(--pf-global--spacer--md);
@@ -43,12 +47,45 @@ $tooltip-background-color: var(--pf-global--BackgroundColor--dark-100);
   }
 }
 
+.horizontal-scroll {
+  overflow-x: auto;
+  padding-left: var(--pf-global--spacer--md);
+  padding-right: var(--pf-global--spacer--md);
+
+  &:before, &:after {
+    bottom: 0;
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    width: var(--pf-global--spacer--md);
+    z-index: 1;
+  }
+  &:before {
+    background: linear-gradient(
+      to right,
+      var(--pf-global--BackgroundColor--100),
+      rgba(255, 255, 255, 0)
+    );
+    left: 0;
+  }
+  &:after {
+    background: linear-gradient(
+      to left,
+      var(--pf-global--BackgroundColor--100),
+      rgba(255, 255, 255, 0)
+    );
+    right: 0;
+  }
+}
+
 .monitoring-dashboards__card {
   height: calc(100% - 20px);
   margin: 0 0 20px 0;
 
   .co-dashboard-card__body--dashboard {
-    // Add extra padding to the right. X-axis times with AM/PM at certain screen widths can overflow the card otherwise.
+    // Add extra padding to the right. X-axis times with AM/PM at certain screen widths can overflow
+    // the card otherwise.
     padding: 10px 15px 10px 10px;
   }
 
@@ -123,25 +160,9 @@ $tooltip-background-color: var(--pf-global--BackgroundColor--dark-100);
 .monitoring-dashboards__legend-wrap {
   $legend-content-height: 65px;
   height: $legend-content-height + 10px; // Add space for the horizontal scrollbar
-  overflow-x: auto;
-  padding-right: var(--pf-global--spacer--lg);
   padding-top: 1px;
   svg {
     max-height: $legend-content-height; // Required for Chrome to prevent vertical scrolling
-  }
-  &:after {
-    background: linear-gradient(
-      to left,
-      var(--pf-global--BackgroundColor--100),
-      rgba(255, 255, 255, 0)
-    );
-    content: '';
-    height: $legend-content-height;
-    pointer-events: none;
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: var(--pf-global--spacer--lg);
   }
 }
 
@@ -218,7 +239,8 @@ $screen-phone-landscape-min-width: 567px;
 }
 
 .monitoring-dashboards__variable-dropdown {
-  .pf-c-dropdown__menu, .pf-c-select__menu {
+  .pf-c-dropdown__menu,
+  .pf-c-select__menu {
     max-height: 60vh;
     overflow-y: auto;
   }
@@ -243,7 +265,8 @@ $monitoring-line-height: 18px;
 }
 
 .monitoring-description {
-  // Limit to $num-lines lines of text. Truncate with an ellipsis in WebKit. Just overflow hidden for other browsers.
+  // Limit to $num-lines lines of text. Truncate with an ellipsis in WebKit. Just overflow hidden
+  // for other browsers.
   $num-lines: 2;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -271,8 +294,16 @@ $monitoring-line-height: 18px;
   margin-right: 10px;
 }
 
-.monitoring-query {
-  color: $pf-color-blue-400;
+.monitoring-alert-detail-toolbar.pf-c-toolbar  {
+  padding-top: 0;
+
+  .pf-c-toolbar__content{
+    padding: 0;
+  }
+
+  .co-section-heading{
+    margin: 0;
+  }
 }
 
 .monitoring-silence-alert {
@@ -285,6 +316,10 @@ $monitoring-line-height: 18px;
     @media (min-width: $pf-global--breakpoint--md) {
       padding-top: 26px;
     }
+  }
+
+  &__paragraph {
+    margin-bottom: var(--pf-c-content--MarginBottom);
   }
 }
 
@@ -331,6 +366,10 @@ $monitoring-line-height: 18px;
   display: flex;
 }
 
+.query-browser__reduced-resolution.pf-c-alert{
+  align-content: center;
+}
+
 .query-browser__controls--right {
   display: flex;
   margin-left: auto;
@@ -365,20 +404,16 @@ $monitoring-line-height: 18px;
   max-height: 25vh;
   overflow: auto;
   width: 100%;
-
-  &--insert {
-    @media (min-width: $screen-sm-min) {
-      max-width: 55vw;
-    }
-    max-width: 85vw;
-    width: 550px;
-  }
 }
 
 .query-browser__query {
   line-height: 1;
   margin: 0 15px 0 0;
   width: 100%;
+
+  .pf-c-form__helper-text {
+    margin-top: var(--pf-global--spacer--xs);
+  }
 }
 
 .query-browser__query-controls {
@@ -389,9 +424,17 @@ $monitoring-line-height: 18px;
   padding: 10px 0;
 }
 
-.query-browser__query-input {
+.query-browser__query > .query-browser__query-input {
   padding-right: 28px !important;
   resize: vertical;
+  font-family: var(--pf-c-code-block__pre--FontFamily), monospace;
+  font-size: var(--pf-c-code-block__pre--FontSize);
+
+  &:focus-within {
+    --pf-c-form-control--BorderBottomColor: var(--pf-c-form-control--focus--BorderBottomColor);
+    padding-bottom: var(--pf-c-form-control--focus--PaddingBottom);
+    border-bottom-width: var(--pf-c-form-control--focus--BorderBottomWidth);
+  }
 }
 
 .query-browser__series-btn {
@@ -418,13 +461,14 @@ $monitoring-line-height: 18px;
   }
 }
 
-.query-browser__span-dropdown-menu {
-  right: 1px;
-  width: 130px;
-}
+// Match the width of the combined text input and dropdown button input group and the dropdown menu
+.query-browser__span {
+  $width: 130px;
+  max-width: $width;
 
-.query-browser__span-text {
-  max-width: 79px;
+  .query-browser__span-dropdown-item {
+    width: $width - 1px;
+  }
 }
 
 .query-browser__table {
@@ -436,19 +480,15 @@ $monitoring-line-height: 18px;
   }
 
   tr > :first-child {
-    width: 40px;
+    padding-top: 0;
+    padding-bottom: 0;
+    padding-left: 0;
+    vertical-align: middle;
   }
 }
 
-.query-browser__table-cell {
-  @include co-break-word;
-  min-width: 120px;
-  --pf-c-table-cell--PaddingRight: 0;
-  --pf-c-table__sort-indicator--MarginLeft: 4px;
-}
-
 .query-browser__table-wrapper {
-  overflow-x: auto;
+  position: relative;
   width: 100%;
 
   table {
@@ -456,18 +496,24 @@ $monitoring-line-height: 18px;
   }
 }
 
+.query-browser__table-wrapper .query-browser__series-select-all-btn {
+  margin-top: var(--pf-global--spacer--md);
+}
+
 .query-browser__table-message {
   border-bottom: solid 1px var(--pf-global--BorderColor--100);
   padding: 10px 20px;
 }
 
-.query-browser__toggle-graph {
-  margin-bottom: 5px;
-  float: right;
+.query-browser__toggle-graph-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--pf-global--spacer--xs);
 }
 
 .query-browser__tooltip {
-  background-color: $tooltip-background-color;
+  background-color: var(--pf-global--BackgroundColor--dark-100);
+  @extend %tooltip-background-color-theme-dark;
   color: #eee;
   font-size: 12px;
   overflow-x: hidden;
@@ -476,14 +522,16 @@ $monitoring-line-height: 18px;
 
 .query-browser__tooltip-arrow {
   border-bottom: 12px solid transparent;
-  border-right: 12px solid $tooltip-background-color;
+  border-right: 12px solid var(--pf-global--BackgroundColor--dark-100);
+  @extend %tooltip-background-color-theme-dark;
   border-top: 12px solid transparent;
   height: 0;
   width: 0;
 }
 
 .query-browser__tooltip-line {
-  stroke: $tooltip-background-color;
+  stroke: var(--pf-global--BackgroundColor--dark-100);
+  @extend %tooltip-background-color-theme-dark;
 }
 
 .query-browser__tooltip-series {
@@ -517,7 +565,8 @@ $monitoring-line-height: 18px;
     flex-direction: row-reverse;
 
     .query-browser__tooltip-arrow {
-      border-left: 12px solid $tooltip-background-color;
+      border-left: 12px solid var(--pf-global--BackgroundColor--dark-100);
+      @extend %tooltip-background-color-theme-dark;
       border-right: none;
     }
   }
@@ -546,6 +595,7 @@ $monitoring-line-height: 18px;
   &:focus {
     outline: none;
   }
+  height: 200px;
 }
 
 .query-browser__zoom-overlay {

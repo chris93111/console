@@ -74,8 +74,8 @@ export const defaultData: DeployImageFormData = {
     hostname: '',
     secure: false,
     tls: {
-      termination: '',
-      insecureEdgeTerminationPolicy: '',
+      termination: null,
+      insecureEdgeTerminationPolicy: null,
       caCertificate: '',
       certificate: '',
       destinationCACertificate: '',
@@ -349,7 +349,7 @@ export const deploymentKnativeData: K8sResourceKind = {
 
 const eventSourceData = {
   [EventSources.PingSource]: {
-    jsonData: '',
+    data: '',
     schedule: '* * * * *',
   },
   [EventSources.ApiServerSource]: {

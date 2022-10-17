@@ -70,6 +70,7 @@ export const pipelineRunDetailsPage = {
     cy.get(pipelineRunDetailsPO.taskRunsTab).should('be.visible');
     cy.get(pipelineRunDetailsPO.logsTab).should('be.visible');
     cy.get(pipelineRunDetailsPO.eventsTab).should('be.visible');
+    cy.get(pipelineRunDetailsPO.parametersTab).should('be.visible');
   },
   verifyFields: () => {
     cy.byLegacyTestID('resource-summary').within(() => {
@@ -81,16 +82,27 @@ export const pipelineRunDetailsPage = {
       cy.get(pipelineDetailsPO.details.fieldNames.owner).should('be.visible');
     });
     cy.get('.odc-pipeline-run-details__customDetails').within(() => {
-      cy.get('dl dt')
-        .contains('Status')
-        .should('be.visible');
-      cy.get('dl dt')
-        .contains('Pipeline')
-        .should('be.visible');
-      cy.get('dl dt')
-        .contains('Triggered by:')
-        .should('be.visible');
+      cy.contains('dl dt', 'Status').should('be.visible');
+      cy.contains('dl dt', 'Pipeline').should('be.visible');
+      cy.contains('dl dt', 'Triggered by:').should('be.visible');
     });
+  },
+  verifyDetailsFields: () => {
+    cy.get('.odc-pipeline-run-details__customDetails').within(() => {
+      cy.contains('dl dt', 'Repository').should('be.visible');
+      cy.contains('dl dt', 'Branch').should('be.visible');
+      cy.contains('dl dt', 'Commit id').should('be.visible');
+      cy.contains('dl dt', 'Event type').should('be.visible');
+    });
+  },
+  verifyPipelineRunColumns: () => {
+    cy.get(pipelineRunDetailsPO.taskRuns.columnNames.name).should('be.visible');
+    cy.get(pipelineRunDetailsPO.taskRuns.columnNames.commidID).should('be.visible');
+    cy.get(pipelineRunDetailsPO.taskRuns.columnNames.status).should('be.visible');
+    cy.get(pipelineRunDetailsPO.taskRuns.columnNames.taskStatus).should('be.visible');
+    cy.get(pipelineRunDetailsPO.taskRuns.columnNames.started).should('be.visible');
+    cy.get(pipelineRunDetailsPO.taskRuns.columnNames.duration).should('be.visible');
+    cy.get(pipelineRunDetailsPO.taskRuns.columnNames.branch).should('be.visible');
   },
   selectPipeline: () => cy.get(pipelineRunDetailsPO.details.pipelineLink).click(),
   clickOnDownloadLink: () => cy.byButtonText('Download').click(),
@@ -120,6 +132,11 @@ export const pipelineRunDetailsPage = {
       case 'Task Runs': {
         cy.get(pipelineRunDetailsPO.taskRunsTab).click();
         cy.url().should('include', 'task-runs');
+        break;
+      }
+      case 'Parameters': {
+        cy.get(pipelineRunDetailsPO.parametersTab).click();
+        cy.url().should('include', 'parameters');
         break;
       }
       default: {

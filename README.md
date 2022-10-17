@@ -16,7 +16,7 @@ The console is a more friendly `kubectl` in the form of a single page webapp. It
 ### Dependencies:
 
 1. [node.js](https://nodejs.org/) >= 14 & [yarn](https://yarnpkg.com/en/docs/install) >= 1.20
-2. [go](https://golang.org/) >= 1.16+
+2. [go](https://golang.org/) >= 1.18+
 3. [oc](https://mirror.openshift.com/pub/openshift-v4/clients/oc/4.4/) or [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) and an OpenShift or Kubernetes cluster
 4. [jq](https://stedolan.github.io/jq/download/) (for `contrib/environment.sh`)
 5. Google Chrome/Chromium or Firefox for integration tests
@@ -154,7 +154,7 @@ See [STYLEGUIDE](STYLEGUIDE.md) for file format and coding style guide.
 
 ### Dev Dependencies
 
-go 1.16+, nodejs/yarn, kubectl
+go 1.18+, nodejs/yarn, kubectl
 
 ### Frontend Development
 
@@ -469,3 +469,26 @@ We support the latest versions of the following browsers:
 - Firefox
 
 IE 11 and earlier is not supported.
+
+## Frontend Packages
+- [ceph-storage-plugin](./frontend/packages/ceph-storage-plugin/README.md)
+
+- [console-dynamic-plugin-sdk](./frontend/packages/console-dynamic-plugin-sdk/README.md)
+[[API]](./frontend/packages/console-dynamic-plugin-sdk/docs/api.md)
+[[Console Extensions]](./frontend/packages/console-dynamic-plugin-sdk/docs/console-extensions.md)
+
+- [console-plugin-shared](./frontend/packages/console-plugin-shared/README.md)
+
+- [dev-console](./frontend/packages/dev-console/README.md)
+
+- [eslint-plugin-console](./frontend/packages/eslint-plugin-console/README.md)
+
+- [integration-tests-cypress](./frontend/packages/integration-tests-cypress/README.md)
+
+- [knative-plugin](./frontend/packages/knative-plugin/README.md)
+
+- operator-lifecycle-manager
+[[Descriptors README]](./frontend/packages/operator-lifecycle-manager/src/components/descriptors/README.md)
+[[Descriptors API Reference]](./frontend/packages/operator-lifecycle-manager/src/components/descriptors/reference/reference.md)
+
+- [rhoas-plugin](./frontend/packages/rhoas-plugin/README.md)

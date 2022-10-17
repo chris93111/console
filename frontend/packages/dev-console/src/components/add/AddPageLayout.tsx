@@ -10,6 +10,7 @@ import TopologyQuickSearch from '@console/topology/src/components/quick-search/T
 import TopologyQuickSearchButton from '@console/topology/src/components/quick-search/TopologyQuickSearchButton';
 import { filterNamespaceScopedUrl } from '../../utils/add-page-utils';
 import { useAddActionExtensions } from '../../utils/useAddActionExtensions';
+import { ResourceQuotaAlert } from '../resource-quota/ResourceQuotaAlert';
 import AddCardSection from './AddCardSection';
 import { GETTING_STARTED_USER_SETTINGS_KEY } from './constants';
 import { GettingStartedSection } from './GettingStartedSection';
@@ -65,6 +66,9 @@ const AddPageLayout: React.FC<AddPageLayoutProps> = ({ title, hintBlock: additio
             <TopologyQuickSearchButton onClick={() => setIsQuickSearchOpen(true)} />
           </div>
           <div className="odc-add-page-layout__hint-block__actions">
+            <div className="odc-add-page-layout__resource-quota-message-block">
+              <ResourceQuotaAlert namespace={activeNamespace} />
+            </div>
             <RestoreGettingStartedButton userSettingsKey={GETTING_STARTED_USER_SETTINGS_KEY} />
             <div
               className={cx('odc-add-page-layout__hint-block__details-switch', {
@@ -88,17 +92,14 @@ const AddPageLayout: React.FC<AddPageLayoutProps> = ({ title, hintBlock: additio
                       setShowDetails(checked);
                     }}
                     data-test="switch"
+                    label={switchText}
+                    labelOff={switchText}
+                    className="odc-add-page-layout__hint-block__details-switch__text"
                   />
                 </Tooltip>
               ) : (
                 <Skeleton shape="circle" width="24px" />
               )}
-              <span
-                className="odc-add-page-layout__hint-block__details-switch__text"
-                data-test="label"
-              >
-                {extensionsLoaded ? switchText : <Skeleton height="100%" width="64px" />}
-              </span>
             </div>
           </div>
           <TopologyQuickSearch

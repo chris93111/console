@@ -29,7 +29,7 @@ const PipelinesResourceList: React.FC<PipelinesResourceListProps> = (props) => {
       kind: referenceForModel(PipelineModel),
       namespace,
       prop: PipelineModel.id,
-      filters: { ...filters, name: nameFilter },
+      filters: { ...filters(t), name: nameFilter },
       selector,
       name,
     },
@@ -53,7 +53,10 @@ const PipelinesResourceList: React.FC<PipelinesResourceListProps> = (props) => {
       badge={badge}
     >
       <Firehose resources={resources}>
-        <PipelineAugmentRunsWrapper hideNameLabelFilters={props.hideNameLabelFilters} />
+        <PipelineAugmentRunsWrapper
+          namespace={namespace}
+          hideNameLabelFilters={props.hideNameLabelFilters}
+        />
       </Firehose>
     </FireMan>
   );

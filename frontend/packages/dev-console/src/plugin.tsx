@@ -13,7 +13,7 @@ import {
   PostFormSubmissionAction,
   CustomFeatureFlag,
 } from '@console/plugin-sdk';
-import { ALLOW_SERVICE_BINDING_FLAG } from '@console/topology/src/const';
+import { ALLOW_SERVICE_BINDING_FLAG } from '@console/service-binding-plugin/src/const';
 import { TopologyDataModelFactory } from '@console/topology/src/extensions';
 import { doConnectsToBinding } from '@console/topology/src/utils/connector-utils';
 import { getGuidedTour } from './components/guided-tour';
@@ -130,7 +130,7 @@ const plugin: Plugin<ConsumedExtensions> = [
     type: 'Page/Route',
     properties: {
       exact: true,
-      path: '/edit-deployment/ns/:ns',
+      path: ['/edit-deployment/ns/:ns', '/create-deployment/ns/:ns/~new/form'],
       loader: async () =>
         (
           await import(
@@ -187,20 +187,6 @@ const plugin: Plugin<ConsumedExtensions> = [
         (
           await import(
             './components/import/ImportPage' /* webpackChunkName: "dev-console-import" */
-          )
-        ).default,
-    },
-  },
-  {
-    type: 'Page/Route',
-    properties: {
-      perspective: 'dev',
-      exact: true,
-      path: ['/k8s/all-namespaces/buildconfigs', '/k8s/ns/:ns/buildconfigs'],
-      loader: async () =>
-        (
-          await import(
-            './components/buildconfig/BuildConfigPage' /* webpackChunkName: "dev-console-buildconfig" */
           )
         ).default,
     },

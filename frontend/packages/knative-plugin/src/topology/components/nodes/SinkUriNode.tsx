@@ -9,21 +9,12 @@ import {
   WithDndDropProps,
   WithContextMenuProps,
   useHover,
-  useCombineRefs,
-  useAnchor,
-  createSvgIdUrl,
-  EllipseAnchor,
+  useVisualizationController,
+  ScaleDetailsLevel,
 } from '@patternfly/react-topology';
-import * as classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import { calculateRadius } from '@console/shared';
-import {
-  NodeShadows,
-  NODE_SHADOW_FILTER_ID_HOVER,
-  NODE_SHADOW_FILTER_ID,
-  Decorator,
-} from '@console/topology/src/components/graph-view';
-import { EVENT_MARKER_RADIUS } from '../../const';
+import { Decorator, BaseNode } from '@console/topology/src/components/graph-view';
 
 import './SinkUriNode.scss';
 
@@ -41,71 +32,26 @@ export type SinkUriNodeProps = {
 const DECORATOR_RADIUS = 13;
 const SinkUriNode: React.FC<SinkUriNodeProps> = ({
   element,
-  selected,
-  onSelect,
-  onContextMenu,
-  contextMenuOpen,
-  dragNodeRef,
-  dndDropRef,
-  dragging,
-  edgeDragging,
   canDrop,
   dropTarget,
+  contextMenuOpen,
+  ...rest
 }) => {
-  useAnchor(React.useCallback((node: Node) => new EllipseAnchor(node, EVENT_MARKER_RADIUS), []));
-  const [hover, hoverRef] = useHover();
   const { t } = useTranslation();
-  const groupRefs = useCombineRefs<SVGCircleElement>(hoverRef, dragNodeRef);
   const { width, height } = element.getDimensions();
+  const [hover, hoverRef] = useHover();
   const sinkData = element.getData().data;
   const size = Math.min(width, height);
   const { radius } = calculateRadius(size);
   const cx = width / 2;
   const cy = height / 2;
-  return (
-    <Tooltip
-      content={t('knative-plugin~Move sink to URI')}
-      trigger="manual"
-      isVisible={dropTarget && canDrop}
-      animationDuration={0}
-    >
-      <g
-        className={classNames('odc-sink-uri', {
-          'is-dragging': dragging,
-          'is-highlight': canDrop || edgeDragging,
-        })}
-        onClick={onSelect}
-        onContextMenu={onContextMenu}
-        ref={hoverRef}
-      >
-        <NodeShadows />
-        <g
-          className={classNames('odc-sink-uri', {
-            'is-dragging': dragging,
-            'is-highlight': canDrop || edgeDragging,
-            'is-selected': selected,
-            'is-dropTarget': canDrop && dropTarget,
-          })}
-          ref={groupRefs}
-        >
-          <circle
-            key={hover || dragging || contextMenuOpen ? 'circle-hover' : 'circle'}
-            className="odc-sink-uri__bg"
-            ref={dndDropRef}
-            cx={cx}
-            cy={cy}
-            r={radius}
-            filter={createSvgIdUrl(
-              hover || dragging || contextMenuOpen
-                ? NODE_SHADOW_FILTER_ID_HOVER
-                : NODE_SHADOW_FILTER_ID,
-            )}
-          />
-          <g transform={`translate(${cx / 2}, ${cy / 2})`}>
-            <LinkIcon style={{ fontSize: radius }} />
-          </g>
-        </g>
-        {sinkData.sinkUri && (
+  const controller = useVisualizationController();
+  const detailsLevel = controller.getGraph().getDetailsLevel();
+  const showDetails = hover || contextMenuOpen || detailsLevel !== ScaleDetailsLevel.low;
+
+  const decorators =
+    sinkData.sinkUri && showDetails
+      ? [
           <Tooltip
             key="URI"
             content={t('knative-plugin~Open URI')}
@@ -122,9 +68,32 @@ const SinkUriNode: React.FC<SinkUriNodeProps> = ({
                 <ExternalLinkAltIcon style={{ fontSize: DECORATOR_RADIUS }} title="Open URL" />
               </g>
             </Decorator>
-          </Tooltip>
-        )}
-      </g>
+          </Tooltip>,
+        ]
+      : undefined;
+
+  return (
+    <Tooltip
+      content={t('knative-plugin~Move sink to URI')}
+      trigger="manual"
+      isVisible={dropTarget && canDrop}
+      animationDuration={0}
+    >
+      <BaseNode
+        className="odc-sink-uri"
+        hoverRef={hoverRef}
+        createConnectorAccessVerb="create"
+        kind={sinkData.kind}
+        element={element}
+        dropTarget={dropTarget}
+        canDrop={canDrop}
+        attachments={decorators}
+        {...rest}
+      >
+        <g transform={`translate(${cx / 2}, ${cy / 2})`}>
+          <LinkIcon style={{ fontSize: radius }} />
+        </g>
+      </BaseNode>
     </Tooltip>
   );
 };

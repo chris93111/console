@@ -8,7 +8,7 @@ import { PodModel } from '@console/internal/models';
 import { resourceURL, K8sKind } from '@console/internal/module/k8s';
 import { WSFactory } from '@console/internal/module/ws-factory';
 import { connectToFlags, WithFlagsProps } from '@console/internal/reducers/connectToFlags';
-import { FLAGS } from '@console/shared';
+import { FLAGS, useTelemetry } from '@console/shared';
 import { setCloudShellActive } from '../../redux/actions/cloud-shell-actions';
 import {
   getCloudShellCR,
@@ -19,8 +19,6 @@ import {
 import ExecuteCommand from './ExecuteCommand';
 import Terminal, { ImperativeTerminalType } from './Terminal';
 import TerminalLoadingBox from './TerminalLoadingBox';
-import useActivityTick from './useActivityTick';
-
 import './CloudShellExec.scss';
 
 // pod exec WS protocol is FD prefixed, base64 encoded data (sometimes json stringified)
@@ -31,6 +29,7 @@ import './CloudShellExec.scss';
 
 type Props = {
   workspaceName: string;
+  workspaceId: string;
   container: string;
   podname: string;
   namespace: string;
@@ -48,13 +47,14 @@ type DispatchProps = {
   onActivate: (active: boolean) => void;
 };
 
-type CloudShellExecProps = Props & DispatchProps & StateProps & WithFlagsProps;
+export type CloudShellExecProps = Props & DispatchProps & StateProps & WithFlagsProps;
 
 const NO_SH =
   'starting container process caused "exec: \\"sh\\": executable file not found in $PATH"';
 
 const CloudShellExec: React.FC<CloudShellExecProps> = ({
   workspaceName,
+  workspaceId,
   container,
   podname,
   namespace,
@@ -64,6 +64,7 @@ const CloudShellExec: React.FC<CloudShellExecProps> = ({
   workspaceModel,
   onActivate,
 }) => {
+  const fireTelemetryEvent = useTelemetry();
   const [wsOpen, setWsOpen] = React.useState<boolean>(false);
   const [wsError, setWsError] = React.useState<string>();
   const [wsReopening, setWsReopening] = React.useState<boolean>(false);
@@ -72,15 +73,10 @@ const CloudShellExec: React.FC<CloudShellExecProps> = ({
   const terminal = React.useRef<ImperativeTerminalType>();
   const { t } = useTranslation();
 
-  const tick = useActivityTick(workspaceName, namespace);
-
-  const onData = React.useCallback(
-    (data: string): void => {
-      tick();
-      ws.current?.send(`0${Base64.encode(data)}`);
-    },
-    [tick],
-  );
+  const onData = (data: string): void => {
+    ws.current?.send(`0${Base64.encode(data)}`);
+    fireTelemetryEvent('Web Terminal Command Issued', { sessionId: workspaceId });
+  };
 
   const handleResize = React.useCallback((cols: number, rows: number) => {
     const data = Base64.encode(JSON.stringify({ Height: rows, Width: cols }));
@@ -144,7 +140,6 @@ const CloudShellExec: React.FC<CloudShellExecProps> = ({
             return;
           }
         }
-        tick();
         const data = Base64.decode(msg.slice(1));
         currentTerminal && currentTerminal.onDataReceived(data);
         previous = data;
@@ -185,6 +180,7 @@ const CloudShellExec: React.FC<CloudShellExecProps> = ({
             const currentTerminal = terminal.current;
             currentTerminal && currentTerminal.onConnectionClosed(error);
             websocket.destroy();
+            fireTelemetryEvent('Web Terminal Timeout');
             if (!unmounted) setWsError(error);
           })
           .catch((e) => {
@@ -210,8 +206,8 @@ const CloudShellExec: React.FC<CloudShellExecProps> = ({
       unmounted = true;
       websocket.destroy();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    tick,
     container,
     flags,
     impersonate,
@@ -232,6 +228,9 @@ const CloudShellExec: React.FC<CloudShellExecProps> = ({
           <Button
             variant="primary"
             onClick={() => {
+              fireTelemetryEvent('Web Terminal Timeout', {
+                reconnect: customResource.status.phase === 'Running',
+              });
               if (customResource && customResource.status.phase !== 'Running') {
                 startWorkspace(customResource);
               } else if (!wsReopening) {
@@ -266,6 +265,9 @@ const CloudShellExec: React.FC<CloudShellExecProps> = ({
     </div>
   );
 };
+
+// For testing
+export const InternalCloudShellExec = CloudShellExec;
 
 const dispatchToProps = (dispatch: Dispatch): DispatchProps => ({
   onActivate: (active: boolean) => dispatch(setCloudShellActive(active)),

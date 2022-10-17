@@ -2,7 +2,15 @@ import { TFunction } from 'i18next';
 import { Map as ImmutableMap } from 'immutable';
 import YAML from 'js-yaml';
 import * as _ from 'lodash';
-import { AddAction, isAddAction } from '@console/dynamic-plugin-sdk';
+import { PodDisruptionBudgetModel } from '@console/app/src/models';
+import {
+  AddAction,
+  isAddAction,
+  CatalogItemType,
+  isCatalogItemType,
+  isPerspective,
+  Perspective,
+} from '@console/dynamic-plugin-sdk';
 import { FirehoseResult } from '@console/internal/components/utils';
 import * as denyOtherNamespacesImg from '@console/internal/imgs/network-policy-samples/1-deny-other-namespaces.svg';
 import * as limitCertainAppImg from '@console/internal/imgs/network-policy-samples/2-limit-certain-apps.svg';
@@ -346,6 +354,80 @@ const defaultSamples = (t: TFunction) =>
             });
           },
           targetResource: getTargetResource(ConsoleOperatorConfigModel),
+        },
+        {
+          title: t('console-shared~Add sub-catalog types'),
+          description: t(
+            'console-shared~Provides a list of all the available sub-catalog types which are shown in the Developer Catalog. The types must be added below spec customization developerCatalog',
+          ),
+          id: 'devcatalog-types',
+          snippet: true,
+          lazyYaml: () => {
+            return new Promise<string>((resolve) => {
+              const unsubscribe = subscribeToExtensions<CatalogItemType>(
+                (extensions: LoadedExtension<CatalogItemType>[]) => {
+                  const enabledTypes = {
+                    state: 'Enabled',
+                    enabled: extensions.map((extension) => extension.properties.type),
+                  };
+                  resolve(YAML.dump(enabledTypes));
+                  unsubscribe();
+                },
+                isCatalogItemType,
+              );
+            });
+          },
+          targetResource: getTargetResource(ConsoleOperatorConfigModel),
+        },
+        {
+          title: t('console-shared~Add user perspectives'),
+          description: t(
+            'console-shared~Provides a list of all the available user perspectives which are shown in the perspective dropdown. The perspectives must be added below spec customization.',
+          ),
+          id: 'user-perspectives',
+          snippet: true,
+          lazyYaml: () => {
+            return new Promise<string>((resolve) => {
+              const unsubscribe = subscribeToExtensions<Perspective>(
+                (extensions: LoadedExtension<Perspective>[]) => {
+                  const yaml = extensions.map((extension) => {
+                    const { id } = extension.properties;
+                    return {
+                      id,
+                      visibility: {
+                        state: 'Enabled',
+                      },
+                    };
+                  });
+                  resolve(YAML.dump(yaml));
+                  unsubscribe();
+                },
+                isPerspective,
+              );
+            });
+          },
+          targetResource: getTargetResource(ConsoleOperatorConfigModel),
+        },
+      ],
+    )
+    .setIn(
+      [referenceForModel(PodDisruptionBudgetModel)],
+      [
+        {
+          title: t('console-shared~Set maxUnavaliable to 0'),
+          description: t(
+            'console-shared~An eviction is allowed if at most 0 pods selected by "selector" are unavailable after the eviction.',
+          ),
+          id: 'pdb-max-unavailable',
+          targetResource: getTargetResource(PodDisruptionBudgetModel),
+        },
+        {
+          title: t('console-shared~Set minAvailable to 25%'),
+          description: t(
+            'console-shared~An eviction is allowed if at least 25% of pods selected by "selector" will still be available after the eviction.',
+          ),
+          id: 'pdb-min-available',
+          targetResource: getTargetResource(PodDisruptionBudgetModel),
         },
       ],
     );

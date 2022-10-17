@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { GraphElement } from '@patternfly/react-topology';
 import { useTranslation } from 'react-i18next';
+import { DetailsTabSectionExtensionHook } from '@console/dynamic-plugin-sdk/src/extensions/topology-details';
 import {
   SidebarSectionHeading,
   ResourceLink,
@@ -19,58 +20,60 @@ export const EventSinkSourceSection: React.FC<{ resource: K8sResourceKind }> = (
   const reference = target && referenceFor(target);
   const sinkUri = resource?.spec?.source?.uri;
 
-  if (!reference && !sinkUri) {
-    return (
-      <span data-test="event-sink-text" className="text-muted">
-        {t('knative-plugin~No Source found for this resource.')}
-      </span>
-    );
-  }
   return (
     <>
       <SidebarSectionHeading text={t('knative-plugin~Source')} />
-      <ul className="list-group">
-        <li className="list-group-item">
-          {reference ? (
-            <ResourceLink
-              kind={reference}
-              name={target.name}
-              namespace={resource.metadata.namespace}
-              dataTest="event-sink-sb-res"
-            />
-          ) : (
-            <>
-              <span data-test="event-sink-target-uri" className="text-muted">
-                {t('knative-plugin~Target URI:')}{' '}
-              </span>
-              <ExternalLink
-                href={sinkUri}
-                additionalClassName="co-external-link--block"
-                text={sinkUri}
+      {!reference && !sinkUri ? (
+        <span data-test="event-sink-text" className="text-muted">
+          {t('knative-plugin~No Source found for this resource.')}
+        </span>
+      ) : (
+        <ul className="list-group">
+          <li className="list-group-item">
+            {reference ? (
+              <ResourceLink
+                kind={reference}
+                name={target.name}
+                namespace={resource.metadata.namespace}
+                dataTest="event-sink-sb-res"
               />
-            </>
-          )}
-        </li>
-      </ul>
+            ) : (
+              <>
+                <span data-test="event-sink-target-uri" className="text-muted">
+                  {t('knative-plugin~Target URI:')}{' '}
+                </span>
+                <ExternalLink
+                  href={sinkUri}
+                  additionalClassName="co-external-link--block"
+                  text={sinkUri}
+                />
+              </>
+            )}
+          </li>
+        </ul>
+      )}
     </>
   );
 };
 
-export const getKnativeSidepanelEventSinkSection = (element: GraphElement) => {
+export const useKnativeSidepanelEventSinkSection: DetailsTabSectionExtensionHook = (
+  element: GraphElement,
+) => {
   if (element.getType() === NodeType.EventSink) {
     const resource = getResource(element);
-    return resource ? (
+    const section = resource ? (
       <TopologySideBarTabSection>
         <EventSinkSourceSection resource={resource} />
       </TopologySideBarTabSection>
     ) : null;
+    return [section, true, undefined];
   }
-  return undefined;
+  return [undefined, true, undefined];
 };
 
 export const usePodsForEventSink = (resource: K8sResourceKind, data) => {
   const { t } = useTranslation();
-  const { revisions, associatedDeployment = {} } = data;
+  const { revisions, associatedDeployment } = data;
   const { pods, loaded, loadError } = usePodsForRevisions(
     revisions?.map((r) => r.metadata.uid) ?? '',
     resource.metadata.namespace,
@@ -116,11 +119,53 @@ export const usePodsForEventSink = (resource: K8sResourceKind, data) => {
   ]);
 };
 
+export const usePodsForEventSource = (resource: K8sResourceKind, data) => {
+  const { associatedDeployment } = data;
+  const {
+    podData: podsDeployment,
+    loadError: loadErrorDeployment,
+    loaded: loadedDeployment,
+  } = usePodsWatcher(
+    associatedDeployment,
+    associatedDeployment?.kind ?? '',
+    associatedDeployment?.metadata?.namespace || resource.metadata?.namespace,
+  );
+
+  return React.useMemo(
+    () =>
+      !associatedDeployment || Object.keys(associatedDeployment).length === 0
+        ? null
+        : {
+            pods: podsDeployment?.pods ?? [],
+            loaded: loadedDeployment,
+            loadError: loadErrorDeployment,
+          },
+    [associatedDeployment, loadErrorDeployment, loadedDeployment, podsDeployment],
+  );
+};
+
 export const getEventSinkPodsApdapter = (element: GraphElement) => {
   if (element.getType() === NodeType.EventSink) {
     const resource = getResource(element);
     const { revisions, associatedDeployment } = element.getData()?.resources;
-    return { resource, provider: usePodsForEventSink, data: { revisions, associatedDeployment } };
+    return {
+      resource,
+      provider: usePodsForEventSink,
+      data: { revisions, associatedDeployment },
+    };
+  }
+  return undefined;
+};
+
+export const getEventSourcePodsApdapter = (element: GraphElement) => {
+  if (element.getType() === NodeType.EventSource) {
+    const resource = getResource(element);
+    const { associatedDeployment } = element.getData()?.resources;
+    return {
+      resource,
+      provider: usePodsForEventSource,
+      data: { associatedDeployment },
+    };
   }
   return undefined;
 };

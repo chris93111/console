@@ -5,11 +5,11 @@ import {
   withTargetDrag,
   withSelection,
   withDndDrop,
-  withCreateConnector,
   DragObjectWithType,
   ComponentFactory,
 } from '@patternfly/react-topology';
 import { contextMenuActions, graphActionContext, groupActionContext } from '../../../actions';
+import { withCreateConnector } from '../../../behavior/withCreateConnector';
 import {
   TYPE_WORKLOAD,
   TYPE_CONNECTS_TO,
@@ -41,7 +41,9 @@ export const componentFactory: ComponentFactory = (kind, type) => {
   switch (type) {
     case TYPE_APPLICATION_GROUP:
       return withDndDrop(applicationGroupDropTargetSpec)(
-        withSelection({ controlled: true })(withContextMenu(groupActionContext)(Application)),
+        withDragNode(nodeDragSourceSpec(type, false, false))(
+          withSelection({ controlled: true })(withContextMenu(groupActionContext)(Application)),
+        ),
       );
     case TYPE_WORKLOAD:
       return withCreateConnector(

@@ -8,6 +8,8 @@ import {
   FileUploadIcon,
   GitAltIcon,
   OutlinedFileCodeIcon,
+  ShareSquareIcon,
+  ExportIcon,
 } from '@patternfly/react-icons';
 import * as devfileIcon from '../images/devfile.svg';
 import * as dockerfileIcon from '../images/dockerfile.svg';
@@ -31,3 +33,7 @@ export const databaseCatalogIconElement = <DatabaseIcon />;
 export const operatorCatalogIconElement = <BoltIcon />;
 
 export const uploadJarIconElement = <FileUploadIcon />;
+
+export const shareProjectIconElement = <ShareSquareIcon />;
+
+export const exportApplicationIconElement = <ExportIcon />;

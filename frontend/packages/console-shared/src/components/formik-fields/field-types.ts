@@ -146,6 +146,7 @@ export interface RadioButtonFieldProps extends FieldProps {
   value: React.ReactText;
   description?: React.ReactNode;
   onChange?: (value: React.ReactText) => void;
+  isChecked?: boolean;
 }
 
 export interface RadioGroupFieldProps extends FieldProps {
@@ -158,13 +159,16 @@ export interface RadioGroupOption {
   value: React.ReactText;
   label: React.ReactNode;
   isDisabled?: boolean;
+  isChecked?: boolean;
   children?: React.ReactNode;
   activeChildren?: React.ReactElement;
 }
 
 export interface SelectInputOption {
   value: string;
-  disabled: boolean;
+  label?: string;
+  description?: string;
+  disabled?: boolean;
 }
 
 export interface SelectInputFieldProps extends FieldProps {
@@ -177,4 +181,7 @@ export interface SelectInputFieldProps extends FieldProps {
   isInputValuePersisted?: boolean;
   noResultsFoundText?: string;
   toggleOnSelection?: boolean;
+  hideClearButton?: boolean;
+  onChange?: (selection: string) => void;
+  getLabelFromValue?: (value: string) => string;
 }

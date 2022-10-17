@@ -1,15 +1,20 @@
 import * as React from 'react';
 import { Checkbox, FormGroup, Select, SelectOption, SelectVariant } from '@patternfly/react-core';
 import { useTranslation } from 'react-i18next';
+import { useTelemetry } from '@console/shared/src/hooks/useTelemetry';
 import {
-  InsecureTrafficTypes,
-  PassthroughInsecureTrafficTypes,
-  TerminationTypes,
+  TerminationType,
+  InsecureTrafficType,
+  PassthroughInsecureTrafficType,
 } from '../import/import-types';
-import { usePreferredRoutingOptions } from './usePreferredRoutingOptions';
+import {
+  PREFERRED_SECURE_ROUTING_OPTIONS_USER_SETTING_KEY,
+  usePreferredRoutingOptions,
+} from './usePreferredRoutingOptions';
 
 const SecureRouteFields: React.FC = () => {
   const { t } = useTranslation();
+  const fireTelemetryEvent = useTelemetry();
   const [
     preferredRoutingOptions,
     setPreferredRoutingOptions,
@@ -20,35 +25,37 @@ const SecureRouteFields: React.FC = () => {
   const [isTLSTerminationOpen, setIsTLSTerminationOpen] = React.useState<boolean>(false);
   const [isInsecureTrafficOpen, setIsInsecureTrafficOpen] = React.useState<boolean>(false);
 
-  const tlsTerminationSelectOptions: JSX.Element[] = React.useMemo(
-    () =>
-      Object.keys(TerminationTypes).map((tlsTerminationOption) => (
-        <SelectOption key={tlsTerminationOption} value={tlsTerminationOption}>
-          {t(TerminationTypes[tlsTerminationOption])}
-        </SelectOption>
-      )),
-    [t],
-  );
+  const tlsTerminationSelectOptions: JSX.Element[] = React.useMemo(() => {
+    const terminationOptions = {
+      [TerminationType.EDGE]: t('devconsole~Edge'),
+      [TerminationType.PASSTHROUGH]: t('devconsole~Passthrough'),
+      [TerminationType.REENCRYPT]: t('devconsole~Re-encrypt'),
+    };
+    return Object.keys(terminationOptions).map((tlsTerminationOption) => (
+      <SelectOption key={tlsTerminationOption} value={tlsTerminationOption}>
+        {terminationOptions[tlsTerminationOption]}
+      </SelectOption>
+    ));
+  }, [t]);
 
-  const insecureTrafficSelectOptions: JSX.Element[] = React.useMemo(
-    () =>
-      Object.keys(InsecureTrafficTypes).map((insecureTrafficOption) => (
-        <SelectOption key={insecureTrafficOption} value={insecureTrafficOption}>
-          {t(InsecureTrafficTypes[insecureTrafficOption])}
-        </SelectOption>
-      )),
-    [t],
-  );
-
-  const passthroughInsecureTrafficTypesSelectOptions: JSX.Element[] = React.useMemo(
-    () =>
-      Object.keys(PassthroughInsecureTrafficTypes).map((passthroughInsecureTraffic) => (
-        <SelectOption key={passthroughInsecureTraffic} value={passthroughInsecureTraffic}>
-          {t(PassthroughInsecureTrafficTypes[passthroughInsecureTraffic])}
-        </SelectOption>
-      )),
-    [t],
-  );
+  const insecureTrafficSelectOptions: JSX.Element[] = React.useMemo(() => {
+    const insecureTrafficOptions =
+      tlsTermination === TerminationType.PASSTHROUGH
+        ? {
+            [PassthroughInsecureTrafficType.None]: t('devconsole~None'),
+            [PassthroughInsecureTrafficType.Redirect]: t('devconsole~Redirect'),
+          }
+        : {
+            [InsecureTrafficType.None]: t('devconsole~None'),
+            [InsecureTrafficType.Allow]: t('devconsole~Allow'),
+            [InsecureTrafficType.Redirect]: t('devconsole~Redirect'),
+          };
+    return Object.keys(insecureTrafficOptions).map((insecureTrafficOption) => (
+      <SelectOption key={insecureTrafficOption} value={insecureTrafficOption}>
+        {insecureTrafficOptions[insecureTrafficOption]}
+      </SelectOption>
+    ));
+  }, [t, tlsTermination]);
 
   const onSecureRouteChecked = React.useCallback(
     (checked: boolean) => {
@@ -57,8 +64,11 @@ const SecureRouteFields: React.FC = () => {
         tlsTermination,
         insecureTraffic,
       });
+      fireTelemetryEvent('User Preference Changed', {
+        property: PREFERRED_SECURE_ROUTING_OPTIONS_USER_SETTING_KEY,
+      });
     },
-    [insecureTraffic, setPreferredRoutingOptions, tlsTermination],
+    [fireTelemetryEvent, insecureTraffic, setPreferredRoutingOptions, tlsTermination],
   );
 
   const onTLSTerminationToggle = React.useCallback(
@@ -79,8 +89,11 @@ const SecureRouteFields: React.FC = () => {
         insecureTraffic,
       });
       setIsTLSTerminationOpen(false);
+      fireTelemetryEvent('User Preference Changed', {
+        property: PREFERRED_SECURE_ROUTING_OPTIONS_USER_SETTING_KEY,
+      });
     },
-    [insecureTraffic, secure, setPreferredRoutingOptions],
+    [fireTelemetryEvent, insecureTraffic, secure, setPreferredRoutingOptions],
   );
 
   const onInsecureTrafficSelect = React.useCallback(
@@ -91,8 +104,11 @@ const SecureRouteFields: React.FC = () => {
         insecureTraffic: selection,
       });
       setIsInsecureTrafficOpen(false);
+      fireTelemetryEvent('User Preference Changed', {
+        property: PREFERRED_SECURE_ROUTING_OPTIONS_USER_SETTING_KEY,
+      });
     },
-    [secure, setPreferredRoutingOptions, tlsTermination],
+    [fireTelemetryEvent, secure, setPreferredRoutingOptions, tlsTermination],
   );
 
   return (
@@ -152,9 +168,7 @@ const SecureRouteFields: React.FC = () => {
           aria-label={t('devconsole~Select insecure traffic type')}
           maxHeight={300}
         >
-          {tlsTermination === 'passthrough'
-            ? passthroughInsecureTrafficTypesSelectOptions
-            : insecureTrafficSelectOptions}
+          {insecureTrafficSelectOptions}
         </Select>
       </FormGroup>
     </div>

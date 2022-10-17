@@ -12,6 +12,7 @@ import {
   NotificationCategory,
   NotificationTypes,
 } from '@console/patternfly';
+import { isNotLoadedDynamicPluginInfo } from '@console/plugin-sdk';
 import {
   alertingErrored,
   alertingLoaded,
@@ -20,11 +21,7 @@ import {
 } from '@console/internal/actions/observe';
 import * as UIActions from '@console/internal/actions/ui';
 import { RootState } from '@console/internal/redux';
-import {
-  Alert,
-  PrometheusRulesResponse,
-  AlertSeverity,
-} from '@console/internal/components/monitoring/types';
+import { PrometheusRulesResponse } from '@console/internal/components/monitoring/types';
 
 import { getClusterID } from '../module/k8s/cluster-settings';
 
@@ -34,7 +31,7 @@ import {
 } from '@console/internal/components/utils/service-level';
 import { getAlertsAndRules, alertURL } from '@console/internal/components/monitoring/utils';
 import { NotificationAlerts } from '@console/internal/reducers/observe';
-import { RedExclamationCircleIcon } from '@console/shared';
+import { RedExclamationCircleIcon, useCanClusterUpgrade } from '@console/shared';
 import {
   getAlertDescription,
   getAlertMessage,
@@ -53,29 +50,32 @@ import {
 import { useClusterVersion } from '@console/shared/src/hooks/version';
 import { usePrevious } from '@console/shared/src/hooks/previous';
 import {
+  Alert,
   AlertAction,
+  AlertSeverity,
   isAlertAction,
   useResolvedExtensions,
   ResolvedExtension,
 } from '@console/dynamic-plugin-sdk';
-import { history } from '@console/internal/components/utils';
+import { history, resourcePath } from '@console/internal/components/utils';
 import { coFetchJSON } from '../co-fetch';
+import { ConsolePluginModel } from '../models';
 import {
-  ClusterUpdate,
   ClusterVersionKind,
   getNewerClusterVersionChannel,
   getSimilarClusterVersionChannels,
-  getSortedUpdates,
+  getSortedAvailableUpdates,
+  referenceForModel,
+  Release,
   splitClusterVersionChannel,
 } from '../module/k8s';
-import { ClusterVersionModel } from '../models';
-import { useAccessReview, useAccessReview2 } from './utils/rbac';
+import { pluginStore } from '../plugins';
+import { useAccessReview2 } from './utils/rbac';
 import { LinkifyExternal } from './utils';
 import { PrometheusEndpoint } from './graphs/helpers';
 import { LabelSelector } from '@console/internal/module/k8s/label-selector';
 import { useNotificationAlerts } from '@console/shared/src/hooks/useNotificationAlerts';
-
-const criticalAlertLabelSelector = new LabelSelector({ severity: AlertSeverity.Critical });
+import { useModal } from '@console/dynamic-plugin-sdk/src/lib-core';
 
 const AlertErrorState: React.FC<AlertErrorProps> = ({ errorText }) => {
   const { t } = useTranslation();
@@ -132,20 +132,25 @@ export const getAlertActions = (actionsExtensions: ResolvedExtension<AlertAction
 };
 
 const getUpdateNotificationEntries = (
+  canUpgrade: boolean,
   cv: ClusterVersionKind,
-  isEditable: boolean,
   toggleNotificationDrawer: () => void,
 ): React.ReactNode[] => {
-  if (!cv || !isEditable) {
+  if (!cv || !canUpgrade) {
     return [];
   }
-  const updateData: ClusterUpdate[] = getSortedUpdates(cv);
+  const updateData: Release[] = getSortedAvailableUpdates(cv);
   const currentChannel = cv?.spec?.channel;
   const currentPrefix = splitClusterVersionChannel(currentChannel)?.prefix;
   const similarChannels = getSimilarClusterVersionChannels(cv, currentPrefix);
   const newerChannel = getNewerClusterVersionChannel(similarChannels, currentChannel);
   const newerChannelVersion = splitClusterVersionChannel(newerChannel)?.version;
   const entries = [];
+
+  const dynamicPluginInfo = pluginStore.getDynamicPluginInfo();
+  const failedPlugins = dynamicPluginInfo
+    .filter(isNotLoadedDynamicPluginInfo)
+    .filter((plugin) => plugin.status === 'Failed');
 
   if (!_.isEmpty(updateData)) {
     entries.push(
@@ -178,6 +183,27 @@ const getUpdateNotificationEntries = (
         toggleNotificationDrawer={toggleNotificationDrawer}
         targetPath="/settings/cluster?showChannels"
       />,
+    );
+  }
+  if (failedPlugins.length > 0) {
+    entries.push(
+      ...failedPlugins.map((plugin) => {
+        const link = resourcePath(referenceForModel(ConsolePluginModel), plugin.pluginName);
+        return (
+          <NotificationEntry
+            actionPath={link}
+            actionText={i18next.t('public~View plugin')}
+            key={`${plugin.pluginName}-dynamic-plugin-fail`}
+            description={i18next.t('public~Something went wrong with the {{pluginName}} plugin.', {
+              pluginName: plugin.pluginName,
+            })}
+            type={NotificationTypes.warning}
+            title={i18next.t('public~Dynamic plugin error')}
+            toggleNotificationDrawer={toggleNotificationDrawer}
+            targetPath={link}
+          />
+        );
+      }),
     );
   }
   return entries;
@@ -273,6 +299,7 @@ export const ConnectedNotificationDrawer_: React.FC<ConnectedNotificationDrawerP
   }, [dispatch, t, rulesAccess]);
   const clusterVersion: ClusterVersionKind = useClusterVersion();
   const [alerts, , loadError] = useNotificationAlerts();
+  const launchModal = useModal();
   const alertIds = React.useMemo(() => alerts?.map((alert) => alert.rule.name) || [], [alerts]);
   const [alertActionExtensions] = useResolvedExtensions<AlertAction>(
     React.useCallback(
@@ -285,31 +312,24 @@ export const ConnectedNotificationDrawer_: React.FC<ConnectedNotificationDrawerP
     alertActionExtensions,
   ]);
 
-  const clusterVersionIsEditable =
-    useAccessReview({
-      group: ClusterVersionModel.apiGroup,
-      resource: ClusterVersionModel.plural,
-      verb: 'patch',
-      name: 'version',
-    }) && window.SERVER_FLAGS.branding !== 'dedicated';
+  const canUpgrade = useCanClusterUpgrade();
   const updateList: React.ReactNode[] = getUpdateNotificationEntries(
+    canUpgrade,
     clusterVersion,
-    clusterVersionIsEditable,
     toggleNotificationDrawer,
   );
 
-  const [criticalAlerts, nonCriticalAlerts] = React.useMemo(
-    () =>
-      alerts.reduce<AlertAccumulator>(
-        ([criticalAlertAcc, nonCriticalAlertAcc], alert) => {
-          return criticalAlertLabelSelector.matchesLabels(alert.labels)
-            ? [[...criticalAlertAcc, alert], nonCriticalAlertAcc]
-            : [criticalAlertAcc, [...nonCriticalAlertAcc, alert]];
-        },
-        [[], []],
-      ),
-    [alerts],
-  );
+  const [criticalAlerts, nonCriticalAlerts] = React.useMemo(() => {
+    const criticalAlertLabelSelector = new LabelSelector({ severity: AlertSeverity.Critical });
+    return alerts.reduce<AlertAccumulator>(
+      ([criticalAlertAcc, nonCriticalAlertAcc], alert) => {
+        return criticalAlertLabelSelector.matchesLabels(alert.labels)
+          ? [[...criticalAlertAcc, alert], nonCriticalAlertAcc]
+          : [criticalAlertAcc, [...nonCriticalAlertAcc, alert]];
+      },
+      [[], []],
+    );
+  }, [alerts]);
 
   const hasCriticalAlerts = criticalAlerts.length > 0;
   const hasNonCriticalAlerts = nonCriticalAlerts.length > 0;
@@ -374,7 +394,7 @@ export const ConnectedNotificationDrawer_: React.FC<ConnectedNotificationDrawerP
                 toggleNotificationDrawer={toggleNotificationDrawer}
                 targetPath={alertURL(alert, alert.rule.id)}
                 actionText={action?.text}
-                alertAction={() => action?.action?.(alert)}
+                alertAction={() => action?.action?.(alert, launchModal)}
               />
             );
           })
@@ -406,7 +426,7 @@ export const ConnectedNotificationDrawer_: React.FC<ConnectedNotificationDrawerP
               toggleNotificationDrawer={toggleNotificationDrawer}
               targetPath={alertURL(alert, alert.rule.id)}
               actionText={action?.text}
-              alertAction={() => action?.action?.(alert)}
+              alertAction={() => action?.action?.(alert, launchModal)}
             />
           );
         })}

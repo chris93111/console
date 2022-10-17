@@ -3,6 +3,7 @@ import { match } from 'react-router-dom';
 import * as _ from 'lodash-es';
 
 import { getBadgeFromType } from '@console/shared';
+import { ErrorBoundaryFallbackPage, withFallback } from '@console/shared/src/components/error';
 import {
   useExtensions,
   ResourceTabPage,
@@ -16,8 +17,9 @@ import {
   ResourceTabPage as DynamicResourceTabPage,
   isResourceTabPage as isDynamicResourceTabPage,
   K8sModel,
+  isDetailPageBreadCrumbs as isDynamicDetailPageBreadCrumbs,
+  DetailPageBreadCrumbs as DynamicDetailPageBreadCrumbs,
 } from '@console/dynamic-plugin-sdk';
-import { withFallback } from '@console/shared/src/components/error/error-boundary';
 import {
   Firehose,
   HorizontalNav,
@@ -35,28 +37,38 @@ import {
   referenceForModel,
   referenceForExtensionModel,
 } from '../../module/k8s';
-import { ErrorBoundaryFallback } from '../error';
 import { breadcrumbsForDetailsPage } from '../utils/breadcrumbs';
 import DetailsBreadcrumbResolver from './details-breadcrumb-resolver';
 import { useK8sModel } from '@console/shared/src/hooks/useK8sModel';
 
 const useBreadCrumbsForDetailPage = (
   kindObj: K8sKind,
-): ResolvedExtension<DetailPageBreadCrumbs> => {
+): ResolvedExtension<DetailPageBreadCrumbs | DynamicDetailPageBreadCrumbs> => {
   const [breadCrumbsExtension, breadCrumbsResolved] = useResolvedExtensions<DetailPageBreadCrumbs>(
     isDetailPageBreadCrumbs,
   );
+  const [dynamicBreadCrumbsExtension, dynamicBreadCrumbsResolved] = useResolvedExtensions<
+    DynamicDetailPageBreadCrumbs
+  >(isDynamicDetailPageBreadCrumbs);
   return React.useMemo(
     () =>
-      breadCrumbsResolved
-        ? breadCrumbsExtension.find(({ properties: { getModels } }) => {
-            const models = getModels();
-            return Array.isArray(models)
-              ? models.findIndex((model: K8sKind) => model.kind === kindObj?.kind) !== -1
-              : models.kind === kindObj?.kind;
-          })
+      breadCrumbsResolved && dynamicBreadCrumbsResolved
+        ? [...breadCrumbsExtension, ...dynamicBreadCrumbsExtension].find(
+            ({ properties: { getModels } }) => {
+              const models = getModels();
+              return Array.isArray(models)
+                ? models.findIndex((model: K8sKind) => model.kind === kindObj?.kind) !== -1
+                : models.kind === kindObj?.kind;
+            },
+          )
         : undefined,
-    [breadCrumbsResolved, breadCrumbsExtension, kindObj],
+    [
+      breadCrumbsResolved,
+      breadCrumbsExtension,
+      kindObj,
+      dynamicBreadCrumbsResolved,
+      dynamicBreadCrumbsExtension,
+    ],
   );
 };
 
@@ -87,6 +99,7 @@ export const DetailsPage = withFallback<DetailsPageProps>(({ pages = [], ...prop
           name: p.properties.name,
           component: (cProps) => renderAsyncComponent(p, cProps),
         })),
+      /** @deprecated -- if there is a bug here, encourage `console.tab/horizontalNav` usage instead */
       ...dynamicResourcePageExtensions
         .filter((p) => {
           if (p.properties.model.version) {
@@ -171,7 +184,7 @@ export const DetailsPage = withFallback<DetailsPageProps>(({ pages = [], ...prop
       </Firehose>
     </>
   );
-}, ErrorBoundaryFallback);
+}, ErrorBoundaryFallbackPage);
 
 export type DetailsPageProps = {
   match: match<any>;

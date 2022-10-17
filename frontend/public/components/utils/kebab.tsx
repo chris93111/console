@@ -11,6 +11,11 @@ import { subscribeToExtensions } from '@console/plugin-sdk/src/api/pluginSubscri
 import { KebabActions, isKebabActions } from '@console/plugin-sdk/src/typings/kebab-actions';
 import Popper from '@console/shared/src/components/popper/Popper';
 import {
+  HelmChartRepositoryModel,
+  ProjectHelmChartRepositoryModel,
+} from '@console/helm-plugin/src/models';
+import { impersonateStateToProps, ImpersonateKind } from '@console/dynamic-plugin-sdk';
+import {
   annotationsModal,
   configureReplicaCountModal,
   taintsModal,
@@ -28,10 +33,10 @@ import {
   K8sKind,
   K8sResourceKind,
   K8sResourceKindReference,
+  referenceFor,
   referenceForModel,
   VolumeSnapshotKind,
 } from '../../module/k8s';
-import { impersonateStateToProps, ImpersonateKind } from '@console/dynamic-plugin-sdk';
 import { connectToModel } from '../../kinds';
 import {
   BuildConfigModel,
@@ -299,6 +304,16 @@ const kebabFactory: KebabFactory = {
       case RouteModel.kind:
         href = `/k8s/ns/${obj.metadata.namespace}/routes/${obj.metadata.name}/edit`;
         break;
+      case HelmChartRepositoryModel.kind:
+        href = `/k8s/cluster/helmchartrepositories/${obj.metadata.name}/edit?kind=${referenceFor(
+          obj,
+        )}`;
+        break;
+      case ProjectHelmChartRepositoryModel.kind:
+        href = `/ns/${obj.metadata.namespace}/helmchartrepositories/${
+          obj.metadata.name
+        }/edit?kind=${referenceFor(obj)}`;
+        break;
       default:
         href = `${resourceObjPath(obj, kind.crd ? referenceForModel(kind) : kind.kind)}/yaml`;
     }
@@ -452,7 +467,8 @@ export const getExtensionsKebabActionsForKind = (kind: K8sKind) => {
 };
 
 export const ResourceKebab = connectToModel((props: ResourceKebabProps) => {
-  const { actions, kindObj, resource, isDisabled, customData } = props;
+  const { actions, kindObj, resource, isDisabled, customData, hoverMessage } = props;
+  const { t } = useTranslation();
 
   if (!kindObj) {
     return null;
@@ -468,6 +484,7 @@ export const ResourceKebab = connectToModel((props: ResourceKebabProps) => {
       isDisabled={
         isDisabled !== undefined ? isDisabled : _.get(resource.metadata, 'deletionTimestamp')
       }
+      hoverMessage={hoverMessage ? hoverMessage : t('public~Resource is being deleted.')}
     />
   );
 });
@@ -543,7 +560,7 @@ class KebabWithTranslation extends React.Component<
   getDivReference = () => this.divElement.current;
 
   render() {
-    const { options, isDisabled, t } = this.props;
+    const { options, isDisabled, t, hoverMessage } = this.props;
 
     const menuOptions = kebabOptionsToMenu(options);
 
@@ -554,21 +571,23 @@ class KebabWithTranslation extends React.Component<
           'pf-m-expanded': this.state.active,
         })}
       >
-        <button
-          ref={this.dropdownElement}
-          type="button"
-          aria-expanded={this.state.active}
-          aria-haspopup="true"
-          aria-label={t('public~Actions')}
-          className="pf-c-dropdown__toggle pf-m-plain"
-          data-test-id="kebab-button"
-          disabled={isDisabled}
-          onClick={this.toggle}
-          onFocus={this.onHover}
-          onMouseEnter={this.onHover}
-        >
-          <EllipsisVIcon />
-        </button>
+        <Tooltip content={hoverMessage} isVisible={isDisabled && !!hoverMessage} trigger="manual">
+          <button
+            ref={this.dropdownElement}
+            type="button"
+            aria-expanded={this.state.active}
+            aria-haspopup="true"
+            aria-label={t('public~Actions')}
+            className="pf-c-dropdown__toggle pf-m-plain"
+            data-test-id="kebab-button"
+            disabled={isDisabled}
+            onClick={this.toggle}
+            onFocus={this.onHover}
+            onMouseEnter={this.onHover}
+          >
+            <EllipsisVIcon />
+          </button>
+        </Tooltip>
         <Popper
           open={!isDisabled && this.state.active}
           placement="bottom-end"
@@ -640,6 +659,7 @@ export type ResourceKebabProps = {
   resource: K8sResourceKind;
   isDisabled?: boolean;
   customData?: { [key: string]: any };
+  hoverMessage?: string;
 };
 
 type KebabSubMenu = {
@@ -656,6 +676,7 @@ type KebabProps = {
   options: KebabOption[];
   isDisabled?: boolean;
   columnClass?: string;
+  hoverMessage?: string;
 };
 
 type KebabItemProps = {

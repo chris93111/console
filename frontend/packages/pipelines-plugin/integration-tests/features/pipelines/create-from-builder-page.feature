@@ -7,13 +7,13 @@ Feature: Create the pipeline from builder page
 
 
         @smoke
-        Scenario: user navigates to pipelines page from Add page on selecting Pipeline card  : A-02-TC01
+        Scenario: user navigates to pipelines page from Add page on selecting Pipeline card: P-02-TC01
              When user selects "Pipeline" card from add page
              Then user redirects to Pipeline Builder page
 
 
         @regression
-        Scenario: Pipeline Builder page: P-02-TC01
+        Scenario: Pipeline Builder page: P-02-TC02
             Given user is at pipelines page
              When user clicks Create Pipeline button on Pipelines page
              Then user will be redirected to Pipeline Builder page
@@ -24,7 +24,7 @@ Feature: Create the pipeline from builder page
 
 
         @regression
-        Scenario Outline: Create a pipeline with series tasks: P-02-TC02
+        Scenario Outline: Create a pipeline with series tasks: P-02-TC03
             Given user is at Pipeline Builder page
              When user enters pipeline name as "<pipeline_name>"
               And user clicks Add task button under Tasks section
@@ -40,7 +40,7 @@ Feature: Create the pipeline from builder page
 
 
         @regression
-        Scenario Outline: Create a pipeline with parallel tasks: P-02-TC03
+        Scenario Outline: Create a pipeline with parallel tasks: P-02-TC04
             Given user is at Pipeline Builder page
              When user enters pipeline name as "<pipeline_name>"
               And user clicks Add task button under Tasks section
@@ -56,7 +56,7 @@ Feature: Create the pipeline from builder page
 
 
         @smoke
-        Scenario Outline: Create a basic pipeline from pipeline builder page: P-02-TC04
+        Scenario Outline: Create a basic pipeline from pipeline builder page: P-02-TC05
             Given user is at Pipeline Builder page
              When user enters pipeline name as "<pipeline_name>"
               And user clicks Add task button under Tasks section
@@ -72,7 +72,7 @@ Feature: Create the pipeline from builder page
 
         @un-verified
         #test data required
-        Scenario Outline: Create pipeline with "<resource_type>" as resource type from pipeline builder page: P-02-TC05
+        Scenario Outline: Create pipeline with "<resource_type>" as resource type from pipeline builder page: P-02-TC06
             Given user is at Pipeline Builder page
              When user enters pipeline name as "<pipeline_name>"
               And user clicks on Add task
@@ -83,16 +83,16 @@ Feature: Create the pipeline from builder page
              Then user will be redirected to Pipeline Details page with header name "<pipeline_name>"
 
         Examples:
-        #For git and image resource apply ../../testData/pipelines-workspaces/demo-optional-resources.yaml
+            #For git and image resource apply ../../testData/pipelines-workspaces/demo-optional-resources.yaml
                   | pipeline_name | cluster_task_name | resource_type | resource_name |
                   | p-git         | openshift-client  | Git           | git repo      |
                   | p-img         | buildah           | Image         | image repo    |
-                  # | p-storage     | task-storage           | Storage       | storage repo  |
-                  # | p-cluster     | task-cluster           | Cluster       | cluster repo  |
+    # | p-storage     | task-storage           | Storage       | storage repo  |
+    # | p-cluster     | task-cluster           | Cluster       | cluster repo  |
 
 
         @regression
-        Scenario: Add Parameters to the pipeline in pipeline builder page: P-02-TC06
+        Scenario: Add Parameters to the pipeline in pipeline builder page: P-02-TC07
             Given user is at Pipeline Builder page
              When user enters pipeline name as "pipeline-params"
               And user clicks Add task button under Tasks section
@@ -107,61 +107,45 @@ Feature: Create the pipeline from builder page
              Then user will be redirected to Pipeline Details page with header name "pipeline-params"
 
 
-        @regression @to-do
-        Scenario: Deleting added task with delete icon in pipeline builder page: P-02-TC07
+        @regression
+        Scenario: Deleting added task with delete icon in pipeline builder page: P-02-TC08
             Given user is at Pipeline Builder page
-             When user clicks on Add task
+             When user enters pipeline name as "pipeline-delete-task"
+              And user clicks Add task button under Tasks section
               And user searches "kn" in quick search bar
-              And user clicks on "Add" in "kn" task
+              And user clicks on Add button
               And user adds a task in series
               And user hovers over the newly added task
               And user clicks on delete icon
              Then user can see the task in series gets removed
 
 
-        @regression @to-do
-        Scenario Outline: Create a pipeline with TektonHub task not present in cluster from pipeline builder page: P-02-TC08
+        @regression
+        Scenario Outline: Create a pipeline with TektonHub task not present in cluster from pipeline builder page: P-02-TC09
             Given user is at Pipeline Builder page
              When user enters pipeline name as "<pipeline_name>"
-              And user clicks on Add task
-              And user searches and select "<task_name>" in the list of items based on the "tekton" provider in quick search bar
-              And user clicks on "Install and Add" in "<task_name>" task
-              And user should see the loading node until the installation is complete
-              And user should see the Create button enabled after installation
+              And user clicks Add task button under Tasks section
+              And user searches and select "<task_name>" in the list of items based on the "Community" provider in quick search bar
+              And user clicks on Install and add button
               And user clicks Create button on Pipeline Builder page
              Then user will be redirected to Pipeline Details page with header name "<pipeline_name>"
 
         Examples:
                   | pipeline_name | task_name |
-                  | p-task-1      | kn        |
+                  | ptask-1       | kn        |
 
 
-        @regression @to-do
-        Scenario: Upgrade tasks that are already installed on the cluster in pipeline builder page: P-02-TC09
+        @regression
+        Scenario: Upgrade tasks that are already installed on the cluster in pipeline builder page: P-02-TC10
             Given user is at Pipeline Builder page
              When user enters pipeline name as "pipeline-client"
-              And user clicks on Add task
+              And user installs and removes "openshift-client" of "Community" provider
+              And user clicks Add task button under Tasks section
               And user searches "openshift-client" in quick search bar
-              And user changes version to latest
-              And user clicks on "Update and Add" button
+              And user changes version to "0.1"
+              And user clicks on Update and Add button
               And user clicks Create button on Pipeline Builder page
              Then user will be redirected to Pipeline Details page with header name "pipeline-client"
-
-
-        @regression @to-do
-        Scenario Outline: Create a pipeline with TektonHub task present in cluster from pipeline builder page: P-02-TC010
-            Given user is at Pipeline Builder page
-              And user has installed tekton hub "<task_name>" in cluster
-             When user enters pipeline name as "<pipeline_name>"
-              And user clicks on Add task
-              And user searches and select "<task_name>" in the list of items based on the "tekton" provider in quick search bar
-              And user clicks on "Add" in "<task_name>" task
-              And user clicks Create button on Pipeline Builder page
-             Then user will be redirected to Pipeline Details page with header name "<pipeline_name>"
-
-        Examples:
-                  | pipeline_name | task_name |
-                  | p-task-1      | kn        |
 
 
         @regression @manual
@@ -247,7 +231,7 @@ Feature: Create the pipeline from builder page
         Scenario: When expression in the Pipeline Builder: P-02-TC16
             Given user is at Pipeline Builder page
               And user has chain of 3 tasks created in series
-            # user uses yaml content "sum-and-multiply-pipeline/sum-and-multiply-pipeline.yaml"
+        # user uses yaml content "sum-and-multiply-pipeline/sum-and-multiply-pipeline.yaml"
              When user clicks on third task
               And user navigates to When Expressions section
               And user clicks on Add When Expressions
@@ -295,10 +279,10 @@ Feature: Create the pipeline from builder page
         @regression
         Scenario: Code assistance for referencing workspaces in the Pipeline Builder: P-02-TC19
             Given user has applied yaml "configMap-test-motd.yaml"
-            # user uses yaml content "using-optional-workspaces-in-when-expressions-pipelineRun/configMap-test-motd.yaml" in editor
+        # user uses yaml content "using-optional-workspaces-in-when-expressions-pipelineRun/configMap-test-motd.yaml" in editor
               And user is at YAML view
              When user pastes the "pipelineRun-using-optional-workspaces-in-when-expressions.yaml" code
-            # user uses yaml content "using-optional-workspaces-in-when-expressions-pipelineRun/pipelineRun-using-optional-workspaces-in-when-expressions.yaml"
+        # user uses yaml content "using-optional-workspaces-in-when-expressions-pipelineRun/pipelineRun-using-optional-workspaces-in-when-expressions.yaml"
               And user clicks on Create button
               And user clicks on Logs tab in PipelineRun details page
              Then user will be able to see the output in print-motd task
@@ -310,7 +294,7 @@ Feature: Create the pipeline from builder page
             Given user is at pipelines page
              When user clicks on import YAML button
               And user enters yaml content from yaml file "pipelineRun-using_context_variables.yaml" in the editor
-            # user uses yaml content "pipelineRun-using_context_variables.yaml"
+        # user uses yaml content "pipelineRun-using_context_variables.yaml"
               And user clicks on Create button
               And user clicks on Logs tab in PipelineRun details page
              Then user will be able to see the TaskRun UID, PipelineRun UID, Task name, TaskRun name, Pipeline name, PipelineRun name
@@ -319,14 +303,14 @@ Feature: Create the pipeline from builder page
         @regression
         Scenario: Code assistance for referencing Task Results in the Pipeline Builder: P-02-TC21
             Given user has imported YAML "task-sum.yaml" and "task-multiply.yaml"
-            # user uses yaml content "sum-and-multiply-pipeline/task-sum.yaml" and "sum-and-multiply-pipeline/task-multiply.yaml" in editor
+        # user uses yaml content "sum-and-multiply-pipeline/task-sum.yaml" and "sum-and-multiply-pipeline/task-multiply.yaml" in editor
               And user is at YAML view of Pipeline Builder page
              When user enters the yaml content from yaml file "sum-and-multiply-pipeline.yaml"
-            # user uses yaml content "sum-and-multiply-pipeline/sum-and-multiply-pipeline.yaml"
+        # user uses yaml content "sum-and-multiply-pipeline/sum-and-multiply-pipeline.yaml"
               And user clicks on Create
               And user clicks on import YAML button
               And user enters yaml content from yaml file "pipelineRun-sum-and-multiply-pipeline.yaml"
-            # user uses yaml content "sum-and-multiply-pipeline/pipelineRun-sum-and-multiply-pipeline.yaml"
+        # user uses yaml content "sum-and-multiply-pipeline/pipelineRun-sum-and-multiply-pipeline.yaml"
               And user clicks on Create button
               And user clicks on Logs tab in PipelineRun details page
              Then user will be able to see the output in sum and multiply task
@@ -346,3 +330,32 @@ Feature: Create the pipeline from builder page
               And user clicks Add task button under Tasks section
               And user types 'git'
              Then user will see Task, clusterTask only
+
+
+        @regression @manual @odc-6236
+        Scenario: Pipeline builder to support local Tekton Hub instances : P-02-TC23
+            Given user has setup tektonhub instance
+        # Refer to document https://docs.google.com/document/d/1HImc2DdtFKMWgk5dTm8Ib-I3wgnVXxdHxzX8Cn0jrZA/edit?usp=sharing for setting up tektonhub insance
+              And user is at Pipeline Builder page
+             When user clicks on Add task button under Tasks section
+              And user searches a tasks that is available in the local tektonhub instance
+             Then user will see the intended community task
+
+        @regression @odc-6696
+        Scenario Outline: Start pipeline with parameter of type array: P-02-TC24
+            Given user is at "YAML View" on Pipeline Builder page
+             When user creates pipeline resource using YAML editor from "<pipeline_yaml>"
+              And user will see pipeline "<pipeline_name>" in pipelines page
+              And user selects "Start" from the kebab menu for "<pipeline_name>"
+              And user will see array type parameter "param1" field
+              And user add array type parameter "param1" value "value1"
+              And user click on pipeline start modal Start button
+             Then user will be redirected to Pipeline Run Details page
+              And user navigates to pipelineRun parameters tab
+              And user see the added parameter value
+              And user see the pipeline succeeded
+
+        Examples:
+                  | pipeline_yaml                                | pipeline_name                 |
+                  | testData/pipelineWithParameterTypeArray.yaml | pipeline-with-array-parameter |
+

@@ -1,5 +1,7 @@
 .ocs-quick-search-bar {
-  background: var(--pf-global--BackgroundColor--400) !important;
+  &.pf-c-input-group {
+    background-color: var(--pf-global--BackgroundColor--400);
+  }
   &:hover {
     cursor: move;
   }

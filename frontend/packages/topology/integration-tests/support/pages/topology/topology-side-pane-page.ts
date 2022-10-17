@@ -77,9 +77,12 @@ export const topologySidePane = {
       .get(topologyPO.sidePane.podScale)
       .eq(1)
       .click(),
-  verifyPodText: (scaleNumber: string) =>
-    cy.get(topologyPO.sidePane.podText).should('contain.text', scaleNumber),
+  verifyPodText: (scaleNumber: string) => {
+    cy.get(topologyPO.sidePane.podText, { timeout: 120000 }).should('contain.text', scaleNumber);
+  },
   verifyHealthCheckAlert: () => cy.get(topologyPO.sidePane.healthCheckAlert).should('be.visible'),
+  verifyResourceQuotaAlert: () =>
+    cy.get(topologyPO.sidePane.resourceQuotaAlert).should('be.visible'),
   verifyWorkloadInAppSideBar: (workloadName: string) =>
     cy
       .get(topologyPO.sidePane.dialog)
@@ -102,7 +105,10 @@ export const topologySidePane = {
       .should('be.visible');
   },
   verifyNumberOfAnnotations: (num: string) => {
-    cy.get(topologyPO.sidePane.detailsTab.annotations).should('be.visible');
+    cy.wait(3000);
+    cy.get(topologyPO.sidePane.detailsTab.annotations)
+      .scrollIntoView()
+      .should('be.visible');
     // eslint-disable-next-line promise/catch-or-return
     cy.get(topologyPO.sidePane.editAnnotations).then(($el) => {
       const res = $el.text().split(' ');

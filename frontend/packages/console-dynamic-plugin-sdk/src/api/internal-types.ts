@@ -1,14 +1,17 @@
+import * as React from 'react';
+import { QuickStart } from '@patternfly/quickstarts';
+import { Map as ImmutableMap } from 'immutable';
 import {
-  K8sResourceCommon,
   FirehoseResult,
-  PrometheusResponse,
   HealthState,
-  StatusGroupMapper,
-  QueryParams,
-  TopConsumerPopoverProps,
+  K8sResourceCommon,
   LIMIT_STATE,
+  PrometheusResponse,
+  QueryParams,
+  StatusGroupMapper,
+  TopConsumerPopoverProps,
 } from '../extensions/console-types';
-import { K8sModel, Alert } from './common-types';
+import { Alert, K8sModel } from './common-types';
 
 type WithClassNameProps<R = {}> = R & {
   className?: string;
@@ -50,6 +53,7 @@ export type OngoingActivityBodyProps = {
 
 export type AlertItemProps = {
   alert: Alert;
+  documentationLink?: string;
 };
 
 export type HealthItemProps = WithClassNameProps<{
@@ -57,6 +61,9 @@ export type HealthItemProps = WithClassNameProps<{
   details?: string;
   state?: HealthState;
   popupTitle?: string;
+  popupClassname?: string;
+  popupBodyContent?: React.ReactNode | ((hide: () => void) => React.ReactNode);
+  popupKeepOnOutsideClick?: boolean;
   noIcon?: boolean;
   icon?: React.ReactNode;
 }>;
@@ -165,27 +172,6 @@ export type UseUtilizationDuration = (
   adjustDuration?: (duration: number) => number,
 ) => UtilizationDurationState;
 
-export enum PrometheusEndpoint {
-  LABEL = 'api/v1/label',
-  QUERY = 'api/v1/query',
-  QUERY_RANGE = 'api/v1/query_range',
-  RULES = 'api/v1/rules',
-  TARGETS = 'api/v1/targets',
-}
-
-type PrometheusPollProps = {
-  delay?: number;
-  endpoint: PrometheusEndpoint;
-  endTime?: number;
-  namespace?: string;
-  query: string;
-  samples?: number;
-  timeout?: string;
-  timespan?: number;
-};
-
-export type UsePrometheusPoll = (props: PrometheusPollProps) => [PrometheusResponse, any, boolean];
-
 export type Options = {
   ns?: string;
   name?: string;
@@ -195,6 +181,12 @@ export type Options = {
 };
 
 export type UseActiveNamespace = () => [string, (ns: string) => void];
+
+export type UseLastNamespace = () => [
+  string,
+  React.Dispatch<React.SetStateAction<string>>,
+  boolean,
+];
 
 export type VirtualizedGridProps = {
   items: VirtualizedGridItem[] | VirtualizedGridGroupedItems;
@@ -239,6 +231,7 @@ export type LazyActionMenuProps = {
   variant?: ActionMenuVariant;
   label?: string;
   isDisabled?: boolean;
+  extra?: any;
 };
 
 export type ActionContext = {
@@ -249,3 +242,55 @@ export enum ActionMenuVariant {
   KEBAB = 'plain',
   DROPDOWN = 'default',
 }
+
+type Request<R> = {
+  active: boolean;
+  timeout: NodeJS.Timer;
+  inFlight: boolean;
+  data: R;
+  error: any;
+};
+
+export type RequestMap<R> = ImmutableMap<string, Request<R>>;
+
+export type Fetch = (url: string) => Promise<any>;
+export type WatchURLProps = {
+  url: string;
+  fetch?: Fetch;
+};
+
+export type WatchPrometheusQueryProps = {
+  query: string;
+  namespace?: string;
+  timespan?: number;
+};
+
+export type UseDashboardResources = ({
+  prometheusQueries,
+  urls,
+  notificationAlertLabelSelectors,
+}: {
+  prometheusQueries?: WatchPrometheusQueryProps[];
+  urls?: WatchURLProps[];
+  notificationAlertLabelSelectors?: { [k: string]: string };
+}) => {
+  urlResults: RequestMap<any>;
+  prometheusResults: RequestMap<PrometheusResponse>;
+  notificationAlerts: { alerts: Alert[]; loaded: boolean; loadError: Error };
+};
+
+export type UseUserSettings = <T>(
+  key: string,
+  defaultValue?: T,
+  sync?: boolean,
+) => [T, React.Dispatch<React.SetStateAction<T>>, boolean];
+
+export type QuickStartsLoaderProps = {
+  children: (quickStarts: QuickStart[], loaded: boolean) => React.ReactNode;
+};
+
+export type UseURLPoll = <R>(
+  url: string,
+  delay?: number,
+  ...dependencies: any[]
+) => [R, any, boolean];

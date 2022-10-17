@@ -17,7 +17,9 @@ import {
   createGitWorkloadIfNotExistsOnTopologyPage,
   createEventSourcePage,
   verifyAndInstallKnativeOperator,
+  createChannel,
 } from '@console/dev-console/integration-tests/support/pages';
+import { eventingPO } from '@console/knative-plugin/integration-tests/support/pageObjects/global-po';
 
 Given('user is at developer perspective', () => {
   perspective.switchTo(switchPerspective.Developer);
@@ -83,6 +85,21 @@ Given('user has installed Red Hat Integration - Camel K Operator', () => {
   });
 });
 
+Given('user has installed Red Hat Integration - AMQ Streams operator', () => {
+  perspective.switchTo(switchPerspective.Administrator);
+  operatorsPage.navigateToInstallOperatorsPage();
+  operatorsPage.searchOperatorInInstallPage(operators.AMQStreams);
+  cy.get('body', {
+    timeout: 50000,
+  }).then(($ele) => {
+    if ($ele.find(operatorsPO.installOperators.noOperatorsFound)) {
+      installOperator(operators.AMQStreams);
+    } else {
+      cy.log(`${operators.AMQStreams} operator is installed in cluster`);
+    }
+  });
+});
+
 Given('user has installed Knative Apache Kafka Operator', () => {
   perspective.switchTo(switchPerspective.Administrator);
   operatorsPage.navigateToInstallOperatorsPage();
@@ -106,6 +123,7 @@ Given(
 );
 
 Given('user has created knative service {string}', (knativeServiceName: string) => {
+  perspective.switchTo(switchPerspective.Developer);
   createGitWorkloadIfNotExistsOnTopologyPage(
     'https://github.com/sclorg/nodejs-ex.git',
     knativeServiceName,
@@ -131,4 +149,22 @@ Then('modal with {string} appears', (header: string) => {
 
 Given('user has installed OpenShift Serverless Operator', () => {
   verifyAndInstallKnativeOperator();
+});
+
+Given('user has created channel {string}', (channelName: string) => {
+  createChannel(channelName);
+});
+
+Given('user is at eventing page', () => {
+  operatorsPage.navigateToEventingPage();
+});
+
+Given('user is at Serving page', () => {
+  operatorsPage.navigateToServingPage();
+});
+
+When('user clicks on Create button', () => {
+  cy.get(eventingPO.createEventDropDownMenu)
+    .contains('Create')
+    .click({ force: true });
 });

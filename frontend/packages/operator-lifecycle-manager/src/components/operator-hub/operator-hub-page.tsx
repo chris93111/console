@@ -4,18 +4,18 @@ import { Helmet } from 'react-helmet';
 import { Trans, useTranslation } from 'react-i18next';
 import { match } from 'react-router';
 import { Link } from 'react-router-dom';
-import { ErrorBoundaryFallback } from '@console/internal/components/error';
 import {
-  Firehose,
-  PageHeading,
-  StatusBox,
-  MsgBox,
+  DOC_URL_RED_HAT_MARKETPLACE,
   ExternalLink,
+  Firehose,
+  MsgBox,
+  PageHeading,
   skeletonCatalog,
+  StatusBox,
 } from '@console/internal/components/utils';
 import { referenceForModel } from '@console/internal/module/k8s';
 import { fromRequirements } from '@console/internal/module/k8s/selector';
-import { withFallback } from '@console/shared/src/components/error/error-boundary';
+import { ErrorBoundaryFallbackPage, withFallback } from '@console/shared/src/components/error';
 import { parseJSONAnnotation } from '@console/shared/src/utils/annotations';
 import { iconFor } from '..';
 import { OPERATOR_TYPE_ANNOTATION, NON_STANDALONE_ANNOTATION_VALUE } from '../../const';
@@ -264,10 +264,8 @@ export const OperatorHubPage = withFallback(
             <Trans ns="olm">
               Discover Operators from the Kubernetes community and Red Hat partners, curated by Red
               Hat. You can purchase commercial software through{' '}
-              <ExternalLink href="https://marketplace.redhat.com/en-us?utm_source=openshift_console">
-                Red Hat Marketplace
-              </ExternalLink>
-              . You can install Operators on your clusters to provide optional add-ons and shared
+              <ExternalLink href={DOC_URL_RED_HAT_MARKETPLACE}>Red Hat Marketplace</ExternalLink>.
+              You can install Operators on your clusters to provide optional add-ons and shared
               services to your developers. After installation, the Operator capabilities will appear
               in the <Link to="/catalog">Developer Catalog</Link> providing a self-service
               experience.
@@ -320,7 +318,7 @@ export const OperatorHubPage = withFallback(
       </div>
     </>
   ),
-  ErrorBoundaryFallback,
+  ErrorBoundaryFallbackPage,
 );
 
 export type OperatorHubPageProps = {

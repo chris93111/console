@@ -2,12 +2,14 @@ import * as React from 'react';
 import { shallow, mount, ShallowWrapper } from 'enzyme';
 import * as utils from '@console/internal/components/utils';
 import { useK8sWatchResource } from '@console/internal/components/utils/k8s-watch-hook';
+import { useCanClusterUpgrade } from '@console/shared/src/hooks/useCanClusterUpgrade';
 import {
   clusterVersionProps,
   clusterVersionUpgradeableFalseProps,
   clusterVersionUpdatingProps,
   clusterVersionUpdatedProps,
   machineConfigPoolsProps,
+  machineConfigPoolsWithPausedWorkerProps,
   workerMachineConfigPoolProp,
 } from '../../__mocks__/clusterVersionMock';
 
@@ -17,6 +19,7 @@ import {
   ClusterNotUpgradeableAlert,
   ClusterOperatorTabPage,
   ClusterOperatorsLink,
+  ClusterSettingsAlerts,
   ClusterSettingsPage,
   ClusterVersionDetailsTable,
   CurrentChannel,
@@ -32,6 +35,7 @@ import {
 } from '../../public/components/cluster-settings/cluster-settings';
 import { GlobalConfigPage } from '../../public/components/cluster-settings/global-config';
 import { Firehose, HorizontalNav, ResourceLink, Timestamp } from '../../public/components/utils';
+import { ClusterUpdateStatus } from '../../public/module/k8s';
 
 jest.mock('@console/internal/components/utils/k8s-watch-hook', () => ({
   useK8sWatchResource: jest.fn(),
@@ -45,6 +49,10 @@ jest.mock('react-redux', () => {
     useDispatch: jest.fn(),
   };
 });
+
+jest.mock('@console/shared/src/hooks/useCanClusterUpgrade', () => ({
+  useCanClusterUpgrade: jest.fn(),
+}));
 
 describe('Cluster Settings page', () => {
   let wrapper: ShallowWrapper<any>;
@@ -138,17 +146,11 @@ describe('Cluster Settings page', () => {
 describe('Cluster Version Details Table page', () => {
   let wrapper: ShallowWrapper<any>;
   let cv;
-  let spyUseAccessReview;
 
   beforeEach(() => {
-    spyUseAccessReview = jest.spyOn(utils, 'useAccessReview');
-    spyUseAccessReview.mockReturnValue(true);
     cv = clusterVersionProps;
     wrapper = shallow(<ClusterVersionDetailsTable obj={cv} autoscalers={[]} />);
-  });
-
-  afterEach(() => {
-    spyUseAccessReview.mockReset();
+    (useCanClusterUpgrade as jest.Mock).mockReturnValueOnce([[], true]);
   });
 
   it('should render ClusterVersionDetailsTable component', () => {
@@ -207,7 +209,7 @@ describe('Cluster Version Details Table page', () => {
   });
 });
 
-describe('Cluster Version Details Table page while ClusterVersion Upgradeable=False', () => {
+describe('ClusterSettingsAlerts while ClusterVersion Upgradeable=False', () => {
   let wrapper: ShallowWrapper<any>;
   let cv;
   let spyUseAccessReview;
@@ -215,21 +217,59 @@ describe('Cluster Version Details Table page while ClusterVersion Upgradeable=Fa
   beforeEach(() => {
     spyUseAccessReview = jest.spyOn(utils, 'useAccessReview');
     spyUseAccessReview.mockReturnValue(true);
-    (useK8sWatchResource as jest.Mock).mockReturnValueOnce([[], true]);
     cv = clusterVersionUpgradeableFalseProps;
-    wrapper = shallow(<ClusterVersionDetailsTable obj={cv} autoscalers={[]} />);
+    wrapper = shallow(
+      <ClusterSettingsAlerts
+        canUpgrade={true}
+        cv={cv}
+        machineConfigPools={[]}
+        status={ClusterUpdateStatus.UpToDate}
+      />,
+    );
   });
 
   afterEach(() => {
     spyUseAccessReview.mockReset();
   });
 
-  it('should render ClusterVersionDetailsTable component', () => {
+  it('should render ClusterSettingsAlerts component', () => {
     expect(wrapper.exists()).toBe(true);
   });
 
   it('should render the ClusterNotUpgradeableAlert component', () => {
     expect(wrapper.find(ClusterNotUpgradeableAlert).exists()).toBe(true);
+  });
+});
+
+describe('ClusterSettingsAlerts while cluster is up to date or has available updates and there are paused MachineConfigPools', () => {
+  let wrapper: ShallowWrapper<any>;
+  let cv;
+  let spyUseAccessReview;
+
+  beforeEach(() => {
+    spyUseAccessReview = jest.spyOn(utils, 'useAccessReview');
+    spyUseAccessReview.mockReturnValue(true);
+    cv = clusterVersionProps;
+    wrapper = shallow(
+      <ClusterSettingsAlerts
+        canUpgrade={true}
+        cv={cv}
+        machineConfigPools={machineConfigPoolsWithPausedWorkerProps.items}
+        status={ClusterUpdateStatus.UpToDate}
+      />,
+    );
+  });
+
+  afterEach(() => {
+    spyUseAccessReview.mockReset();
+  });
+
+  it('should render ClusterSettingsAlerts component', () => {
+    expect(wrapper.isEmptyRender()).toBe(false);
+  });
+
+  it('should render the Node updates are paused Alert', () => {
+    expect(wrapper.find('[data-test-id="cluster-settings-alerts-paused-nodes"]')).toBeTruthy();
   });
 });
 
@@ -279,7 +319,7 @@ describe('Current Channel', () => {
   let wrapper;
 
   beforeEach(() => {
-    wrapper = mount(<CurrentChannel cv={clusterVersionProps} clusterVersionIsEditable={true} />);
+    wrapper = mount(<CurrentChannel cv={clusterVersionProps} canUpgrade={true} />);
   });
 
   it('should accept props', () => {
@@ -293,10 +333,17 @@ describe('Current Channel', () => {
 describe('Update Link', () => {
   let wrapper: ShallowWrapper<any>;
   let cv;
+  let spyUseAccessReview;
 
   beforeEach(() => {
+    spyUseAccessReview = jest.spyOn(utils, 'useAccessReview');
+    spyUseAccessReview.mockReturnValue(true);
     cv = clusterVersionProps;
-    wrapper = shallow(<UpdateLink cv={cv} clusterVersionIsEditable={true} />);
+    wrapper = shallow(<UpdateLink cv={cv} canUpgrade={true} />);
+  });
+
+  afterEach(() => {
+    spyUseAccessReview.mockReset();
   });
 
   it('should render Update Link component', () => {
@@ -306,7 +353,7 @@ describe('Update Link', () => {
         .find('[data-test-id="cv-update-button"]')
         .render()
         .text(),
-    ).toBe('Update');
+    ).toBe('Select a version');
   });
 });
 
@@ -359,18 +406,12 @@ describe('Updates Graph', () => {
 describe('Cluster Version Details Table page while updating', () => {
   let wrapper: ShallowWrapper<any>;
   let cv;
-  let spyUseAccessReview;
 
   beforeEach(() => {
-    spyUseAccessReview = jest.spyOn(utils, 'useAccessReview');
-    spyUseAccessReview.mockReturnValue(true);
     cv = clusterVersionUpdatingProps;
     wrapper = shallow(<ClusterVersionDetailsTable obj={cv} autoscalers={[]} />);
     (useK8sWatchResource as jest.Mock).mockReturnValueOnce([[], true]);
-  });
-
-  afterEach(() => {
-    spyUseAccessReview.mockReset();
+    (useCanClusterUpgrade as jest.Mock).mockReturnValueOnce([[], true]);
   });
 
   it('should render ClusterVersionDetailsTable component', () => {
@@ -453,18 +494,12 @@ describe('Update In Progress while updating', () => {
 describe('Cluster Version Details Table page once updated', () => {
   let wrapper: ShallowWrapper<any>;
   let cv;
-  let spyUseAccessReview;
 
   beforeEach(() => {
-    spyUseAccessReview = jest.spyOn(utils, 'useAccessReview');
-    spyUseAccessReview.mockReturnValue(true);
     cv = clusterVersionUpdatedProps;
     wrapper = shallow(<ClusterVersionDetailsTable obj={cv} autoscalers={[]} />);
     (useK8sWatchResource as jest.Mock).mockReturnValueOnce([[], true]);
-  });
-
-  afterEach(() => {
-    spyUseAccessReview.mockReset();
+    (useCanClusterUpgrade as jest.Mock).mockReturnValueOnce([[], true]);
   });
 
   it('should render ClusterVersionDetailsTable component', () => {
@@ -487,7 +522,7 @@ describe('Update Link once updated', () => {
 
   beforeEach(() => {
     cv = clusterVersionUpdatedProps;
-    wrapper = shallow(<UpdateLink cv={cv} clusterVersionIsEditable={true} />);
+    wrapper = shallow(<UpdateLink cv={cv} canUpgrade={true} />);
   });
 
   it('should render an empty Update Link component', () => {

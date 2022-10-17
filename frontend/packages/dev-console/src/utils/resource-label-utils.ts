@@ -2,6 +2,7 @@ import * as _ from 'lodash';
 import { K8sResourceKind } from '@console/internal/module/k8s';
 import { TRIGGERS_ANNOTATION } from '@console/shared';
 import { ROUTE_DISABLED_ANNOTATION } from '@console/topology/src/const';
+import { ResourcesKinds, Resources } from '../components/import/import-types';
 
 export const getAppLabels = ({
   name,
@@ -92,10 +93,16 @@ export const getUserAnnotations = (allAnnotations: { [key: string]: string }) =>
   return _.omit(allAnnotations, defaultAnnotations);
 };
 
-export const getPodLabels = (name: string) => {
+export const getPodLabels = (resource: Resources, name: string) => {
+  const resourceKind = ResourcesKinds[resource];
+  if (resourceKind) {
+    return {
+      app: name,
+      [resourceKind.toLowerCase()]: name,
+    };
+  }
   return {
     app: name,
-    deploymentconfig: name,
   };
 };
 
@@ -141,9 +148,14 @@ export const mergeData = (originalResource: K8sResourceKind, newResource: K8sRes
   if (mergedData.spec?.triggers) {
     mergedData.spec.triggers = newResource.spec.triggers;
   }
+  if (!newResource.spec?.source?.sourceSecret) {
+    delete mergedData?.spec?.source?.sourceSecret;
+  }
+
   if (mergedData.spec?.template?.spec?.hasOwnProperty('volumes')) {
     mergedData.spec.template.spec.volumes = originalResource.spec?.template?.spec?.volumes;
   }
+
   return mergedData;
 };
 

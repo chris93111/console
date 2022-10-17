@@ -8,13 +8,13 @@ import { Link, match as RMatch } from 'react-router-dom';
 import { Button, TextInput, TextInputProps } from '@patternfly/react-core';
 import { useTranslation } from 'react-i18next';
 
-import { withFallback } from '@console/shared/src/components/error/error-boundary';
 import { useDocumentListener, KEYBOARD_SHORTCUTS, useDeepCompareMemoize } from '@console/shared';
+import { withFallback, ErrorBoundaryFallbackPage } from '@console/shared/src/components/error';
 import { ColumnLayout } from '@console/dynamic-plugin-sdk';
 
 import { filterList } from '@console/dynamic-plugin-sdk/src/app/k8s/actions/k8s';
 import { storagePrefix } from '../row-filter';
-import { ErrorPage404, ErrorBoundaryFallback } from '../error';
+import { ErrorPage404 } from '../error';
 import { K8sKind, K8sResourceCommon, referenceForModel, Selector } from '../../module/k8s';
 import {
   Dropdown,
@@ -76,8 +76,8 @@ export const TextFilter: React.FC<TextFilterProps> = (props) => {
         tabIndex={0}
         type="text"
       />
-      <span className="form-control-feedback form-control-feedback--keyboard-hint">
-        <kbd>{KEYBOARD_SHORTCUTS.focusFilterInput}</kbd>
+      <span className="co-text-filter-feedback">
+        <kbd className="co-kbd co-kbd__filter-input">{KEYBOARD_SHORTCUTS.focusFilterInput}</kbd>
       </span>
     </div>
   );
@@ -129,7 +129,7 @@ export const ListPageWrapper: React.FC<ListPageWrapperProps> = (props) => {
   const memoizedIds = useDeepCompareMemoize(reduxIDs);
 
   React.useEffect(() => {
-    if (nameFilter) {
+    if (!_.isNil(nameFilter)) {
       memoizedIds.forEach((id) => dispatch(filterList(id, 'name', { selected: [nameFilter] })));
     }
   }, [dispatch, nameFilter, memoizedIds]);
@@ -369,7 +369,7 @@ export type Flatten<
   R = any
 > = (resources: FirehoseResourcesResult<F>) => R;
 
-type ListPageProps<L = any, C = any> = PageCommonProps<L, C> & {
+export type ListPageProps<L = any, C = any> = PageCommonProps<L, C> & {
   kind: string;
   helpText?: React.ReactNode;
   selector?: Selector;
@@ -490,7 +490,7 @@ export const ListPage = withFallback<ListPageProps>((props) => {
       nameFilter={nameFilter}
     />
   );
-}, ErrorBoundaryFallback);
+}, ErrorBoundaryFallbackPage);
 
 ListPage.displayName = 'ListPage';
 

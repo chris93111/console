@@ -10,6 +10,9 @@ import {
   UnknownIcon,
 } from '@patternfly/react-icons';
 import { useTranslation } from 'react-i18next';
+import AppliedClusterResourceQuotaCharts from '@console/app/src/components/resource-quota/AppliedClusterResourceQuotaCharts';
+import ResourceQuotaCharts from '@console/app/src/components/resource-quota/ResourceQuotaCharts';
+import ClusterResourceQuotaCharts from '@console/app/src/components/resource-quota/ClusterResourceQuotaCharts';
 
 import { FLAGS, YellowExclamationTriangleIcon } from '@console/shared';
 import { DetailsPage, MultiListPage, Table, TableData } from './factory';
@@ -30,8 +33,6 @@ import {
 } from './utils';
 import { connectToFlags } from '../reducers/connectToFlags';
 import { flagPending } from '../reducers/features';
-import { GaugeChart } from './graphs/gauge';
-import { DonutChart } from './graphs/donut';
 import { LoadingBox } from './utils/status-box';
 import { referenceFor, referenceForModel } from '../module/k8s';
 import {
@@ -39,6 +40,7 @@ import {
   ResourceQuotaModel,
   ClusterResourceQuotaModel,
 } from '../models';
+import { getUsedPercentage } from '@console/app/src/components/resource-quota/utils';
 
 const { common } = Kebab.factory;
 
@@ -91,8 +93,6 @@ const quotaActions = (quota, customData = undefined) => {
     return appliedClusterResourceQuotaMenuActions(customData.namespace);
   }
 };
-
-const gaugeChartThresholds = [{ value: 90 }, { value: 101 }];
 
 export const getQuotaResourceTypes = (quota) => {
   const specHard = isClusterQuota(quota)
@@ -158,10 +158,18 @@ const tableColumnClasses = [
   'pf-m-hidden pf-m-visible-on-lg',
   'pf-m-hidden pf-m-visible-on-lg',
   'pf-m-hidden pf-m-visible-on-lg',
+  'pf-m-hidden pf-m-visible-on-lg',
   Kebab.columnClass,
 ];
 
-const acrqTableColumnClasses = ['', '', '', '', Kebab.columnClass];
+const acrqTableColumnClasses = [
+  '',
+  'pf-m-hidden pf-m-visible-on-lg',
+  'pf-m-hidden pf-m-visible-on-lg',
+  'pf-m-hidden pf-m-visible-on-lg',
+  'pf-m-hidden pf-m-visible-on-lg',
+  Kebab.columnClass,
+];
 
 export const UsageIcon = ({ percent }) => {
   let usageIcon = <UnknownIcon />;
@@ -206,247 +214,6 @@ export const ResourceUsageRow = ({ quota, resourceType, namespace = undefined })
       </div>
       <div className="col-sm-3 col-xs-3">{used}</div>
       <div className="col-sm-3 col-xs-3">{max}</div>
-    </div>
-  );
-};
-
-const NoQuotaGauge = ({ title, className }) => {
-  const { t } = useTranslation();
-  return (
-    <GaugeChart
-      error={t('public~No quota')}
-      thresholds={[{ value: 100 }]}
-      title={title}
-      className={className}
-    />
-  );
-};
-
-export const QuotaGaugeCharts = ({
-  quota,
-  resourceTypes,
-  chartClassName = null,
-  namespace = undefined,
-}) => {
-  const reference = referenceFor(quota);
-  const isACRQ = reference === appliedClusterQuotaReference;
-  const resourceTypesSet = new Set(resourceTypes);
-  const { t } = useTranslation();
-
-  if (isACRQ) {
-    const cpuRequestUsagePercent = getACRQResourceUsage(
-      quota,
-      resourceTypesSet.has('requests.cpu') ? 'requests.cpu' : 'cpu',
-      namespace,
-    ).percent;
-    const cpuLimitUsagePercent = getACRQResourceUsage(quota, 'limits.cpu', namespace).percent;
-    const memoryRequestUsagePercent = getACRQResourceUsage(
-      quota,
-      resourceTypesSet.has('requests.memory') ? 'requests.memory' : 'memory',
-      namespace,
-    ).percent;
-    const memoryLimitUsagePercent = getACRQResourceUsage(quota, 'limits.memory', namespace).percent;
-
-    return (
-      <div className="co-resource-quota-chart-row">
-        {resourceTypesSet.has('requests.cpu') || resourceTypesSet.has('cpu') ? (
-          <div className="co-resource-quota-gauge-chart" data-test="resource-quota-gauge-chart">
-            <DonutChart
-              ariaDescription={t(
-                'public~Percentage of CPU used by current namespace vs. other namespaces',
-              )}
-              className={chartClassName}
-              data={[
-                {
-                  x: 'Namespace',
-                  y: cpuRequestUsagePercent.namespace,
-                },
-                {
-                  x: 'Other namespaces',
-                  y: cpuRequestUsagePercent.otherNamespaces,
-                },
-                {
-                  x: 'Unused',
-                  y: cpuRequestUsagePercent.unused,
-                },
-              ]}
-              title={t('public~CPU request')}
-              label={`${cpuRequestUsagePercent.namespace}%`}
-            />
-          </div>
-        ) : (
-          <div className="co-resource-quota-gauge-chart">
-            <NoQuotaGauge title={t('public~CPU request')} />
-          </div>
-        )}
-        {resourceTypesSet.has('limits.cpu') ? (
-          <div className="co-resource-quota-gauge-chart" data-test="resource-quota-gauge-chart">
-            <DonutChart
-              ariaDescription={t(
-                'public~Percentage of CPU limit used by current namespace vs. other namespaces',
-              )}
-              className={chartClassName}
-              data={[
-                {
-                  x: 'Namespace',
-                  y: cpuLimitUsagePercent.namespace,
-                },
-                {
-                  x: 'Other namespaces',
-                  y: cpuLimitUsagePercent.otherNamespaces,
-                },
-                {
-                  x: 'Unused',
-                  y: cpuLimitUsagePercent.unused,
-                },
-              ]}
-              title={t('public~CPU limit')}
-              label={`${cpuLimitUsagePercent.namespace}%`}
-            />
-          </div>
-        ) : (
-          <div className="co-resource-quota-gauge-chart">
-            <NoQuotaGauge title={t('public~CPU limit')} className={chartClassName} />
-          </div>
-        )}
-        {resourceTypesSet.has('requests.memory') || resourceTypesSet.has('memory') ? (
-          <div className="co-resource-quota-gauge-chart" data-test="resource-quota-gauge-chart">
-            <DonutChart
-              ariaDescription={t(
-                'public~Percentage of memory requests used by current namespace vs. other namespaces',
-              )}
-              className={chartClassName}
-              data={[
-                {
-                  x: 'Namespace',
-                  y: memoryRequestUsagePercent.namespace,
-                },
-                {
-                  x: 'Other namespaces',
-                  y: memoryRequestUsagePercent.otherNamespaces,
-                },
-                {
-                  x: 'Unused',
-                  y: memoryRequestUsagePercent.unused,
-                },
-              ]}
-              title={t('public~Memory request')}
-              label={`${memoryRequestUsagePercent.namespace}%`}
-            />
-          </div>
-        ) : (
-          <div className="co-resource-quota-gauge-chart">
-            <NoQuotaGauge title={t('public~Memory request')} className={chartClassName} />
-          </div>
-        )}
-        {resourceTypesSet.has('limits.memory') ? (
-          <div className="co-resource-quota-gauge-chart" data-test="resource-quota-gauge-chart">
-            <DonutChart
-              ariaDescription={t(
-                'public~Percentage of memory limits used by current namespace vs. other namespaces',
-              )}
-              className={chartClassName}
-              data={[
-                {
-                  x: 'Namespace',
-                  y: memoryLimitUsagePercent.namespace,
-                },
-                {
-                  x: 'Other namespaces',
-                  y: memoryLimitUsagePercent.otherNamespaces,
-                },
-                {
-                  x: 'Unused',
-                  y: memoryLimitUsagePercent.unused,
-                },
-              ]}
-              title={t('public~Memory limit')}
-              label={`${memoryLimitUsagePercent.namespace}%`}
-            />
-          </div>
-        ) : (
-          <div className="co-resource-quota-gauge-chart">
-            <NoQuotaGauge title={t('public~Memory limit')} className={chartClassName} />
-          </div>
-        )}
-      </div>
-    );
-  }
-  const cpuRequestUsagePercent = getResourceUsage(
-    quota,
-    resourceTypesSet.has('requests.cpu') ? 'requests.cpu' : 'cpu',
-  ).percent;
-  const cpuLimitUsagePercent = getResourceUsage(quota, 'limits.cpu').percent;
-  const memoryRequestUsagePercent = getResourceUsage(
-    quota,
-    resourceTypesSet.has('requests.memory') ? 'requests.memory' : 'memory',
-  ).percent;
-  const memoryLimitUsagePercent = getResourceUsage(quota, 'limits.memory').percent;
-
-  return (
-    <div className="co-resource-quota-chart-row">
-      {resourceTypesSet.has('requests.cpu') || resourceTypesSet.has('cpu') ? (
-        <div className="co-resource-quota-gauge-chart" data-test="resource-quota-gauge-chart">
-          <GaugeChart
-            data={{
-              x: `${cpuRequestUsagePercent}%`,
-              y: cpuRequestUsagePercent,
-            }}
-            thresholds={gaugeChartThresholds}
-            title={t('public~CPU request')}
-            className={chartClassName}
-          />
-        </div>
-      ) : (
-        <div className="co-resource-quota-gauge-chart">
-          <NoQuotaGauge title={t('public~CPU request')} />
-        </div>
-      )}
-      {resourceTypesSet.has('limits.cpu') ? (
-        <div className="co-resource-quota-gauge-chart" data-test="resource-quota-gauge-chart">
-          <GaugeChart
-            data={{ x: `${cpuLimitUsagePercent}%`, y: cpuLimitUsagePercent }}
-            thresholds={gaugeChartThresholds}
-            title={t('public~CPU limit')}
-            className={chartClassName}
-          />
-        </div>
-      ) : (
-        <div className="co-resource-quota-gauge-chart">
-          <NoQuotaGauge title={t('public~CPU limit')} className={chartClassName} />
-        </div>
-      )}
-      {resourceTypesSet.has('requests.memory') || resourceTypesSet.has('memory') ? (
-        <div className="co-resource-quota-gauge-chart" data-test="resource-quota-gauge-chart">
-          <GaugeChart
-            data={{
-              x: `${memoryRequestUsagePercent}%`,
-              y: memoryRequestUsagePercent,
-            }}
-            thresholds={gaugeChartThresholds}
-            title={t('public~Memory request')}
-            className={chartClassName}
-          />
-        </div>
-      ) : (
-        <div className="co-resource-quota-gauge-chart">
-          <NoQuotaGauge title={t('public~Memory request')} className={chartClassName} />
-        </div>
-      )}
-      {resourceTypesSet.has('limits.memory') ? (
-        <div className="co-resource-quota-gauge-chart" data-test="resource-quota-gauge-chart">
-          <GaugeChart
-            data={{ x: `${memoryLimitUsagePercent}%`, y: memoryLimitUsagePercent }}
-            thresholds={gaugeChartThresholds}
-            title={t('public~Memory limit')}
-            className={chartClassName}
-          />
-        </div>
-      ) : (
-        <div className="co-resource-quota-gauge-chart">
-          <NoQuotaGauge title={t('public~Memory limit')} className={chartClassName} />
-        </div>
-      )}
     </div>
   );
 };
@@ -514,15 +281,21 @@ const Details = ({ obj: rq, match }) => {
   const isACRQ = reference === appliedClusterQuotaReference;
   const namespace = match?.params?.ns;
   let text;
+  let charts;
   switch (reference) {
     case appliedClusterQuotaReference:
       text = t('public~AppliedClusterResourceQuota details');
+      charts = (
+        <AppliedClusterResourceQuotaCharts appliedClusterResourceQuota={rq} namespace={namespace} />
+      );
       break;
     case clusterQuotaReference:
       text = t('public~ClusterResourceQuota details');
+      charts = <ClusterResourceQuotaCharts clusterResourceQuota={rq} />;
       break;
     default:
       text = t('public~ResourceQuota details');
+      charts = <ResourceQuotaCharts resourceQuota={rq} />;
   }
   const canListCRQ = useAccessReview({
     group: ClusterResourceQuotaModel.apiGroup,
@@ -534,7 +307,7 @@ const Details = ({ obj: rq, match }) => {
     <>
       <div className="co-m-pane__body">
         <SectionHeading text={text} />
-        <QuotaGaugeCharts quota={rq} resourceTypes={resourceTypes} namespace={namespace} />
+        {charts}
         <div className="row">
           <div className="col-sm-6">
             <ResourceSummary resource={rq}>
@@ -632,6 +405,25 @@ const Details = ({ obj: rq, match }) => {
 const ResourceQuotaTableRow = ({ obj: rq, customData }) => {
   const { t } = useTranslation();
   const actions = quotaActions(rq, customData);
+  let resourcesAtQuota;
+  if (rq.kind === ResourceQuotaModel.kind) {
+    resourcesAtQuota = Object.keys(rq?.status?.hard || {}).reduce(
+      (acc, resource) =>
+        getUsedPercentage(rq?.status?.hard[resource], rq?.status?.used?.[resource]) >= 100
+          ? acc + 1
+          : acc,
+      0,
+    );
+  } else {
+    resourcesAtQuota = Object.keys(rq?.status?.total?.hard || {}).reduce(
+      (acc, resource) =>
+        getUsedPercentage(rq?.status?.total?.hard[resource], rq?.status?.total?.used?.[resource]) >=
+        100
+          ? acc + 1
+          : acc,
+      0,
+    );
+  }
   return (
     <>
       <TableData className={tableColumnClasses[0]}>
@@ -666,10 +458,20 @@ const ResourceQuotaTableRow = ({ obj: rq, customData }) => {
       <TableData className={classNames(tableColumnClasses[3], 'co-break-word')}>
         <Selector selector={rq.spec?.selector?.annotations} namespace={customData.namespace} />
       </TableData>
-      <TableData className={tableColumnClasses[4]}>
-        <Timestamp timestamp={rq.metadata.creationTimestamp} />
+      <TableData className={classNames(tableColumnClasses[4], 'co-break-word')}>
+        {resourcesAtQuota > 0 ? (
+          <>
+            <YellowExclamationTriangleIcon />{' '}
+            {t('public~{{count}} resource reached quota', { count: resourcesAtQuota })}
+          </>
+        ) : (
+          t('public~none are at quota')
+        )}
       </TableData>
       <TableData className={tableColumnClasses[5]}>
+        <Timestamp timestamp={rq.metadata.creationTimestamp} />
+      </TableData>
+      <TableData className={tableColumnClasses[6]}>
         <ResourceKebab
           customData={customData}
           actions={actions}
@@ -682,7 +484,16 @@ const ResourceQuotaTableRow = ({ obj: rq, customData }) => {
 };
 
 const AppliedClusterResourceQuotaTableRow = ({ obj: rq, customData }) => {
+  const { t } = useTranslation();
   const actions = quotaActions(rq, customData);
+  const resourcesAtQuota = Object.keys(rq?.status?.total?.hard || {}).reduce(
+    (acc, resource) =>
+      getUsedPercentage(rq?.status?.total?.hard[resource], rq?.status?.total?.used?.[resource]) >=
+      100
+        ? acc + 1
+        : acc,
+    0,
+  );
   return (
     <>
       <TableData className={acrqTableColumnClasses[0]}>
@@ -702,10 +513,20 @@ const AppliedClusterResourceQuotaTableRow = ({ obj: rq, customData }) => {
       <TableData className={classNames(acrqTableColumnClasses[2], 'co-break-word')}>
         <Selector selector={rq.spec?.selector?.annotations} namespace={customData.namespace} />
       </TableData>
-      <TableData className={acrqTableColumnClasses[3]}>
-        <Timestamp timestamp={rq.metadata.creationTimestamp} />
+      <TableData className={classNames(acrqTableColumnClasses[3], 'co-break-word')}>
+        {resourcesAtQuota > 0 ? (
+          <>
+            <YellowExclamationTriangleIcon />{' '}
+            {t('public~{{count}} resource reached quota', { count: resourcesAtQuota })}
+          </>
+        ) : (
+          t('public~none are at quota')
+        )}
       </TableData>
       <TableData className={acrqTableColumnClasses[4]}>
+        <Timestamp timestamp={rq.metadata.creationTimestamp} />
+      </TableData>
+      <TableData className={acrqTableColumnClasses[5]}>
         <ResourceKebab
           customData={customData}
           actions={actions}
@@ -747,14 +568,19 @@ export const ResourceQuotasList = (props) => {
         props: { className: tableColumnClasses[3] },
       },
       {
+        title: t('public~Status'),
+        props: { className: tableColumnClasses[4] },
+        transforms: [sortable],
+      },
+      {
         title: t('public~Created'),
         sortField: 'metadata.creationTimestamp',
         transforms: [sortable],
-        props: { className: tableColumnClasses[4] },
+        props: { className: tableColumnClasses[5] },
       },
       {
         title: '',
-        props: { className: tableColumnClasses[5] },
+        props: { className: tableColumnClasses[6] },
       },
     ];
   };
@@ -793,14 +619,19 @@ export const AppliedClusterResourceQuotasList = (props) => {
         props: { className: acrqTableColumnClasses[2] },
       },
       {
+        title: t('public~Status'),
+        props: { className: acrqTableColumnClasses[3] },
+        transforms: [sortable],
+      },
+      {
         title: t('public~Created'),
         sortField: 'metadata.creationTimestamp',
         transforms: [sortable],
-        props: { className: acrqTableColumnClasses[3] },
+        props: { className: acrqTableColumnClasses[4] },
       },
       {
         title: '',
-        props: { className: acrqTableColumnClasses[4] },
+        props: { className: acrqTableColumnClasses[5] },
       },
     ];
   };

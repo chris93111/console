@@ -2,16 +2,29 @@ import { Given, When, Then } from 'cypress-cucumber-preprocessor/steps';
 import {
   devNavigationMenu,
   pageTitle,
+  addOptions,
 } from '@console/dev-console/integration-tests/support/constants';
+import { switchPerspective } from '@console/dev-console/integration-tests/support/constants/global';
 import {
   topologyPage,
   topologySidePane,
   navigateTo,
   app,
+  addPage,
+  gitPage,
+  devFilePage,
 } from '@console/dev-console/integration-tests/support/pages';
+import { perspective } from '@console/dev-console/integration-tests/support/pages/app';
+import { topologyPO } from '@console/topology/integration-tests/support/page-objects/topology-po';
 import { modal } from '../../../../../integration-tests-cypress/views/modal';
 import { pipelineActions, pipelineBuilderText } from '../../constants';
-import { pipelineRunDetailsPO, pipelineRunsPO, pipelinesPO } from '../../page-objects/pipelines-po';
+import {
+  pipelineRunDetailsPO,
+  pipelineRunsPO,
+  pipelinesPO,
+  pipelineDetailsPO,
+  triggerTemplateDetailsPO,
+} from '../../page-objects/pipelines-po';
 import {
   pipelinesPage,
   startPipelineInPipelinesPage,
@@ -144,7 +157,7 @@ Then('user is able to see kebab menu options Rerun, Delete Pipeline Run', () => 
   cy.byTestActionID('Delete PipelineRun').should('be.visible');
 });
 
-Then('user is able to see Details, YAML, TaskRuns, Logs and Events tabs', () => {
+Then('user is able to see Details, YAML, TaskRuns, Parameters, Logs and Events tabs', () => {
   pipelineRunDetailsPage.verifyTabs();
 });
 
@@ -224,7 +237,9 @@ When('user selects Rerun option from the Actions menu', () => {
 });
 
 Then('status displays as {string} in pipeline run details page', (pipelineStatus: string) => {
-  cy.get(pipelineRunsPO.pipelineRunsTable.status).should('contain.text', pipelineStatus);
+  cy.get(pipelineRunsPO.pipelineRunsTable.status).should('contain.text', pipelineStatus, {
+    timeout: 10000,
+  });
 });
 
 Then('user will be redirected to Pipeline Run Details page', () => {
@@ -245,11 +260,11 @@ Then('side bar is displayed with the pipelines section', () => {
 });
 
 Then('3 pipeline runs are displayed under pipelines section of topology page', () => {
-  cy.get('li.odc-pipeline-run-item').should('not.be.greaterThan', 3);
+  cy.get(topologyPO.sidePane.resourcesTab.pipelineRuns).should('not.be.greaterThan', 3);
 });
 
 Then('View all link is displayed', () => {
-  cy.get('a.sidebar__section-view-all').should('contain.text', 'View all');
+  cy.get(topologyPO.sidePane.pipelineRunsLinks).should('contain.text', 'View all');
 });
 
 Given('pipeline {string} is executed for 3 times', (pipelineName: string) => {
@@ -328,6 +343,18 @@ When('user clicks Actions menu on the top right corner of the page', () => {
   actionsDropdownMenu.clickActionMenu();
 });
 
+When(
+  'user is able to see Actions menu options {string}, {string}, {string}, {string} in pipeline run page',
+  (el1, el2, el3, el4: string) => {
+    cy.byLegacyTestID('breadcrumb-link-0').contains('PipelineRun');
+    cy.byLegacyTestID('action-items')
+      .should('contain', el1)
+      .and('contain', el2)
+      .and('contain', el3)
+      .and('contain', el4);
+  },
+);
+
 When('user clicks Last Run value of the pipeline {string}', (pipelineName: string) => {
   pipelinesPage.selectPipelineRun(pipelineName);
 });
@@ -372,7 +399,7 @@ Given('pipeline {string} is present on Pipeline Details page', (pipelineName: st
 });
 
 Then('Pipeline Resources field will be displayed', () => {
-  cy.get('.odc-dynamic-resource-link-list').should('be.visible');
+  cy.get(pipelineDetailsPO.details.fieldNames.list).should('be.visible');
 });
 
 When('user navigates to pipelineRun logs tab', () => {
@@ -473,3 +500,167 @@ Then(
     modal.shouldBeClosed();
   },
 );
+
+Given('user is at pipeline page in developer perspective', () => {
+  perspective.switchTo(switchPerspective.Developer);
+  navigateTo(devNavigationMenu.Pipelines);
+});
+
+Given('a failed pipeline is present', () => {
+  navigateTo(devNavigationMenu.Add);
+  addPage.selectCardFromOptions(addOptions.ImportFromGit);
+  gitPage.enterGitUrl('https://github.com/che-samples/java-spring-petclinic/tree/devfilev2');
+  devFilePage.verifyValidatedMessage(
+    'https://github.com/che-samples/java-spring-petclinic/tree/devfilev2',
+  );
+  gitPage.selectAddPipeline();
+  gitPage.clickCreate();
+  topologyPage.verifyTopologyPage();
+});
+
+When('user goes to failed pipeline run of pipeline {string}', (pipelineName: string) => {
+  navigateTo(devNavigationMenu.Pipelines);
+  pipelinesPage.search(pipelineName);
+  cy.get(`[data-test-id^="${pipelineName}-"]`).click();
+});
+
+When('user opens pipeline run details', () => {
+  cy.get('.pf-c-breadcrumb').should('include.text', 'PipelineRun details');
+});
+
+Then('user can see status as Failure', () => {
+  cy.get(pipelineRunsPO.pipelineRunsTable.status, { timeout: 20000 }).should(
+    'include.text',
+    'Failed',
+  );
+});
+
+Then('user can view failure message under Message heading', () => {
+  cy.get(pipelineRunDetailsPO.statusMessage).within(() => {
+    cy.get('dl dt')
+      .contains('Message')
+      .should('be.visible');
+  });
+});
+
+Then('user can see Log snippet to get know what taskruns failed', () => {
+  cy.get(pipelineRunDetailsPO.statusMessage).within(() => {
+    cy.get('dl dt')
+      .contains('Log snippet')
+      .should('be.visible');
+  });
+});
+
+Given('user has passed pipeline run', () => {
+  cy.exec(
+    `oc apply -f testData/pipelines-workspaces/sum-three-pipeline.yaml -n ${Cypress.env(
+      'NAMESPACE',
+    )}`,
+  );
+});
+
+When(
+  'user is on Pipeline Run details page of {string} pipeline run',
+  (pipelineRunsName: string) => {
+    cy.get(`[data-test-id^="${pipelineRunsName}"]`).click();
+  },
+);
+
+When('user scrolls to the Pipeline Run results section', () => {
+  cy.get(pipelineRunDetailsPO.pipelineRunsResults).should('be.visible');
+});
+
+Then('user can see Name and Value column under Pipeline Run results', () => {
+  cy.get(pipelineRunsPO.pipelineRunsTable.resultTable).should('contain.text', 'Name');
+  cy.get(pipelineRunsPO.pipelineRunsTable.resultTable).should('contain.text', 'Value');
+});
+
+Given('a node with an associated pipeline {string} is present', (pipelineName: string) => {
+  topologyPage.componentNode(pipelineName).should('be.visible');
+});
+
+When('user opens sidebar of the node {string}', (name: string) => {
+  topologyPage.componentNode(name).click({ force: true });
+});
+
+When('user scrolls down to pipeline runs section', () => {
+  cy.get(topologyPO.sidePane.pipelineRunsDetails)
+    .contains('PipelineRuns')
+    .should('be.visible');
+});
+
+Then('user will see the pipeline run name with failed status', () => {
+  cy.get(pipelinesPO.pipelinesTable.lastRunStatus)
+    .contains('Failed')
+    .should('be.visible');
+});
+
+Then('user will see failure message below pipeline runs', () => {
+  cy.get(topologyPO.sidePane.pipelineRunsStatus).should('be.visible');
+});
+
+Then('user will also see the log snippet', () => {
+  cy.get(topologyPO.sidePane.pipelineRunsLogSnippet).should('be.visible');
+});
+
+Then('user navigates to pipelineRun parameters tab', () => {
+  pipelineRunDetailsPage.selectTab('Parameters');
+});
+
+Then('user is able to see parameters of pipelineRun', () => {
+  cy.get(pipelineRunDetailsPO.parameters.form).should('be.visible');
+});
+
+Then('user is able to see No parameters are associated with this PipelineRun', () => {
+  cy.contains('No parameters are associated with this PipelineRun.');
+});
+
+Given('pipeline run is displayed for {string} with parameters', (pipelineName: string) => {
+  pipelinesPage.clickOnCreatePipeline();
+  pipelineBuilderPage.createPipelineWithParameters(pipelineName);
+  cy.byLegacyTestID('breadcrumb-link-0').click();
+  pipelinesPage.selectActionForPipeline(pipelineName, pipelineActions.Start);
+  modal.modalTitleShouldContain('Start Pipeline');
+  startPipelineInPipelinesPage.clickStart();
+  pipelineRunDetailsPage.verifyTitle();
+  navigateTo(devNavigationMenu.Pipelines);
+  pipelinesPage.search(pipelineName);
+  cy.get('[title="PipelineRun"]').should('be.visible');
+});
+
+Then(
+  'user is able to see name {string} and value {string} parameters value of pipelineRun',
+  (paramName: string, paramValue: string) => {
+    cy.byTestID('name').should('have.value', paramName);
+    cy.byTestID('value').should('have.value', paramValue);
+  },
+);
+
+When('user creates pipeline using git named {string}', (pipelineName: string) => {
+  navigateTo(devNavigationMenu.Add);
+  addPage.selectCardFromOptions(addOptions.ImportFromGit);
+  gitPage.enterGitUrl('https://github.com/sclorg/golang-ex');
+  devFilePage.verifyValidatedMessage('https://github.com/sclorg/golang-ex');
+  gitPage.selectAddPipeline();
+  gitPage.enterWorkloadName(pipelineName);
+  gitPage.clickCreate();
+  topologyPage.verifyTopologyPage();
+});
+
+When('user is at the Pipeline Details page of pipeline {string}', (pipelineName: string) => {
+  navigateTo(devNavigationMenu.Pipelines);
+  pipelinesPage.search(pipelineName);
+  cy.byLegacyTestID(pipelineName).click();
+  pipelineDetailsPage.verifyTitle(pipelineName);
+});
+
+When('user starts the pipeline {string} in Pipeline Details page', (pipelineName: string) => {
+  pipelineDetailsPage.verifyTitle(pipelineName);
+  cy.get(triggerTemplateDetailsPO.detailsTab)
+    .should('be.visible')
+    .click();
+  cy.byLegacyTestID('breadcrumb-link-0').click();
+  pipelinesPage.selectActionForPipeline(pipelineName, pipelineActions.Start);
+  modal.modalTitleShouldContain('Start Pipeline');
+  startPipelineInPipelinesPage.clickStart();
+});

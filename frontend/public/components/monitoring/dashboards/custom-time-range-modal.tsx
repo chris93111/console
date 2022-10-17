@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
 // @ts-ignore
 import { useDispatch, useSelector } from 'react-redux';
-
 import { DatePicker, TimePicker } from '@patternfly/react-core';
 
 import { dashboardsSetEndTime, dashboardsSetTimespan } from '../../../actions/observe';
@@ -16,10 +15,23 @@ import {
   ModalSubmitFooter,
   ModalTitle,
 } from '../../factory/modal';
-import { toISODateString, twentyFourHourTime } from '../../utils/datetime';
 import { setQueryArguments } from '../../utils';
 
 type CustomTimeRangeModalProps = ModalComponentProps & { activePerspective: string };
+
+const zeroPad = (number: number) => (number < 10 ? `0${number}` : number);
+
+// Get YYYY-MM-DD date string for a date object
+const toISODateString = (date: Date): string =>
+  `${date.getFullYear()}-${zeroPad(date.getMonth() + 1)}-${zeroPad(date.getDate())}`;
+
+// Get HH:MM time string for a date object
+const toISOTimeString = (date: Date): string =>
+  new Intl.DateTimeFormat(
+    'en',
+    // TODO: TypeScript 3 doesn't allow the `hourCycle` attribute so use "as any" until we upgrade
+    { hour: 'numeric', minute: 'numeric', hourCycle: 'h23' } as any,
+  ).format(date);
 
 const CustomTimeRangeModal = ({ cancel, close, activePerspective }: CustomTimeRangeModalProps) => {
   const { t } = useTranslation();
@@ -37,11 +49,11 @@ const CustomTimeRangeModal = ({ cancel, close, activePerspective }: CustomTimeRa
   const defaultFrom = endTime && timespan ? new Date(endTime - timespan) : undefined;
   const [fromDate, setFromDate] = React.useState(toISODateString(defaultFrom ?? now));
   const [fromTime, setFromTime] = React.useState(
-    defaultFrom ? twentyFourHourTime(defaultFrom) : '00:00',
+    defaultFrom ? toISOTimeString(defaultFrom) : '00:00',
   );
   const [toDate, setToDate] = React.useState(toISODateString(endTime ? new Date(endTime) : now));
   const [toTime, setToTime] = React.useState(
-    endTime ? twentyFourHourTime(new Date(endTime)) : '23:59',
+    endTime ? toISOTimeString(new Date(endTime)) : '23:59',
   );
 
   const submit: React.FormEventHandler<HTMLFormElement> = (e) => {
@@ -60,7 +72,7 @@ const CustomTimeRangeModal = ({ cancel, close, activePerspective }: CustomTimeRa
   };
 
   return (
-    <form onSubmit={submit} name="form" className="modal-content modal-content--no-inner-scroll">
+    <form onSubmit={submit} name="form" className="modal-content">
       <ModalTitle>{t('public~Custom time range')}</ModalTitle>
       <ModalBody>
         <div className="row co-m-form-row">

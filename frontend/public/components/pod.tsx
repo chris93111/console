@@ -113,7 +113,7 @@ import { useListPageFilter } from './factory/ListPage/filter-hook';
 import VirtualizedTable, { TableData } from './factory/Table/VirtualizedTable';
 import { sortResourceByValue } from './factory/Table/sort';
 import { useActiveColumns } from './factory/Table/active-columns-hook';
-
+import { PodDisruptionBudgetField } from '@console/app/src/components/pdb/PodDisruptionBudgetField';
 // Only request metrics if the device's screen width is larger than the
 // breakpoint where metrics are visible.
 const showMetrics =
@@ -742,6 +742,7 @@ export const PodDetailsList: React.FC<PodDetailsListProps> = ({ pod }) => {
           : t('public~Not configured')}
       </DetailsItem>
       <DetailsItem label={t('public~Pod IP')} obj={pod} path="status.podIP" />
+      <DetailsItem label={t('public~Host IP')} obj={pod} path="status.hostIP" />
       <DetailsItem label={t('public~Node')} obj={pod} path="spec.nodeName" hideEmpty>
         <NodeLink name={pod.spec.nodeName} />
       </DetailsItem>
@@ -758,6 +759,7 @@ export const PodDetailsList: React.FC<PodDetailsListProps> = ({ pod }) => {
         </DetailsItem>
       )}
       <RuntimeClass obj={pod} path="spec.runtimeClassName" />
+      <PodDisruptionBudgetField obj={pod} />
     </dl>
   );
 };
@@ -949,15 +951,15 @@ export const getFilters = (t: TFunction): RowFilter<PodKind>[] => [
     },
     reducer: podPhaseFilterReducer,
     items: [
-      { id: 'Running', title: 'Running' },
-      { id: 'Pending', title: 'Pending' },
-      { id: 'Terminating', title: 'Terminating' },
-      { id: 'CrashLoopBackOff', title: 'CrashLoopBackOff' },
+      { id: 'Running', title: t('public~Running') },
+      { id: 'Pending', title: t('public~Pending') },
+      { id: 'Terminating', title: t('public~Terminating') },
+      { id: 'CrashLoopBackOff', title: t('public~CrashLoopBackOff') },
       // Use title "Completed" to match what appears in the status column for the pod.
       // The pod phase is "Succeeded," but the container state is "Completed."
-      { id: 'Succeeded', title: 'Completed' },
-      { id: 'Failed', title: 'Failed' },
-      { id: 'Unknown', title: 'Unknown ' },
+      { id: 'Succeeded', title: t('public~Completed') },
+      { id: 'Failed', title: t('public~Failed') },
+      { id: 'Unknown', title: t('public~Unknown') },
     ],
   },
 ];

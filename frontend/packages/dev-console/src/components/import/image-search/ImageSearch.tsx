@@ -144,7 +144,9 @@ const ImageSearch: React.FC = () => {
   };
 
   const helpTextInvalid = validated === ValidatedOptions.error && (
-    <span>{values.searchTerm === '' ? 'Required' : values.isi.status?.message}</span>
+    <span className="odc-image-search__helper-text-invalid">
+      {values.searchTerm === '' ? 'Required' : values.isi.status?.message}
+    </span>
   );
 
   React.useEffect(() => {
@@ -192,7 +194,7 @@ const ImageSearch: React.FC = () => {
       />
       <div className="help-block" id="image-name-help">
         <Trans ns="devconsole" t={t}>
-          To deploy an Image from a private repository, you must{' '}
+          To deploy an Image from a private registry, you must{' '}
           <Button
             variant="link"
             isInline

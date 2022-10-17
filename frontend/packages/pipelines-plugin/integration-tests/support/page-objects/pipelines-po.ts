@@ -14,8 +14,11 @@ export const pipelineBuilderPO = {
     name: '#form-input-formData-name-field',
     taskDropdown: '[data-id="initial-node"]',
     quickSearch: '[data-test="quick-search-bar"]',
+    versionTask: '[data-test="task-version-toggle"]',
+    addInstallTask: '[data-test="task-cta"]',
     task: '[data-type="builder"] .odc-pipeline-vis-task',
     plusTaskIcon: 'g.odc-plus-node-decorator',
+    deleteTaskIcon: '[data-id="delete-task"]',
     seriesTask: '[data-id^="has-run-after-"][data-kind="node"]',
     parallelTask: '[data-id^="shared-parallel-"][data-kind="node"]',
     sectionTitle: '.odc-pipeline-builder-page h2',
@@ -108,6 +111,7 @@ export const pipelineDetailsPO = {
       createdAt: '[data-test="Created at"]',
       owner: '[data-test="Owner"]',
       tasks: '.odc-dynamic-resource-link-list--addSpaceBelow dl dt',
+      list: '.odc-dynamic-resource-link-list',
     },
     fieldValues: {
       name: '[data-test-selector="details-item-value__Name"]',
@@ -120,6 +124,7 @@ export const pipelineDetailsPO = {
     },
     sections: {
       triggerTemplates: '.odc-trigger-template-list',
+
       tasks: '.odc-dynamic-resource-link-list--addSpaceBelow',
     },
   },
@@ -181,8 +186,11 @@ export const pipelineRunDetailsPO = {
   yamlTab: '[data-test-id$="YAML"]',
   detailsTab: '[data-test-id$="Details"]',
   taskRunsTab: '[data-test-id="horizontal-link-TaskRuns"]',
+  parametersTab: '[data-test-id="horizontal-link-Parameters"]',
+  pipelineRunsResults: '[data-test-section-heading="PipelineRun results"]',
   eventsTab: '[data-test-id$="Events"]',
   pipelineRunStatus: '[data-test="resource-status"]',
+  statusMessage: '.odc-pipeline-run-details__customDetails',
   details: {
     pipelineLink: '[data-test-id="git-pipeline-events"]',
     sectionTitle: '[data-test-section-heading="PipelineRun details"]',
@@ -209,6 +217,10 @@ export const pipelineRunDetailsPO = {
       pod: '[data-label="Pod"]',
       status: '[data-label="Status"]',
       started: '[data-label="Started"]',
+      commidID: '[data-label="Commit id"]',
+      taskStatus: '[data-label="Task status"]',
+      duration: '[data-label="Duration"]',
+      branch: '[data-label="Branch"]',
     },
   },
   taskRunsDetails: {
@@ -220,6 +232,9 @@ export const pipelineRunDetailsPO = {
     },
     status: '.odc-taskrun-details__status',
   },
+  parameters: {
+    form: '[data-test="pipeline-parameters"]',
+  },
 };
 
 export const pipelineRunsPO = {
@@ -227,6 +242,7 @@ export const pipelineRunsPO = {
     table: 'div[role="grid"]',
     pipelineRunName: 'tr td:nth-child(1)',
     status: '[data-test="status-text"]',
+    resultTable: '[role="grid"]',
   },
 };
 
@@ -301,7 +317,8 @@ export const pipelinesPO = {
 export const repositoryDetailsPO = {
   detailsTab: '[data-test-id$="Details"]',
   yamlTab: '[data-test-id$="YAML"]',
-  pipelineRunsTab: '[data-test-id="horizontal-link-Pipeline Runs"]',
+  pipelineRunsTab: '[data-test-id="horizontal-link-PipelineRuns"]',
+  importYaml: '[data-test="import-yaml"]',
   details: {
     sectionTitle: '[data-test-section-heading="Repository details"]',
     fieldNames: {

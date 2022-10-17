@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button, Alert, FormHelperText } from '@patternfly/react-core';
+import { Button, Alert, Divider, FormHelperText } from '@patternfly/react-core';
 import { MinusCircleIcon, PlusCircleIcon } from '@patternfly/react-icons';
 import { ArrayFieldTemplateProps, FieldTemplateProps, ObjectFieldTemplateProps } from '@rjsf/core';
 import { getUiOptions, getSchemaType } from '@rjsf/core/dist/cjs/utils';
@@ -115,7 +115,6 @@ export const ArrayFieldTemplate: React.FC<ArrayFieldTemplateProps> = ({
 }) => {
   const { t } = useTranslation();
   const [, label] = useSchemaLabel(schema, uiSchema, title ?? 'Items');
-  const singularLabel = label.replace(/s$/, '');
   return (
     <FieldSet
       defaultLabel={label}
@@ -127,7 +126,7 @@ export const ArrayFieldTemplate: React.FC<ArrayFieldTemplateProps> = ({
       {_.map(items ?? [], (item) => {
         return (
           <div className="co-dynamic-form__array-field-group-item" key={item.key}>
-            {item.index > 0 && <hr />}
+            {item.index > 0 && <Divider className="co-divider" />}
             {item.hasRemove && (
               <div className="row co-dynamic-form__array-field-group-remove">
                 <Button
@@ -137,7 +136,7 @@ export const ArrayFieldTemplate: React.FC<ArrayFieldTemplateProps> = ({
                   variant="link"
                 >
                   <MinusCircleIcon className="co-icon-space-r" />
-                  {t('console-shared~Remove {{singularLabel}}', { singularLabel })}
+                  {t('console-shared~Remove {{singularLabel}}', { singularLabel: label })}
                 </Button>
               </div>
             )}
@@ -148,7 +147,7 @@ export const ArrayFieldTemplate: React.FC<ArrayFieldTemplateProps> = ({
       <div className="row">
         <Button id={`${idSchema.$id}_add-btn`} type="button" onClick={onAddClick} variant="link">
           <PlusCircleIcon className="co-icon-space-r" />
-          {t('console-shared~Add {{singularLabel}}', { singularLabel })}
+          {t('console-shared~Add {{singularLabel}}', { singularLabel: label })}
         </Button>
       </div>
     </FieldSet>

@@ -7,14 +7,13 @@ import { useTranslation } from 'react-i18next';
 // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
 // @ts-ignore: FIXME missing exports due to out-of-sync @types/react-redux version
 import { useDispatch } from 'react-redux';
-import { match } from 'react-router-dom';
+import { useHistory, match as routerMatch } from 'react-router-dom';
+import { ListPageBody, K8sModel } from '@console/dynamic-plugin-sdk';
 import { getResources } from '@console/internal/actions/k8s';
 import { Conditions } from '@console/internal/components/conditions';
 import { ErrorPage404 } from '@console/internal/components/error';
 import { ResourceEventStream } from '@console/internal/components/events';
 import {
-  MultiListPage,
-  ListPage,
   DetailsPage,
   Table,
   TableData,
@@ -22,19 +21,28 @@ import {
   Flatten,
   Filter,
 } from '@console/internal/components/factory';
-import { deleteModal } from '@console/internal/components/modals';
+import { useListPageFilter } from '@console/internal/components/factory/ListPage/filter-hook';
+import {
+  ListPageCreateDropdown,
+  ListPageCreateLink,
+} from '@console/internal/components/factory/ListPage/ListPageCreate';
+import ListPageFilter from '@console/internal/components/factory/ListPage/ListPageFilter';
+import ListPageHeader from '@console/internal/components/factory/ListPage/ListPageHeader';
 import {
   Kebab,
-  KebabAction,
   LabelList,
   MsgBox,
-  ResourceKebab,
   ResourceSummary,
   SectionHeading,
-  StatusBox,
   Timestamp,
   navFactory,
+  ResourceLink,
+  AsyncComponent,
 } from '@console/internal/components/utils';
+import {
+  useK8sWatchResources,
+  useK8sWatchResource,
+} from '@console/internal/components/utils/k8s-watch-hook';
 import { connectToModel } from '@console/internal/kinds';
 import { CustomResourceDefinitionModel } from '@console/internal/models';
 import {
@@ -42,9 +50,7 @@ import {
   K8sKind,
   K8sResourceCondition,
   K8sResourceKind,
-  K8sResourceKindReference,
   OwnerReference,
-  apiGroupForReference,
   apiVersionForReference,
   kindForReference,
   referenceFor,
@@ -55,101 +61,31 @@ import {
   K8sResourceCommon,
 } from '@console/internal/module/k8s';
 import {
-  ClusterServiceVersionAction,
-  useExtensions,
-  isClusterServiceVersionAction,
-} from '@console/plugin-sdk';
-import { Status, SuccessStatus, getBadgeFromType } from '@console/shared';
+  Status,
+  SuccessStatus,
+  LazyActionMenu,
+  ActionMenuVariant,
+  getNamespace,
+} from '@console/shared';
 import ErrorAlert from '@console/shared/src/components/alerts/error';
 import { useK8sModel } from '@console/shared/src/hooks/useK8sModel';
 import { useK8sModels } from '@console/shared/src/hooks/useK8sModels';
+import { useResourceDetailsPage } from '@console/shared/src/hooks/useResourceDetailsPage';
+import { useResourceListPage } from '@console/shared/src/hooks/useResourceListPage';
 import { ClusterServiceVersionModel } from '../../models';
-import { ClusterServiceVersionKind } from '../../types';
+import { ClusterServiceVersionKind, ProvidedAPI } from '../../types';
 import { DescriptorDetailsItem, DescriptorDetailsItemList } from '../descriptors';
 import { DescriptorConditions } from '../descriptors/status/conditions';
 import { DescriptorType, StatusCapability, StatusDescriptor } from '../descriptors/types';
 import { isMainStatusDescriptor } from '../descriptors/utils';
 import { providedAPIsForCSV, referenceForProvidedAPI } from '../index';
 import { Resources } from '../k8s-resource';
-import ModelStatusBox from '../model-status-box';
-import { csvNameFromWindow, OperandLink } from './operand-link';
-
-/**
- * @depricated these actions has been converted to Action extension, src/actions/csv-actions.ts
- */
-export const getOperandActions = (
-  ref: K8sResourceKindReference,
-  actionExtensions: ClusterServiceVersionAction[],
-  csvName?: string,
-) => {
-  const actions = actionExtensions.filter(
-    (action) =>
-      action.properties.kind === kindForReference(ref) &&
-      apiGroupForReference(ref) === action.properties.apiGroup,
-  );
-  const pluginActions = actions.reduce((acc, action) => {
-    acc[action.properties.id] = (kind, ocsObj) => ({
-      label: action.properties.label,
-      callback: action.properties.callback(kind, ocsObj),
-      hidden:
-        typeof action.properties?.hidden === 'function'
-          ? action.properties?.hidden(kind, ocsObj)
-          : action.properties?.hidden,
-    });
-    return acc;
-  }, {});
-  const defaultActions = {
-    edit: (kind, obj) => {
-      const reference = referenceFor(obj);
-      const href = kind.namespaced
-        ? `/k8s/ns/${obj.metadata.namespace}/${ClusterServiceVersionModel.plural}/${csvName ||
-            csvNameFromWindow()}/${reference}/${obj.metadata.name}/yaml`
-        : `/k8s/cluster/${reference}/${obj.metadata.name}/yaml`;
-      return {
-        // t('olm~Edit {{item}}')
-        labelKey: 'olm~Edit {{item}}',
-        labelKind: { item: kind.label },
-        href,
-        accessReview: {
-          group: kind.apiGroup,
-          resource: kind.plural,
-          name: obj.metadata.name,
-          namespace: obj.metadata.namespace,
-          verb: 'update',
-        },
-      };
-    },
-    delete: (kind, obj) => ({
-      // t('olm~Delete {{item}}')
-      labelKey: 'olm~Delete {{item}}',
-      labelKind: { item: kind.label },
-      callback: () =>
-        deleteModal({
-          kind,
-          resource: obj,
-          redirectTo: `/k8s/ns/${obj.metadata.namespace}/${
-            ClusterServiceVersionModel.plural
-          }/${csvName || csvNameFromWindow()}/${referenceFor(obj)}`,
-        }),
-      accessReview: {
-        group: kind.apiGroup,
-        resource: kind.plural,
-        name: obj.metadata.name,
-        namespace: obj.metadata.namespace,
-        verb: 'delete',
-      },
-    }),
-  };
-  // In order to keep plugin properties on top
-  const overridenProperties = Object.assign(
-    defaultActions,
-    _.pick(pluginActions, Object.keys(defaultActions)),
-  );
-  const mergedActions = Object.assign({}, pluginActions, overridenProperties);
-  return Object.values(mergedActions) as KebabAction[];
-};
+import { OperandLink } from './operand-link';
+import { ShowOperandsInAllNamespacesRadioGroup } from './ShowOperandsInAllNamespacesRadioGroup';
+import { useShowOperandsInAllNamespaces } from './useShowOperandsInAllNamespaces';
 
 const tableColumnClasses = [
+  '',
   '',
   '',
   classNames('pf-m-hidden', 'pf-m-visible-on-sm', 'pf-u-w-16-on-lg'),
@@ -194,6 +130,12 @@ const getOperandStatus = (obj: K8sResourceKind): OperandStatusType => {
   return null;
 };
 
+const hasAllNamespaces = (csv: ClusterServiceVersionKind) => {
+  const olmTargetNamespaces = csv?.metadata?.annotations?.['olm.targetNamespaces'] ?? '';
+  const managedNamespaces = olmTargetNamespaces?.split(',') || [];
+  return managedNamespaces.length === 1 && managedNamespaces[0] === '';
+};
+
 export const OperandStatus: React.FC<OperandStatusProps> = ({ operand }) => {
   const status: OperandStatusType = getOperandStatus(operand);
   if (!status) {
@@ -213,17 +155,9 @@ const getOperandStatusText = (operand: K8sResourceKind): string => {
   return status ? `${status.type}: ${status.value}` : '';
 };
 
-export type OperandTableRowProps = RowFunctionArgs<K8sResourceKind>;
-
-export const OperandTableRow: React.FC<OperandTableRowProps> = ({ obj }) => {
-  const actionExtensions = useExtensions<ClusterServiceVersionAction>(
-    isClusterServiceVersionAction,
-  );
+export const OperandTableRow: React.FC<OperandTableRowProps> = ({ obj, showNamespace }) => {
   const objReference = referenceFor(obj);
-  const actions = React.useMemo(() => getOperandActions(objReference, actionExtensions), [
-    objReference,
-    actionExtensions,
-  ]);
+  const context = { [objReference]: obj, 'csv-actions': { resource: obj } };
   return (
     <>
       <TableData className={tableColumnClasses[0]}>
@@ -235,62 +169,99 @@ export const OperandTableRow: React.FC<OperandTableRowProps> = ({ obj }) => {
       >
         {obj.kind}
       </TableData>
-      <TableData className={tableColumnClasses[2]}>
+      {showNamespace && (
+        <TableData className={tableColumnClasses[2]}>
+          {obj.metadata.namespace ? (
+            <ResourceLink
+              kind="Namespace"
+              title={obj.metadata.namespace}
+              name={obj.metadata.namespace}
+            />
+          ) : (
+            '-'
+          )}
+        </TableData>
+      )}
+      <TableData className={tableColumnClasses[3]}>
         <OperandStatus operand={obj} />
       </TableData>
-      <TableData className={tableColumnClasses[3]}>
+      <TableData className={tableColumnClasses[4]}>
         <LabelList kind={obj.kind} labels={obj.metadata.labels} />
       </TableData>
-      <TableData className={tableColumnClasses[4]}>
+      <TableData className={tableColumnClasses[5]}>
         <Timestamp timestamp={obj.metadata.creationTimestamp} />
       </TableData>
-      <TableData className={tableColumnClasses[5]}>
-        <ResourceKebab actions={actions} kind={referenceFor(obj)} resource={obj} />
+      <TableData className={tableColumnClasses[6]}>
+        <LazyActionMenu context={context} />
       </TableData>
     </>
   );
 };
 
+const getOperandNamespace = (obj: ClusterServiceVersionKind): string | null => getNamespace(obj);
+
 export const OperandList: React.FC<OperandListProps> = (props) => {
   const { t } = useTranslation();
-  const Header = () => {
-    return [
-      {
-        title: t('public~Name'),
-        sortField: 'metadata.name',
-        transforms: [sortable],
-        props: { className: tableColumnClasses[0] },
-      },
-      {
-        title: t('public~Kind'),
-        sortField: 'kind',
-        transforms: [sortable],
-        props: { className: tableColumnClasses[1] },
-      },
-      {
-        title: t('public~Status'),
-        sortFunc: 'operandStatus',
-        transforms: [sortable],
-        props: { className: tableColumnClasses[2] },
-      },
-      {
-        title: t('public~Labels'),
-        sortField: 'metadata.labels',
-        transforms: [sortable],
-        props: { className: tableColumnClasses[3] },
-      },
-      {
-        title: t('public~Last updated'),
-        sortField: 'metadata.creationTimestamp',
-        transforms: [sortable],
-        props: { className: tableColumnClasses[4] },
-      },
-      {
-        title: '',
-        props: { className: tableColumnClasses[5] },
-      },
-    ];
+  const { noAPIsFound, showNamespace } = props;
+
+  const nameHeader: Header = {
+    title: t('public~Name'),
+    sortField: 'metadata.name',
+    transforms: [sortable],
+    props: { className: tableColumnClasses[0] },
   };
+  const kindHeader: Header = {
+    title: t('public~Kind'),
+    sortField: 'kind',
+    transforms: [sortable],
+    props: { className: tableColumnClasses[1] },
+  };
+  const namespaceHeader: Header = {
+    title: t('public~Namespace'),
+    sortFunc: 'getOperandNamespace',
+    transforms: [sortable],
+    props: { className: tableColumnClasses[2] },
+  };
+  const statusHeader: Header = {
+    title: t('public~Status'),
+    sortFunc: 'operandStatus',
+    transforms: [sortable],
+    props: { className: tableColumnClasses[3] },
+  };
+  const labelsHeader: Header = {
+    title: t('public~Labels'),
+    sortField: 'metadata.labels',
+    transforms: [sortable],
+    props: { className: tableColumnClasses[4] },
+  };
+  const lastUpdatedHeader: Header = {
+    title: t('public~Last updated'),
+    sortField: 'metadata.creationTimestamp',
+    transforms: [sortable],
+    props: { className: tableColumnClasses[5] },
+  };
+  const kebabHeader: Header = {
+    title: '',
+    props: { className: tableColumnClasses[6] },
+  };
+
+  const AllNsHeader = (): Header[] => [
+    nameHeader,
+    kindHeader,
+    namespaceHeader,
+    statusHeader,
+    labelsHeader,
+    lastUpdatedHeader,
+    kebabHeader,
+  ];
+  const CurrentNsHeader = (): Header[] => [
+    nameHeader,
+    kindHeader,
+    statusHeader,
+    labelsHeader,
+    lastUpdatedHeader,
+    kebabHeader,
+  ];
 
   const data = React.useMemo(
     () =>
@@ -307,57 +278,116 @@ export const OperandList: React.FC<OperandListProps> = (props) => {
       }) ?? [],
     [props.data, props.kinds],
   );
-  const EmptyMsg = () => (
-    <MsgBox
-      title={t('olm~No operands found')}
-      detail={t(
-        'olm~Operands are declarative components used to define the behavior of the application.',
-      )}
-    />
-  );
 
   return (
     <Table
       {...props}
       customSorts={{
         operandStatus: getOperandStatusText,
+        getOperandNamespace,
       }}
       data={data}
-      EmptyMsg={EmptyMsg}
+      EmptyMsg={() =>
+        noAPIsFound ? (
+          <MsgBox
+            title={t('olm~No provided APIs defined')}
+            detail={t('olm~This application was not properly installed or configured.')}
+          />
+        ) : (
+          <MsgBox
+            title={t('olm~No operands found')}
+            detail={t(
+              'olm~Operands are declarative components used to define the behavior of the application.',
+            )}
+          />
+        )
+      }
       aria-label="Operands"
-      Header={Header}
-      Row={OperandTableRow}
+      Header={showNamespace ? AllNsHeader : CurrentNsHeader}
+      Row={(listProps) => <OperandTableRow {...listProps} showNamespace={showNamespace} />}
       virtualize
     />
   );
 };
 
+const getK8sWatchResources = (
+  models: ProvidedAPIModels,
+  providedAPIs: ProvidedAPI[],
+  namespace?: string,
+): GetK8sWatchResources => {
+  return providedAPIs.reduce((resourceAccumulator, api) => {
+    const reference = referenceForProvidedAPI(api);
+    const model = models?.[reference];
+
+    if (!model) {
+      return resourceAccumulator;
+    }
+
+    const { apiGroup: group, apiVersion: version, kind, namespaced } = model;
+    return {
+      ...resourceAccumulator,
+      [api.kind]: {
+        groupVersionKind: { group, version, kind },
+        isList: true,
+        namespaced,
+        ...(namespaced && namespace ? { namespace } : {}),
+      },
+    };
+  }, {});
+};
+
 export const ProvidedAPIsPage = (props: ProvidedAPIsPageProps) => {
   const { t } = useTranslation();
-  const { obj } = props;
+  const [showOperandsInAllNamespaces] = useShowOperandsInAllNamespaces();
+  const {
+    obj,
+    showTitle = true,
+    hideLabelFilter = false,
+    hideNameLabelFilters = false,
+    hideColumnManagement = false,
+  } = props;
   const [models, inFlight] = useK8sModels();
+  const history = useHistory();
   const dispatch = useDispatch();
   const [apiRefreshed, setAPIRefreshed] = React.useState(false);
 
   // Map APIs provided by this CSV to Firehose resources. Exclude APIs that do not have a model.
   const providedAPIs = providedAPIsForCSV(obj);
-  const firehoseResources = providedAPIs.reduce((resourceAccumulator, api) => {
+
+  const owners = (ownerRefs: OwnerReference[], items: K8sResourceKind[]) =>
+    ownerRefs.filter(({ uid }) => items.filter(({ metadata }) => metadata.uid === uid).length > 0);
+  const flatten: Flatten<{
+    [key: string]: K8sResourceCommon[];
+  }> = React.useCallback(
+    (resources) =>
+      _.flatMap(resources, (resource) => _.map(resource.data, (item) => item)).filter(
+        ({ kind, metadata }, i, allResources) =>
+          providedAPIs.filter((item) => item.kind === kind).length > 0 ||
+          owners(metadata.ownerReferences || [], allResources).length > 0,
+      ),
+    [providedAPIs],
+  );
+
+  const hasNamespacedAPI = providedAPIs.some((api) => {
     const reference = referenceForProvidedAPI(api);
-    const model = models?.[reference];
-    return model
-      ? [
-          ...resourceAccumulator,
-          {
-            kind: referenceForProvidedAPI(api),
-            namespaced: model.namespaced,
-            prop: api.kind,
-          },
-        ]
-      : resourceAccumulator;
-  }, []);
+    const model = models[reference];
+
+    return model?.namespaced;
+  });
+
+  const managesAllNamespaces = hasNamespacedAPI && hasAllNamespaces(obj);
+  const listAllNamespaces = managesAllNamespaces && showOperandsInAllNamespaces;
+  const watchedResources = getK8sWatchResources(
+    models,
+    providedAPIs,
+    listAllNamespaces ? null : obj.metadata.namespace,
+  );
+
+  const resources = useK8sWatchResources<{ [key: string]: K8sResourceKind[] }>(watchedResources);
 
   // Refresh API definitions if at least one API is missing a model and definitions have not already been refreshed.
-  const apiMightBeOutdated = !inFlight && firehoseResources.length < providedAPIs.length;
+  const apiMightBeOutdated =
+    !inFlight && Object.keys(watchedResources).length < providedAPIs.length;
   React.useEffect(() => {
     if (!apiRefreshed && apiMightBeOutdated) {
       dispatch(getResources());
@@ -365,99 +395,149 @@ export const ProvidedAPIsPage = (props: ProvidedAPIsPageProps) => {
     }
   }, [apiMightBeOutdated, apiRefreshed, dispatch]);
 
-  if (inFlight) {
-    return null;
-  }
-
-  const EmptyMsg = () => (
-    <MsgBox
-      title={t('olm~No provided APIs defined')}
-      detail={t('olm~This application was not properly installed or configured.')}
-    />
-  );
-  const createLink = (name: string) =>
-    `/k8s/ns/${obj.metadata.namespace}/${ClusterServiceVersionModel.plural}/${
-      obj.metadata.name
-    }/${referenceForProvidedAPI(
-      _.find(providedAPIs, {
-        name,
-      }),
-    )}/~new`;
-  const createProps =
+  const createItems =
     providedAPIs.length > 1
-      ? {
-          items: providedAPIs.reduce(
-            (acc, api) => ({
-              ...acc,
-              [api.name]: api.displayName,
-            }),
-            {},
-          ),
-          createLink,
-        }
-      : {
-          to: providedAPIs.length === 1 ? createLink(providedAPIs[0].name) : null,
-        };
+      ? providedAPIs.reduce((acc, api) => ({ ...acc, [api.name]: api.displayName }), {})
+      : {};
 
-  const owners = (ownerRefs: OwnerReference[], items: K8sResourceKind[]) =>
-    ownerRefs.filter(({ uid }) => items.filter(({ metadata }) => metadata.uid === uid).length > 0);
-  const flatten: Flatten<{
-    [key: string]: K8sResourceCommon[];
-  }> = (resources) =>
-    _.flatMap(resources, (resource) => _.map(resource.data, (item) => item)).filter(
-      ({ kind, metadata }, i, allResources) =>
-        providedAPIs.filter((item) => item.kind === kind).length > 0 ||
-        owners(metadata.ownerReferences || [], allResources).length > 0,
+  const createNavigate = (name) =>
+    history.push(
+      `/k8s/ns/${obj.metadata.namespace}/${ClusterServiceVersionModel.plural}/${
+        obj.metadata.name
+      }/${referenceForProvidedAPI(_.find(providedAPIs, { name }))}/~new`,
     );
 
+  const data = React.useMemo(() => flatten(resources), [resources, flatten]);
+
   const rowFilters =
-    firehoseResources.length > 1
+    Object.keys(watchedResources).length > 1
       ? [
           {
-            filterGroupName: 'Resource Kind',
+            filterGroupName: t('olm~Resource Kind'),
             type: 'clusterserviceversion-resource-kind',
             reducer: ({ kind }) => kind,
-            items: firehoseResources.map(({ kind }) => ({
+            items: Object.keys(watchedResources).map((kind) => ({
               id: kindForReference(kind),
               title: kindForReference(kind),
             })),
+            filter: (filters, resource) => {
+              if (!filters || !filters.selected || !filters.selected.length) {
+                return true;
+              }
+              return filters.selected.includes(resource.kind);
+            },
           },
         ]
       : [];
 
-  return firehoseResources.length > 0 ? (
-    <MultiListPage
-      {...props}
-      ListComponent={OperandList}
-      filterLabel={t('olm~Resources by name')}
-      resources={firehoseResources}
-      namespace={obj.metadata.namespace}
-      canCreate={providedAPIs.length > 0}
-      createProps={createProps}
-      createButtonText={
-        providedAPIs.length > 1
-          ? t('olm~Create new')
-          : t('olm~Create {{item}}', {
-              item: providedAPIs[0].displayName,
-            })
-      }
-      flatten={flatten}
-      rowFilters={rowFilters}
-    />
-  ) : (
-    <StatusBox loaded EmptyMsg={EmptyMsg} />
+  const [staticData, filteredData, onFilterChange] = useListPageFilter(data, rowFilters);
+  const loaded = Object.values(resources).every((r) => r.loaded);
+  const loadErrors = Object.values(resources)
+    .filter((r) => r.loadError)
+    .map((m) => m.loadError)
+    .join();
+
+  return inFlight ? null : (
+    <>
+      <ListPageHeader title={showTitle ? t('olm~All Instances') : undefined}>
+        {managesAllNamespaces && (
+          <div className="co-operator-details__toggle-value pf-u-ml-xl-on-md">
+            <ShowOperandsInAllNamespacesRadioGroup />
+          </div>
+        )}
+        <ListPageCreateDropdown onClick={createNavigate} items={createItems}>
+          {t('olm~Create new')}
+        </ListPageCreateDropdown>
+      </ListPageHeader>
+      <ListPageBody>
+        <ListPageFilter
+          data={staticData}
+          loaded={loaded}
+          rowFilters={rowFilters}
+          onFilterChange={onFilterChange}
+          hideNameLabelFilters={hideNameLabelFilters}
+          hideLabelFilter={hideLabelFilter}
+          hideColumnManagement={hideColumnManagement}
+        />
+        <OperandList
+          data={filteredData}
+          loaded={loaded}
+          loadError={loadErrors}
+          noAPIsFound={Object.keys(watchedResources).length === 0}
+          showNamespace={listAllNamespaces}
+        />
+      </ListPageBody>
+    </>
   );
 };
 
-export const ProvidedAPIPage: React.FC<ProvidedAPIPageProps> = (props) => {
-  const { namespace, kind, csv } = props;
-  const to = `/k8s/ns/${csv.metadata.namespace}/${ClusterServiceVersionModel.plural}/${csv.metadata.name}/${kind}/~new`;
-  const [model, inFlight] = useK8sModel(kind);
+const DefaultProvidedAPIPage: React.FC<DefaultProvidedAPIPageProps> = (props) => {
+  const { t } = useTranslation();
+  const [showOperandsInAllNamespaces] = useShowOperandsInAllNamespaces();
+
+  const {
+    namespace,
+    kind: apiGroupVersionKind,
+    csv,
+    showTitle = true,
+    hideLabelFilter = false,
+    hideNameLabelFilters = false,
+    hideColumnManagement = false,
+  } = props;
+  const createPath = `/k8s/ns/${csv.metadata.namespace}/${ClusterServiceVersionModel.plural}/${csv.metadata.name}/${apiGroupVersionKind}/~new`;
+
+  const { apiGroup: group, apiVersion: version, kind, namespaced, label } = props.k8sModel;
+  const managesAllNamespaces = namespaced && hasAllNamespaces(csv);
+  const listAllNamespaces = managesAllNamespaces && showOperandsInAllNamespaces;
+  const [resources, loaded, loadError] = useK8sWatchResource<K8sResourceKind[]>({
+    groupVersionKind: { group, version, kind },
+    isList: true,
+    namespaced,
+    ...(!listAllNamespaces && namespaced && namespace ? { namespace } : {}),
+  });
+
+  const [staticData, filteredData, onFilterChange] = useListPageFilter(resources);
+
+  return (
+    <>
+      <ListPageHeader title={showTitle ? `${label}s` : undefined}>
+        {managesAllNamespaces && (
+          <div className="co-operator-details__toggle-value pf-u-ml-xl-on-md">
+            <ShowOperandsInAllNamespacesRadioGroup />
+          </div>
+        )}
+        <ListPageCreateLink to={createPath}>
+          {t('public~Create {{label}}', { label })}
+        </ListPageCreateLink>
+      </ListPageHeader>
+      <ListPageBody>
+        <ListPageFilter
+          data={staticData}
+          loaded={loaded}
+          onFilterChange={onFilterChange}
+          hideNameLabelFilters={hideNameLabelFilters}
+          hideLabelFilter={hideLabelFilter}
+          hideColumnManagement={hideColumnManagement}
+        />
+        <OperandList
+          data={filteredData}
+          loaded={loaded}
+          loadError={loadError}
+          showNamespace={listAllNamespaces}
+        />
+      </ListPageBody>
+    </>
+  );
+};
+
+export const ProvidedAPIPage = (props: ProvidedAPIPageProps) => {
+  const resourceListPage = useResourceListPage(props.kind);
+  const [k8sModel, inFlight] = useK8sModel(props.kind);
   const [apiRefreshed, setAPIRefreshed] = React.useState(false);
   const dispatch = useDispatch();
 
   // Refresh API definitions if model is missing and the definitions have not already been refreshed.
-  const apiMightBeOutdated = !inFlight && !model;
+  const apiMightBeOutdated = !inFlight && !k8sModel;
   React.useEffect(() => {
     if (!apiRefreshed && apiMightBeOutdated) {
       dispatch(getResources());
@@ -465,38 +545,43 @@ export const ProvidedAPIPage: React.FC<ProvidedAPIPageProps> = (props) => {
     }
   }, [dispatch, apiRefreshed, apiMightBeOutdated]);
 
-  return inFlight ? null : (
-    <ModelStatusBox groupVersionKind={kind}>
-      <ListPage
-        kind={kind}
-        ListComponent={OperandList}
-        canCreate={model?.verbs?.includes('create')}
-        createProps={{ to }}
-        namespace={model?.namespaced ? namespace : null}
-        badge={getBadgeFromType(model?.badge)}
-      />
-    </ModelStatusBox>
+  if (inFlight && !k8sModel) {
+    return null;
+  }
+
+  if (!k8sModel) {
+    return <ErrorPage404 />;
+  }
+
+  const { apiGroup: group, apiVersion: version, kind } = k8sModel;
+
+  return resourceListPage ? (
+    <AsyncComponent
+      {...props}
+      model={{ group, version, kind }}
+      kind={props.kind}
+      namespace={props.match.params.ns}
+      loader={resourceListPage}
+    />
+  ) : (
+    <DefaultProvidedAPIPage {...props} k8sModel={k8sModel} />
   );
 };
-
-const OperandDetailsSection: React.FC = ({ children }) => (
-  <div className="co-operand-details__section co-operand-details__section--info">{children}</div>
-);
 
 const PodStatuses: React.FC<PodStatusesProps> = ({ kindObj, obj, podStatusDescriptors, schema }) =>
   podStatusDescriptors?.length > 0 ? (
     <div className="row">
       {podStatusDescriptors.map((statusDescriptor: StatusDescriptor) => {
         return (
-          <div key={statusDescriptor.displayName} className="col-sm-6">
-            <DescriptorDetailsItem
-              type={DescriptorType.status}
-              descriptor={statusDescriptor}
-              model={kindObj}
-              obj={obj}
-              schema={schema}
-            />
-          </div>
+          <DescriptorDetailsItem
+            className="col-sm-6"
+            key={statusDescriptor.path}
+            type={DescriptorType.status}
+            descriptor={statusDescriptor}
+            model={kindObj}
+            obj={obj}
+            schema={schema}
+          />
         );
       })}
     </div>
@@ -572,15 +657,15 @@ export const OperandDetails = connectToModel(({ crd, csv, kindObj, obj }: Operan
               <ResourceSummary resource={obj} />
             </div>
             {mainStatusDescriptor && (
-              <div className="col-sm-6" key={mainStatusDescriptor.path}>
-                <DescriptorDetailsItem
-                  descriptor={mainStatusDescriptor}
-                  model={kindObj}
-                  obj={obj}
-                  schema={schema}
-                  type={DescriptorType.status}
-                />
-              </div>
+              <DescriptorDetailsItem
+                key={mainStatusDescriptor.path}
+                className="col-sm-6"
+                descriptor={mainStatusDescriptor}
+                model={kindObj}
+                obj={obj}
+                schema={schema}
+                type={DescriptorType.status}
+              />
             )}
             {otherStatusDescriptors?.length > 0 && (
               <DescriptorDetailsItemList
@@ -636,57 +721,57 @@ const ResourcesTab = (resourceProps) => (
   <Resources {...resourceProps} clusterServiceVersion={resourceProps.csv} />
 );
 
-export const OperandDetailsPage = (props: OperandDetailsPageProps) => {
+const DefaultOperandDetailsPage = ({ match, k8sModel }: DefaultOperandDetailsPageProps) => {
   const { t } = useTranslation();
-  const [model] = useK8sModel(props.match.params.plural);
-  const actionExtensions = useExtensions<ClusterServiceVersionAction>(
-    isClusterServiceVersionAction,
-  );
-  const menuActions = React.useMemo(
-    () => getOperandActions(props.match.params.plural, actionExtensions),
-    [props.match.params.plural, actionExtensions],
-  );
 
-  return model ? (
+  const actionItems = React.useCallback((resourceModel: K8sKind, resource: K8sResourceKind) => {
+    const context = {
+      [referenceForModel(resourceModel)]: resource,
+      'csv-actions': { resource },
+    };
+    return <LazyActionMenu context={context} variant={ActionMenuVariant.DROPDOWN} />;
+  }, []);
+
+  return (
     <DetailsPage
-      match={props.match}
-      name={props.match.params.name}
-      kind={props.match.params.plural}
-      namespace={props.match.params.ns}
+      match={match}
+      name={match.params.name}
+      kind={match.params.plural}
+      namespace={match.params.ns}
       resources={[
         {
           kind: referenceForModel(ClusterServiceVersionModel),
-          name: props.match.params.appName,
-          namespace: props.match.params.ns,
+          name: match.params.appName,
+          namespace: match.params.ns,
           isList: false,
           prop: 'csv',
         },
         {
           kind: CustomResourceDefinitionModel.kind,
-          name: nameForModel(model),
+          name: nameForModel(k8sModel),
           isList: false,
           prop: 'crd',
         },
       ]}
-      menuActions={menuActions}
+      customActionMenu={actionItems}
       createRedirect
       breadcrumbsFor={() => [
         {
           name: t('olm~Installed Operators'),
-          path: `/k8s/ns/${props.match.params.ns}/${ClusterServiceVersionModel.plural}`,
+          path: `/k8s/ns/${match.params.ns}/${ClusterServiceVersionModel.plural}`,
         },
         {
-          name: props.match.params.appName,
-          path: props.match.url.slice(0, props.match.url.lastIndexOf('/')),
+          name: match.params.appName,
+          path: match.url.slice(0, match.url.lastIndexOf('/')),
         },
         {
-          name: t('olm~{{item}} details', { item: kindForReference(props.match.params.plural) }), // Use url param in case model doesn't exist
-          path: `${props.match.url}`,
+          name: t('olm~{{item}} details', { item: kindForReference(match.params.plural) }), // Use url param in case model doesn't exist
+          path: `${match.url}`,
         },
       ]}
       pages={[
         navFactory.details((detailsProps) => (
-          <OperandDetails {...detailsProps} appName={props.match.params.appName} />
+          <OperandDetails {...detailsProps} appName={match.params.appName} />
         )),
         navFactory.editYaml(),
         {
@@ -697,8 +782,32 @@ export const OperandDetailsPage = (props: OperandDetailsPageProps) => {
         navFactory.events(ResourceEventStream),
       ]}
     />
+  );
+};
+
+export const OperandDetailsPage = (props: OperandDetailsPageProps) => {
+  const resourceDetailsPage = useResourceDetailsPage(props.match.params.plural);
+  const [k8sModel, inFlight] = useK8sModel(props.match.params.plural);
+  if (inFlight && !k8sModel) {
+    return null;
+  }
+
+  if (!k8sModel) {
+    return <ErrorPage404 />;
+  }
+
+  const { apiVersion: version, apiGroup: group, kind } = k8sModel;
+  return resourceDetailsPage ? (
+    <AsyncComponent
+      {...props}
+      model={{ group, version, kind }}
+      namespace={props.match.params.ns}
+      kind={props.match.params.plural} // TODO remove when static plugins are no longer supported
+      name={props.match.params.name} // TODO remove when static plugins are no longer supported
+      loader={resourceDetailsPage}
+    />
   ) : (
-    <ErrorPage404 />
+    <DefaultOperandDetailsPage {...props} k8sModel={k8sModel} />
   );
 };
 
@@ -716,6 +825,9 @@ export type OperandListProps = {
   reduxIDs?: string[];
   rowSplitter?: any;
   staticFilters?: any;
+  loadError?: string;
+  noAPIsFound?: boolean;
+  showNamespace?: boolean;
 };
 
 export type OperandStatusProps = {
@@ -733,13 +845,27 @@ export type OperandRowProps = {
 export type ProvidedAPIsPageProps = {
   obj: ClusterServiceVersionKind;
   inFlight?: boolean;
+  showTitle?: boolean;
+  hideLabelFilter?: boolean;
+  hideNameLabelFilters?: boolean;
+  hideColumnManagement?: boolean;
 };
 
 export type ProvidedAPIPageProps = {
   csv: ClusterServiceVersionKind;
   kind: GroupVersionKind;
   namespace: string;
+  showTitle?: boolean;
+  hideLabelFilter?: boolean;
+  hideNameLabelFilters?: boolean;
+  hideColumnManagement?: boolean;
+  match?: routerMatch<{
+    ns: string;
+    plural: string;
+  }>;
 };
+
+type DefaultProvidedAPIPageProps = ProvidedAPIPageProps & { k8sModel: K8sModel };
 
 type PodStatusesProps = {
   kindObj: K8sKind;
@@ -757,7 +883,7 @@ export type OperandDetailsProps = {
 };
 
 export type OperandDetailsPageProps = {
-  match: match<{
+  match: routerMatch<{
     name: string;
     ns: string;
     appName: string;
@@ -765,20 +891,45 @@ export type OperandDetailsPageProps = {
   }>;
 };
 
-export type OperandesourceDetailsProps = {
+type DefaultOperandDetailsPageProps = OperandDetailsPageProps & { k8sModel: K8sModel };
+
+export type OperandResourceDetailsProps = {
   csv?: { data: ClusterServiceVersionKind };
   gvk: GroupVersionKind;
   name: string;
   namespace: string;
-  match: match<{ appName: string }>;
+  match: routerMatch<{ appName: string }>;
 };
 
+type Header = {
+  title: string;
+  sortField?: string;
+  sortFunc?: string;
+  transforms?: any;
+  props: { className: string };
+};
+
+export type OperandTableRowProps = RowFunctionArgs<K8sResourceKind> & {
+  showNamespace?: boolean;
+};
+
+type ProvidedAPIModels = { [key: string]: K8sKind };
+
+type GetK8sWatchResources = {
+  [key: string]: {
+    kind: string;
+    isList: boolean;
+    namespace?: string;
+    namespaced?: boolean;
+  };
+};
 // TODO(alecmerdler): Find Webpack loader/plugin to add `displayName` to React components automagically
 OperandList.displayName = 'OperandList';
 OperandDetails.displayName = 'OperandDetails';
-OperandList.displayName = 'OperandList';
 ProvidedAPIsPage.displayName = 'ProvidedAPIsPage';
+DefaultProvidedAPIPage.displayName = 'DefaultProvidedAPIPage';
+ProvidedAPIPage.displayName = 'ProvidedAPIPage';
+DefaultOperandDetailsPage.displayName = 'DefaultOperandDetailsPage';
 OperandDetailsPage.displayName = 'OperandDetailsPage';
 OperandTableRow.displayName = 'OperandTableRow';
-OperandDetailsSection.displayName = 'OperandDetailsSection';
 PodStatuses.displayName = 'PodStatuses';

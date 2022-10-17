@@ -45,12 +45,6 @@ export const repositoryDetailsPage = {
       cy.get('dl dt')
         .eq(0)
         .should('have.text', 'Repository');
-      cy.get('dl dt')
-        .eq(1)
-        .should('have.text', 'Branch');
-      cy.get('dl dt')
-        .eq(2)
-        .should('have.text', 'Event type');
     });
   },
 
@@ -58,7 +52,7 @@ export const repositoryDetailsPage = {
     const labelArr = label.split('=');
     cy.byTestID('label-list').within(() => {
       cy.byTestID('label-key').should('contain.text', labelArr[0]);
-      cy.get('.co-m-label__value').should('contain.text', labelArr[1]);
+      cy.get('.co-label__value').should('contain.text', labelArr[1]);
     });
   },
 

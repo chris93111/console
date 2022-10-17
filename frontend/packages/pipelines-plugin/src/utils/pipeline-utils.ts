@@ -1,3 +1,5 @@
+import { formatPrometheusDuration } from '@openshift-console/plugin-shared/src/datetime/prometheus';
+import i18next from 'i18next';
 import * as _ from 'lodash';
 import { errorModal } from '@console/internal/components/modals/error-modal';
 import {
@@ -6,7 +8,6 @@ import {
   LOG_SOURCE_RUNNING,
   LOG_SOURCE_TERMINATED,
 } from '@console/internal/components/utils';
-import { formatPrometheusDuration } from '@console/internal/components/utils/datetime';
 import { ServiceAccountModel } from '@console/internal/models';
 import {
   ContainerStatus,
@@ -35,6 +36,7 @@ import {
   RepositoryModel,
 } from '../models';
 import {
+  ComputedStatus,
   PipelineRunKind,
   PipelineRunParam,
   PipelineRunWorkspace,
@@ -43,7 +45,7 @@ import {
   TaskRunKind,
   TektonParam,
 } from '../types';
-import { getLatestRun, runStatus } from './pipeline-augment';
+import { getLatestRun } from './pipeline-augment';
 import {
   pipelineRunFilterReducer,
   pipelineRunStatus,
@@ -84,11 +86,11 @@ export enum ListFilterId {
 }
 
 export const ListFilterLabels = {
-  [ListFilterId.Running]: 'Running',
-  [ListFilterId.Failed]: 'Failed',
-  [ListFilterId.Succeeded]: 'Succeeded',
-  [ListFilterId.Cancelled]: 'Cancelled',
-  [ListFilterId.Other]: 'Other',
+  [ListFilterId.Running]: i18next.t('pipelines-plugin~Running'),
+  [ListFilterId.Failed]: i18next.t('pipelines-plugin~Failed'),
+  [ListFilterId.Succeeded]: i18next.t('pipelines-plugin~Succeeded'),
+  [ListFilterId.Cancelled]: i18next.t('pipelines-plugin~Cancelled'),
+  [ListFilterId.Other]: i18next.t('pipelines-plugin~Other'),
 };
 
 export enum PipelineResourceListFilterId {
@@ -124,12 +126,12 @@ export const appendPipelineRunStatus = (pipeline, pipelineRun, isFinallyTasks = 
     }
     if (!pipelineRun?.status?.taskRuns) {
       if (pipelineRun.spec.status === SucceedConditionReason.PipelineRunCancelled) {
-        return _.merge(task, { status: { reason: runStatus.Cancelled } });
+        return _.merge(task, { status: { reason: ComputedStatus.Cancelled } });
       }
       if (pipelineRun.spec.status === SucceedConditionReason.PipelineRunPending) {
-        return _.merge(task, { status: { reason: runStatus.Idle } });
+        return _.merge(task, { status: { reason: ComputedStatus.Idle } });
       }
-      return _.merge(task, { status: { reason: runStatus.Failed } });
+      return _.merge(task, { status: { reason: ComputedStatus.Failed } });
     }
     const mTask = _.merge(task, {
       status: _.get(_.find(pipelineRun.status.taskRuns, { pipelineTaskName: task.name }), 'status'),
@@ -143,11 +145,11 @@ export const appendPipelineRunStatus = (pipeline, pipelineRun, isFinallyTasks = 
     }
     // append task status
     if (!mTask.status) {
-      mTask.status = { reason: runStatus.Idle };
+      mTask.status = { reason: ComputedStatus.Pending };
     } else if (mTask.status && mTask.status.conditions) {
-      mTask.status.reason = pipelineRunStatus(mTask) || runStatus.Idle;
+      mTask.status.reason = pipelineRunStatus(mTask) || ComputedStatus.Pending;
     } else if (mTask.status && !mTask.status.reason) {
-      mTask.status.reason = runStatus.Idle;
+      mTask.status.reason = ComputedStatus.Pending;
     }
     return mTask;
   });
@@ -271,19 +273,19 @@ export const getLatestPipelineRunStatus = (
 ): LatestPipelineRunStatus => {
   if (!pipelineRuns || pipelineRuns.length === 0) {
     // Not enough data to build the current state
-    return { latestPipelineRun: null, status: runStatus.PipelineNotStarted };
+    return { latestPipelineRun: null, status: ComputedStatus.PipelineNotStarted };
   }
 
-  const latestPipelineRun = getLatestRun({ data: pipelineRuns }, 'creationTimestamp');
+  const latestPipelineRun = getLatestRun(pipelineRuns, 'creationTimestamp');
 
   if (!latestPipelineRun) {
     // Without the latestRun we will not have progress to show
-    return { latestPipelineRun: null, status: runStatus.PipelineNotStarted };
+    return { latestPipelineRun: null, status: ComputedStatus.PipelineNotStarted };
   }
 
   let status: string = pipelineRunFilterReducer(latestPipelineRun);
   if (status === '-') {
-    status = runStatus.Pending;
+    status = ComputedStatus.Pending;
   }
 
   return {

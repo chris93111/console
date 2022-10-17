@@ -31,12 +31,24 @@ export const catalogPage = {
       .get('form h1')
       .eq(0)
       .should('have.text', pageTitle.InstallHelmCharts),
+  verifySelectOperatorBackedCard: (cardName: string) => {
+    cy.byTestID(`OperatorBackedService-${cardName}`)
+      .first()
+      .click();
+  },
+  verifyCreateOperatorBackedPage: (title: string) =>
+    detailsPage.titleShouldContain(`Create ${title}`),
+  enterOperatorBackedName: (OperatorBackedName: string) =>
+    cy
+      .get(catalogPO.operatorBacked.name)
+      .clear()
+      .type(OperatorBackedName),
   clickButtonOnCatalogPageSidePane: () => {
     catalogPage.verifyDialog();
     cy.get(catalogPO.sidePane.instantiateTemplate).click({ force: true });
   },
   clickOnCancelButton: () => cy.byButtonText('Cancel').click(),
-  selectCatalogType: (type: string | catalogTypes) => {
+  selectCatalogType: (type: catalogTypes) => {
     switch (type) {
       case catalogTypes.OperatorBacked:
       case 'Operator Backed': {
@@ -48,13 +60,11 @@ export const catalogPage = {
         cy.get(catalogPO.catalogTypes.helmCharts).click();
         break;
       }
-      case catalogTypes.BuilderImage:
-      case 'Builder Images': {
+      case catalogTypes.BuilderImage: {
         cy.get(catalogPO.catalogTypes.builderImage).click();
         break;
       }
-      case catalogTypes.Template:
-      case 'Templates': {
+      case catalogTypes.Template: {
         cy.get(catalogPO.catalogTypes.template).click();
         break;
       }
@@ -73,17 +83,27 @@ export const catalogPage = {
         cy.get(catalogPO.catalogTypes.eventSources).click();
         break;
       }
+      case catalogTypes.EventSinks:
+      case 'Event Sinks': {
+        cy.get(catalogPO.catalogTypes.eventSinks).click();
+        break;
+      }
       default: {
         throw new Error('Card is not available in Catalog');
       }
     }
   },
-  selectTemplateTypes: (type: string | catalogTypes) => {
-    cy.get(catalogPO.catalogTypeLink)
-      .contains(type)
-      .scrollIntoView()
-      .click();
-    cy.log(`Select ${type} from Types section`);
+  selectTemplateCategory: (templateCategoryTitle: string) => {
+    const selector =
+      catalogPO.catalogCategoriesByTitle[
+        templateCategoryTitle as keyof typeof catalogPO.catalogCategoriesByTitle
+      ];
+    if (!selector) {
+      throw new Error(`Selector not found for Template category "${templateCategoryTitle}"`);
+    }
+    cy.get(selector).scrollIntoView();
+    cy.get(selector).click();
+    cy.log(`Select Template category ${templateCategoryTitle}`);
   },
   selectKnativeServingCard: () =>
     cy

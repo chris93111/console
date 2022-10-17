@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { Tooltip } from '@patternfly/react-core';
-import { global_BorderColor_100 as lightBorderColor } from '@patternfly/react-tokens/dist/js/global_BorderColor_100';
-import { runStatus } from '../../../utils/pipeline-augment';
+import { ComputedStatus } from '../../../types';
 import { NODE_HEIGHT } from './const';
 import { getWhenExpressionDiamondState } from './utils';
 
@@ -12,7 +11,7 @@ type WhenExpressionDecoratorProps = {
   height: number;
   leftOffset?: number;
   stroke?: string;
-  status: runStatus;
+  status: ComputedStatus;
   appendLine?: boolean;
   enableTooltip?: boolean;
   isFinallyTask: boolean;
@@ -45,7 +44,7 @@ const WhenExpressionDecorator: React.FC<WhenExpressionDecoratorProps> = ({
         width={width}
         height={height}
         fill={diamondColor}
-        stroke={isPipelineRun ? diamondColor : lightBorderColor.value}
+        stroke={isPipelineRun ? diamondColor : 'var(--pf-global--BorderColor--light-100)'}
       />
       {appendLine && (
         <line
@@ -53,7 +52,7 @@ const WhenExpressionDecorator: React.FC<WhenExpressionDecoratorProps> = ({
           y1={diamondHeight / 2}
           x2={width * leftOffset}
           y2={diamondHeight / 2}
-          stroke={lightBorderColor.value}
+          stroke="var(--pf-global--BorderColor--light-100)"
         />
       )}
     </g>

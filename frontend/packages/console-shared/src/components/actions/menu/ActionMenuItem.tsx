@@ -44,6 +44,7 @@ const ActionItem: React.FC<ActionMenuItemProps & { isAllowed: boolean }> = ({
         }
       }
       onClick && onClick();
+      event.stopPropagation();
     },
     [cta, onClick],
   );
@@ -102,6 +103,10 @@ const ActionMenuItem: React.FC<ActionMenuItemProps> = (props) => {
   return action.tooltip ? (
     <Tooltip position="left" content={action.tooltip}>
       {item}
+    </Tooltip>
+  ) : action.disabled && action.disabledTooltip ? (
+    <Tooltip position="left" content={action.disabledTooltip}>
+      <div>{item}</div>
     </Tooltip>
   ) : (
     item

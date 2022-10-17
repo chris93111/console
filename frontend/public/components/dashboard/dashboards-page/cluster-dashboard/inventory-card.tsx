@@ -5,7 +5,7 @@ import {
   ResourceInventoryItem,
   StatusGroupMapper,
 } from '@console/shared/src/components/dashboard/inventory-card/InventoryItem';
-import { ErrorBoundary } from '@console/shared/src/components/error/error-boundary';
+import { ErrorBoundary } from '@console/shared/src/components/error';
 
 import { DashboardItemProps, withDashboardResources } from '../../with-dashboard-resources';
 import { K8sKind, referenceForModel, K8sResourceCommon } from '../../../../module/k8s';
@@ -114,6 +114,7 @@ const ClusterInventoryItem = withDashboardResources<ClusterInventoryItemProps>(
           mapper={mapper || resolvedMapper}
           additionalResources={additionalResourcesData}
           ExpandedComponent={expandedComponent ? ExpandedComponent : null}
+          dataTest="resource-inventory-item"
         />
       );
     },

@@ -46,9 +46,9 @@
     }
     &__deployment-history {
       margin-top: var(--pf-global--spacer--xs);
+      justify-content: space-between;
     }
     &__argo-external-link {
-      margin-right: var(--pf-global--spacer--xs);
       vertical-align: middle;
     }
     &__cluster-url {
@@ -70,7 +70,7 @@
   }
   &__author-sha {
     align-items: center;
-    color: var(--pf-global--palette--black-600);
+    color: var(--pf-global--Color--200);
     display: flex;
     margin-bottom: var(--pf-global--spacer--xs);
   }

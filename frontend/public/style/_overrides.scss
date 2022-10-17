@@ -4,14 +4,46 @@ form.pf-c-form {
   --pf-c-form__helper-text--Color: var(--pf-global--Color--200);
 }
 
-// Positions the img in OperatorHub that are nested with <span class="catalog-tile-pf-icon"><img ...>
-.catalog-tile-pf-icon--align-top {
-  vertical-align: top;
-}
-
 // Until Patternfly-React-Extensions is updated: https://github.com/patternfly/patternfly-react/issues/1146
 .catalog-tile-pf-title {
   @include co-break-word;
+}
+
+.co-catalog-tile {
+  .catalog-tile-pf-icon {
+    font-size: unset !important;
+  }
+  .co-catalog--logo {
+    height: 100%;
+    max-width: 80px;
+    min-width: auto;
+    object-fit: contain;
+    width: 100%;
+  }
+  .catalog-tile-pf-icon {
+    @include catalog-logo-background(var(--pf-global--spacer--sm));
+    height: 50px;
+    margin-bottom: calc(-1 * var(--pf-global--spacer--sm)); // Cancels bottom padding
+    margin-left: calc(-1 * var(--pf-global--spacer--sm)); // Align logo with left edge
+    margin-top: calc(-1 * var(--pf-global--spacer--sm)); // Align logo with top edge
+    max-width: 100%;
+    min-width: 50px; // prevent collapsed state before img loads
+    :where(.pf-theme-dark) & {
+      margin-left: 0;
+      margin-top: 0;
+    }
+  }
+}
+
+.catalog-item-header-pf-icon  {
+  @include catalog-logo-background(var(--pf-global--spacer--sm));
+}
+
+.co-catalog-page__overlay-header {
+  .catalog-item-header-pf-icon {
+    max-width: 80px;
+    width: auto;
+  }
 }
 
 // Override to remove accordion left border and prevent overlap https://bugzilla.redhat.com/show_bug.cgi?id=1942193
@@ -69,15 +101,6 @@ form.pf-c-form {
 .pf-c-app-launcher__group-title {
   // Reset font to RedHatText so it doesn't appear too bold
   font-family: var(--pf-global--FontFamily--sans-serif);
-}
-
-.pf-c-breadcrumb {
-  padding-bottom: 12px;
-  padding-top: 25px;
-
-  &--no-padding-top {
-    padding-top: 0;
-  }
 }
 
 .pf-c-button--align-right {
@@ -161,16 +184,9 @@ form.pf-c-form {
     flex-direction: column;
     height: 100%;
   }
-}
 
-@-webkit-keyframes autofill-success {
-  to {
-    background: var(--pf-c-form-control--success--Background);
-  }
-}
-@-webkit-keyframes autofill-invalid {
-  to {
-    background: var(--pf-c-form-control--invalid--Background);
+  .pf-c-page__header {
+    background-color: var(--pf-global--palette--black-1000);
   }
 }
 
@@ -195,24 +211,13 @@ form.pf-c-form {
   .pf-c-form-control[aria-invalid='true'] {
     --pf-global--FontSize--md: #{$font-size-base};
   }
+}
 
-  .pf-c-form-control {
-    &:-webkit-autofill {
-      -webkit-animation-fill-mode: both;
-      &.pf-m-success {
-        -webkit-animation-name: autofill-success;
-      }
-      &[aria-invalid='true'] {
-        -webkit-animation-name: autofill-invalid;
-      }
-    }
-  }
+:where(:root:not(.pf-theme-dark)) .pf-c-page {
+  --pf-c-page__sidebar--BoxShadow: none;
 }
 
 .pf-c-page__sidebar {
-  @media screen and (min-width: $pf-global--breakpoint--xl) {
-    --pf-c-page__sidebar--BoxShadow: none;
-  }
 
   // Perspective switcher
   &.pf-m-dark .pf-c-dropdown {
@@ -251,6 +256,11 @@ form.pf-c-form {
   tr > * {
     --pf-c-table--cell--FontSize: $font-size-base;
   }
+}
+
+// Remove when upstream issue is addressed. https://github.com/patternfly/patternfly/issues/4889
+.pf-theme-dark .pf-c-card  {
+  --pf-c-card--BoxShadow: var(--pf-global--BoxShadow--md);
 }
 
 .table {
@@ -298,7 +308,6 @@ ul {
 }
 // And here we explicitly remove it from PF components so it doesn't show.
 ul.pf-c-alert-group,
-.pf-c-nav__item,
 ul.pf-c-nav__list,
 ul.pf-c-options-menu__menu,
 ul.pf-c-select__menu,
@@ -311,8 +320,10 @@ ul.pf-c-tree-view__list {
   font-size: $font-size-base !important;
 }
 
-.pf-topology-content {
-  background-color: var(--pf-global--BackgroundColor--200);
+.odc-topology {
+  .pf-topology-content {
+    background-color: var(--pf-global--BackgroundColor--200);
+  }
 }
 
 .pfext-quick-start-footer {

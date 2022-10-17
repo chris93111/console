@@ -13,7 +13,6 @@ const BaseLabelsModal = withHandlePromise((props) => {
   const [labels, setLabels] = React.useState(
     SelectorInput.arrayify(_.get(props.resource, props.path.split('/').slice(1))),
   );
-  const [errorMessage] = React.useState();
   const createPath = !labels.length;
   const { t } = useTranslation();
 
@@ -46,7 +45,15 @@ const BaseLabelsModal = withHandlePromise((props) => {
     props.handlePromise(promise, props.close);
   };
 
-  const { kind, resource, descriptionKey, messageKey, messageVariables, labelClassName } = props;
+  const {
+    kind,
+    resource,
+    descriptionKey,
+    messageKey,
+    messageVariables,
+    labelClassName,
+    errorMessage,
+  } = props;
 
   return (
     <form onSubmit={submit} name="form" className="modal-content">
@@ -77,7 +84,7 @@ const BaseLabelsModal = withHandlePromise((props) => {
             <SelectorInput
               onChange={(l) => setLabels(l)}
               tags={labels}
-              labelClassName={labelClassName || `co-text-${kind.id}`}
+              labelClassName={labelClassName || `co-m-${kind.id}`}
               autoFocus
             />
           </div>
@@ -114,7 +121,7 @@ export const podSelectorModal = createModalLauncher((props) => {
       messageVariables={{
         kind: props.kind.labelKey ? t(props.kind.labelKey) : props.kind.label.toLowerCase(),
       }}
-      labelClassName="co-text-pod"
+      labelClassName="co-m-pod"
       {...props}
     />
   );

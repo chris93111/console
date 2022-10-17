@@ -15,19 +15,46 @@ import { PipelineRunModel } from '../../models';
 import { PipelineRunKind } from '../../types';
 import { getLatestRun } from '../../utils/pipeline-augment';
 import { pipelinesTab } from '../../utils/pipeline-utils';
-import { DEFAULT_SAMPLES, PIPELINE_NAMESPACE, TektonResourceLabel } from './const';
-import { metricQueries, PipelineQuery } from './pipeline-metrics/pipeline-metrics-utils';
+import { DEFAULT_SAMPLES, TektonResourceLabel } from './const';
+import { metricsQueries, PipelineQuery } from './pipeline-metrics/pipeline-metrics-utils';
 
 type Match = RMatch<{ url: string }>;
 
-export const usePipelinesBreadcrumbsFor = (kindObj: K8sKind, match: Match) =>
-  useTabbedTableBreadcrumbsFor(kindObj, match, 'pipelines', pipelinesTab(kindObj));
+export const usePipelinesBreadcrumbsFor = (kindObj: K8sKind, match: Match) => {
+  const isAdminPerspective = useActivePerspective()[0] === 'admin';
+  return useTabbedTableBreadcrumbsFor(
+    kindObj,
+    match,
+    'pipelines',
+    pipelinesTab(kindObj),
+    undefined,
+    isAdminPerspective,
+  );
+};
 
-export const useTasksBreadcrumbsFor = (kindObj: K8sKind, match: Match) =>
-  useTabbedTableBreadcrumbsFor(kindObj, match, 'tasks', pipelinesTab(kindObj));
+export const useTasksBreadcrumbsFor = (kindObj: K8sKind, match: Match) => {
+  const isAdminPerspective = useActivePerspective()[0] === 'admin';
+  return useTabbedTableBreadcrumbsFor(
+    kindObj,
+    match,
+    'tasks',
+    pipelinesTab(kindObj),
+    undefined,
+    isAdminPerspective,
+  );
+};
 
-export const useTriggersBreadcrumbsFor = (kindObj: K8sKind, match: Match) =>
-  useTabbedTableBreadcrumbsFor(kindObj, match, 'triggers', pipelinesTab(kindObj));
+export const useTriggersBreadcrumbsFor = (kindObj: K8sKind, match: Match) => {
+  const isAdminPerspective = useActivePerspective()[0] === 'admin';
+  return useTabbedTableBreadcrumbsFor(
+    kindObj,
+    match,
+    'triggers',
+    pipelinesTab(kindObj),
+    undefined,
+    isAdminPerspective,
+  );
+};
 
 export const useDevPipelinesBreadcrumbsFor = (kindObj: K8sKind, match: Match) => {
   const isAdminPerspective = useActivePerspective()[0] === 'admin';
@@ -55,7 +82,7 @@ export const useLatestPipelineRun = (pipelineName: string, namespace: string): P
   const [pipelineRun, pipelineRunLoaded, pipelineRunError] = useK8sWatchResource<PipelineRunKind[]>(
     pipelineRunResource,
   );
-  const latestRun = getLatestRun({ data: pipelineRun }, 'creationTimestamp');
+  const latestRun = getLatestRun(pipelineRun, 'creationTimestamp');
   return pipelineRunLoaded && !pipelineRunError ? latestRun : null;
 };
 
@@ -76,15 +103,24 @@ export const usePipelinePVC = (
   return [!PVCError && PVC.length > 0 ? PVC[0] : null, PVCLoaded];
 };
 
-export const usePipelineSuccessRatioPoll = ({ delay, namespace, name, timespan, queryPrefix }) => {
+export const usePipelineSuccessRatioPoll = ({
+  delay,
+  namespace,
+  name,
+  timespan,
+  queryPrefix,
+  metricsLevel,
+}) => {
+  const queries = metricsQueries(queryPrefix)[metricsLevel];
+
   return useURLPoll<PrometheusResponse>(
     getPrometheusURL({
       endpoint: PrometheusEndpoint.QUERY_RANGE,
-      query: metricQueries(queryPrefix)[PipelineQuery.PIPELINE_SUCCESS_RATIO]({ name, namespace }),
+      query: queries[PipelineQuery.PIPELINE_SUCCESS_RATIO]({ name, namespace }),
       samples: 1,
       endTime: Date.now(),
       timespan,
-      namespace: PIPELINE_NAMESPACE,
+      namespace,
     }),
     delay,
     namespace,
@@ -92,18 +128,27 @@ export const usePipelineSuccessRatioPoll = ({ delay, namespace, name, timespan, 
   );
 };
 
-export const usePipelineRunTaskRunPoll = ({ delay, namespace, name, timespan, queryPrefix }) => {
+export const usePipelineRunTaskRunPoll = ({
+  delay,
+  namespace,
+  name,
+  timespan,
+  queryPrefix,
+  metricsLevel,
+}) => {
+  const queries = metricsQueries(queryPrefix)[metricsLevel];
+
   return useURLPoll<PrometheusResponse>(
     getPrometheusURL({
       endpoint: PrometheusEndpoint.QUERY_RANGE,
-      query: metricQueries(queryPrefix)[PipelineQuery.PIPELINE_RUN_TASK_RUN_DURATION]({
+      query: queries[PipelineQuery.PIPELINE_RUN_TASK_RUN_DURATION]({
         name,
         namespace,
       }),
       samples: DEFAULT_SAMPLES,
       endTime: Date.now(),
       timespan,
-      namespace: PIPELINE_NAMESPACE,
+      namespace,
     }),
     delay,
     namespace,
@@ -117,15 +162,21 @@ export const usePipelineRunDurationPoll = ({
   name,
   timespan,
   queryPrefix,
+  metricsLevel,
 }): any => {
+  const queries = metricsQueries(queryPrefix)[metricsLevel];
+
   return useURLPoll<PrometheusResponse>(
     getPrometheusURL({
       endpoint: PrometheusEndpoint.QUERY_RANGE,
-      query: metricQueries(queryPrefix)[PipelineQuery.PIPELINE_RUN_DURATION]({ name, namespace }),
+      query: queries[PipelineQuery.PIPELINE_RUN_DURATION]({
+        name,
+        namespace,
+      }),
       samples: DEFAULT_SAMPLES,
       endTime: Date.now(),
       timespan,
-      namespace: PIPELINE_NAMESPACE,
+      namespace,
     }),
     delay,
     namespace,
@@ -133,15 +184,24 @@ export const usePipelineRunDurationPoll = ({
   );
 };
 
-export const usePipelineRunPoll = ({ delay, namespace, name, timespan, queryPrefix }) => {
+export const usePipelineRunPoll = ({
+  delay,
+  namespace,
+  name,
+  timespan,
+  queryPrefix,
+  metricsLevel,
+}) => {
+  const queries = metricsQueries(queryPrefix)[metricsLevel];
+
   return useURLPoll<PrometheusResponse>(
     getPrometheusURL({
       endpoint: PrometheusEndpoint.QUERY_RANGE,
-      query: metricQueries(queryPrefix)[PipelineQuery.NUMBER_OF_PIPELINE_RUNS]({ name, namespace }),
+      query: queries[PipelineQuery.NUMBER_OF_PIPELINE_RUNS]({ name, namespace }),
       samples: DEFAULT_SAMPLES,
       endTime: Date.now(),
       timespan,
-      namespace: PIPELINE_NAMESPACE,
+      namespace,
     }),
     delay,
     namespace,

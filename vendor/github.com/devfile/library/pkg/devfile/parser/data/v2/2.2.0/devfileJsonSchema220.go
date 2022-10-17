@@ -41,7 +41,7 @@ const JsonSchema220 = `{
         ],
         "properties": {
           "apply": {
-            "description": "Command that consists in applying a given component definition, typically bound to a devworkspace event.\n\nFor example, when an 'apply' command is bound to a 'preStart' event, and references a 'container' component, it will start the container as a K8S initContainer in the devworkspace POD, unless the component has its 'dedicatedPod' field set to 'true'.\n\nWhen no 'apply' command exist for a given component, it is assumed the component will be applied at devworkspace start by default.",
+            "description": "Command that consists in applying a given component definition, typically bound to a devworkspace event.\n\nFor example, when an 'apply' command is bound to a 'preStart' event, and references a 'container' component, it will start the container as a K8S initContainer in the devworkspace POD, unless the component has its 'dedicatedPod' field set to 'true'.\n\nWhen no 'apply' command exist for a given component, it is assumed the component will be applied at devworkspace start by default, unless 'deployByDefault' for that component is set to false.",
             "type": "object",
             "required": [
               "component"
@@ -269,6 +269,27 @@ const JsonSchema220 = `{
               "image"
             ],
             "properties": {
+              "annotation": {
+                "description": "Annotations that should be added to specific resources for this container",
+                "type": "object",
+                "properties": {
+                  "deployment": {
+                    "description": "Annotations to be added to deployment",
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  },
+                  "service": {
+                    "description": "Annotations to be added to service",
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
               "args": {
                 "description": "The arguments to supply to the command running the dockerimage component. The arguments are supplied either to the default command provided in the image or to the overridden command.\n\nDefaults to an empty array, meaning use whatever is defined in the image.",
                 "type": "array",
@@ -302,6 +323,13 @@ const JsonSchema220 = `{
                     "targetPort"
                   ],
                   "properties": {
+                    "annotation": {
+                      "description": "Annotations to be added to Kubernetes Ingress or Openshift Route",
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
                     "attributes": {
                       "description": "Map of implementation-dependant string-based free-form attributes.\n\nExamples of Che-specific attributes:\n- cookiesAuthEnabled: \"true\" / \"false\",\n- type: \"terminal\" / \"ide\" / \"ide-dev\",",
                       "type": "object",
@@ -319,7 +347,7 @@ const JsonSchema220 = `{
                     },
                     "name": {
                       "type": "string",
-                      "maxLength": 63,
+                      "maxLength": 15,
                       "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
                     },
                     "path": {
@@ -344,6 +372,7 @@ const JsonSchema220 = `{
                       "type": "boolean"
                     },
                     "targetPort": {
+                      "description": "Port number to be used within the container component. The same port cannot be used by two different container components.",
                       "type": "integer"
                     }
                   },
@@ -429,6 +458,10 @@ const JsonSchema220 = `{
               }
             ],
             "properties": {
+              "autoBuild": {
+                "description": "Defines if the image should be built during startup.\n\nDefault value is 'false'",
+                "type": "boolean"
+              },
               "dockerfile": {
                 "description": "Allows specifying dockerfile type build",
                 "type": "object",
@@ -458,7 +491,7 @@ const JsonSchema220 = `{
                     }
                   },
                   "buildContext": {
-                    "description": "Path of source directory to establish build context. Defaults to ${PROJECT_ROOT} in the container",
+                    "description": "Path of source directory to establish build context. Defaults to ${PROJECT_SOURCE} in the container",
                     "type": "string"
                   },
                   "devfileRegistry": {
@@ -549,6 +582,10 @@ const JsonSchema220 = `{
               }
             ],
             "properties": {
+              "deployByDefault": {
+                "description": "Defines if the component should be deployed during startup.\n\nDefault value is 'false'",
+                "type": "boolean"
+              },
               "endpoints": {
                 "type": "array",
                 "items": {
@@ -558,6 +595,13 @@ const JsonSchema220 = `{
                     "targetPort"
                   ],
                   "properties": {
+                    "annotation": {
+                      "description": "Annotations to be added to Kubernetes Ingress or Openshift Route",
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
                     "attributes": {
                       "description": "Map of implementation-dependant string-based free-form attributes.\n\nExamples of Che-specific attributes:\n- cookiesAuthEnabled: \"true\" / \"false\",\n- type: \"terminal\" / \"ide\" / \"ide-dev\",",
                       "type": "object",
@@ -575,7 +619,7 @@ const JsonSchema220 = `{
                     },
                     "name": {
                       "type": "string",
-                      "maxLength": 63,
+                      "maxLength": 15,
                       "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
                     },
                     "path": {
@@ -600,6 +644,7 @@ const JsonSchema220 = `{
                       "type": "boolean"
                     },
                     "targetPort": {
+                      "description": "Port number to be used within the container component. The same port cannot be used by two different container components.",
                       "type": "integer"
                     }
                   },
@@ -639,6 +684,10 @@ const JsonSchema220 = `{
               }
             ],
             "properties": {
+              "deployByDefault": {
+                "description": "Defines if the component should be deployed during startup.\n\nDefault value is 'false'",
+                "type": "boolean"
+              },
               "endpoints": {
                 "type": "array",
                 "items": {
@@ -648,6 +697,13 @@ const JsonSchema220 = `{
                     "targetPort"
                   ],
                   "properties": {
+                    "annotation": {
+                      "description": "Annotations to be added to Kubernetes Ingress or Openshift Route",
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
                     "attributes": {
                       "description": "Map of implementation-dependant string-based free-form attributes.\n\nExamples of Che-specific attributes:\n- cookiesAuthEnabled: \"true\" / \"false\",\n- type: \"terminal\" / \"ide\" / \"ide-dev\",",
                       "type": "object",
@@ -665,7 +721,7 @@ const JsonSchema220 = `{
                     },
                     "name": {
                       "type": "string",
-                      "maxLength": 63,
+                      "maxLength": 15,
                       "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
                     },
                     "path": {
@@ -690,6 +746,7 @@ const JsonSchema220 = `{
                       "type": "boolean"
                     },
                     "targetPort": {
+                      "description": "Port number to be used within the container component. The same port cannot be used by two different container components.",
                       "type": "integer"
                     }
                   },
@@ -893,7 +950,7 @@ const JsonSchema220 = `{
             ],
             "properties": {
               "apply": {
-                "description": "Command that consists in applying a given component definition, typically bound to a devworkspace event.\n\nFor example, when an 'apply' command is bound to a 'preStart' event, and references a 'container' component, it will start the container as a K8S initContainer in the devworkspace POD, unless the component has its 'dedicatedPod' field set to 'true'.\n\nWhen no 'apply' command exist for a given component, it is assumed the component will be applied at devworkspace start by default.",
+                "description": "Command that consists in applying a given component definition, typically bound to a devworkspace event.\n\nFor example, when an 'apply' command is bound to a 'preStart' event, and references a 'container' component, it will start the container as a K8S initContainer in the devworkspace POD, unless the component has its 'dedicatedPod' field set to 'true'.\n\nWhen no 'apply' command exist for a given component, it is assumed the component will be applied at devworkspace start by default, unless 'deployByDefault' for that component is set to false.",
                 "type": "object",
                 "properties": {
                   "component": {
@@ -1101,6 +1158,27 @@ const JsonSchema220 = `{
                 "description": "Allows adding and configuring devworkspace-related containers",
                 "type": "object",
                 "properties": {
+                  "annotation": {
+                    "description": "Annotations that should be added to specific resources for this container",
+                    "type": "object",
+                    "properties": {
+                      "deployment": {
+                        "description": "Annotations to be added to deployment",
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      },
+                      "service": {
+                        "description": "Annotations to be added to service",
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "additionalProperties": false
+                  },
                   "args": {
                     "description": "The arguments to supply to the command running the dockerimage component. The arguments are supplied either to the default command provided in the image or to the overridden command.\n\nDefaults to an empty array, meaning use whatever is defined in the image.",
                     "type": "array",
@@ -1133,6 +1211,13 @@ const JsonSchema220 = `{
                         "name"
                       ],
                       "properties": {
+                        "annotation": {
+                          "description": "Annotations to be added to Kubernetes Ingress or Openshift Route",
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
                         "attributes": {
                           "description": "Map of implementation-dependant string-based free-form attributes.\n\nExamples of Che-specific attributes:\n- cookiesAuthEnabled: \"true\" / \"false\",\n- type: \"terminal\" / \"ide\" / \"ide-dev\",",
                           "type": "object",
@@ -1149,7 +1234,7 @@ const JsonSchema220 = `{
                         },
                         "name": {
                           "type": "string",
-                          "maxLength": 63,
+                          "maxLength": 15,
                           "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
                         },
                         "path": {
@@ -1173,6 +1258,7 @@ const JsonSchema220 = `{
                           "type": "boolean"
                         },
                         "targetPort": {
+                          "description": "Port number to be used within the container component. The same port cannot be used by two different container components.",
                           "type": "integer"
                         }
                       },
@@ -1250,9 +1336,18 @@ const JsonSchema220 = `{
                     "required": [
                       "dockerfile"
                     ]
+                  },
+                  {
+                    "required": [
+                      "autoBuild"
+                    ]
                   }
                 ],
                 "properties": {
+                  "autoBuild": {
+                    "description": "Defines if the image should be built during startup.\n\nDefault value is 'false'",
+                    "type": "boolean"
+                  },
                   "dockerfile": {
                     "description": "Allows specifying dockerfile type build",
                     "type": "object",
@@ -1282,7 +1377,7 @@ const JsonSchema220 = `{
                         }
                       },
                       "buildContext": {
-                        "description": "Path of source directory to establish build context. Defaults to ${PROJECT_ROOT} in the container",
+                        "description": "Path of source directory to establish build context. Defaults to ${PROJECT_SOURCE} in the container",
                         "type": "string"
                       },
                       "devfileRegistry": {
@@ -1367,6 +1462,10 @@ const JsonSchema220 = `{
                   }
                 ],
                 "properties": {
+                  "deployByDefault": {
+                    "description": "Defines if the component should be deployed during startup.\n\nDefault value is 'false'",
+                    "type": "boolean"
+                  },
                   "endpoints": {
                     "type": "array",
                     "items": {
@@ -1375,6 +1474,13 @@ const JsonSchema220 = `{
                         "name"
                       ],
                       "properties": {
+                        "annotation": {
+                          "description": "Annotations to be added to Kubernetes Ingress or Openshift Route",
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
                         "attributes": {
                           "description": "Map of implementation-dependant string-based free-form attributes.\n\nExamples of Che-specific attributes:\n- cookiesAuthEnabled: \"true\" / \"false\",\n- type: \"terminal\" / \"ide\" / \"ide-dev\",",
                           "type": "object",
@@ -1391,7 +1497,7 @@ const JsonSchema220 = `{
                         },
                         "name": {
                           "type": "string",
-                          "maxLength": 63,
+                          "maxLength": 15,
                           "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
                         },
                         "path": {
@@ -1415,6 +1521,7 @@ const JsonSchema220 = `{
                           "type": "boolean"
                         },
                         "targetPort": {
+                          "description": "Port number to be used within the container component. The same port cannot be used by two different container components.",
                           "type": "integer"
                         }
                       },
@@ -1454,6 +1561,10 @@ const JsonSchema220 = `{
                   }
                 ],
                 "properties": {
+                  "deployByDefault": {
+                    "description": "Defines if the component should be deployed during startup.\n\nDefault value is 'false'",
+                    "type": "boolean"
+                  },
                   "endpoints": {
                     "type": "array",
                     "items": {
@@ -1462,6 +1573,13 @@ const JsonSchema220 = `{
                         "name"
                       ],
                       "properties": {
+                        "annotation": {
+                          "description": "Annotations to be added to Kubernetes Ingress or Openshift Route",
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "string"
+                          }
+                        },
                         "attributes": {
                           "description": "Map of implementation-dependant string-based free-form attributes.\n\nExamples of Che-specific attributes:\n- cookiesAuthEnabled: \"true\" / \"false\",\n- type: \"terminal\" / \"ide\" / \"ide-dev\",",
                           "type": "object",
@@ -1478,7 +1596,7 @@ const JsonSchema220 = `{
                         },
                         "name": {
                           "type": "string",
-                          "maxLength": 63,
+                          "maxLength": 15,
                           "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
                         },
                         "path": {
@@ -1502,6 +1620,7 @@ const JsonSchema220 = `{
                           "type": "boolean"
                         },
                         "targetPort": {
+                          "description": "Port number to be used within the container component. The same port cannot be used by two different container components.",
                           "type": "integer"
                         }
                       },
@@ -1736,6 +1855,11 @@ const JsonSchema220 = `{
           "additionalProperties": {
             "type": "string"
           }
+        },
+        "version": {
+          "description": "Specific stack/sample version to pull the parent devfile from, when using id in the parent reference. To specify 'version', 'id' must be defined and used as the import reference source. 'version' can be either a specific stack version, or 'latest'. If no 'version' specified, default version will be used.",
+          "type": "string",
+          "pattern": "^(latest)|(([1-9])\\.([0-9]+)\\.([0-9]+)(\\-[0-9a-z-]+(\\.[0-9a-z-]+)*)?(\\+[0-9A-Za-z-]+(\\.[0-9A-Za-z-]+)*)?)$"
         }
       },
       "additionalProperties": false

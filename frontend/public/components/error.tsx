@@ -1,11 +1,20 @@
 import * as _ from 'lodash-es';
 import * as React from 'react';
 import { Helmet } from 'react-helmet';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import i18next from 'i18next';
+import {
+  EmptyState,
+  EmptyStateBody,
+  EmptyStateIcon,
+  Stack,
+  StackItem,
+  Title,
+} from '@patternfly/react-core';
+import { ExclamationCircleIcon } from '@patternfly/react-icons';
+import { global_danger_color_100 as globalDangerColor100 } from '@patternfly/react-tokens';
 
-import { ErrorBoundaryFallbackProps } from '@console/shared/src/components/error/error-boundary';
-import { CopyToClipboard, getQueryArgument, PageHeading, ExpandCollapse } from './utils';
+import { getQueryArgument, PageHeading } from './utils';
 
 const getMessage = (type: string, id: string): string => {
   // User messages for error_types returned in auth.go
@@ -76,37 +85,6 @@ export const ErrorPage404: React.SFC<ErrorPage404Props> = (props) => {
   );
 };
 
-export const ErrorBoundaryFallback: React.SFC<ErrorBoundaryFallbackProps> = (props) => {
-  const { t } = useTranslation();
-  return (
-    <div className="co-m-pane__body">
-      <PageHeading title={t('public~Oh no! Something went wrong.')} centerText />
-      <ExpandCollapse
-        textCollapsed={t('public~Show details')}
-        textExpanded={t('public~Hide details')}
-      >
-        <h3 className="co-section-heading-tertiary">{props.title}</h3>
-        <div className="form-group">
-          <label htmlFor="description">{t('public~Description:')}</label>
-          <p>{props.errorMessage}</p>
-        </div>
-        <div className="form-group">
-          <label htmlFor="componentTrace">{t('public~Component trace:')}</label>
-          <div className="co-copy-to-clipboard__stacktrace-width-height">
-            <CopyToClipboard value={props.componentStack.trim()} />
-          </div>
-        </div>
-        <div className="form-group">
-          <label htmlFor="stackTrace">{t('public~Stack trace:')}</label>
-          <div className="co-copy-to-clipboard__stacktrace-width-height">
-            <CopyToClipboard value={props.stack.trim()} />
-          </div>
-        </div>
-      </ExpandCollapse>
-    </div>
-  );
-};
-
 export type ErrorComponentProps = {
   title: string;
   message?: string;
@@ -114,3 +92,28 @@ export type ErrorComponentProps = {
 
 export type ErrorPageProps = {};
 export type ErrorPage404Props = Omit<ErrorComponentProps, 'title'>;
+
+export const ErrorState: React.FC = () => {
+  const { t } = useTranslation();
+  const DangerIcon = () => <ExclamationCircleIcon color={globalDangerColor100.value} size="sm" />;
+  return (
+    <EmptyState variant="xs">
+      <EmptyStateIcon variant="container" component={DangerIcon} />
+      <Title headingLevel="h6">{t('public~Something went wrong')}</Title>
+      <EmptyStateBody>
+        <Stack>
+          <StackItem>
+            {t('public~There was a problem processing the request. Please try again.')}
+          </StackItem>
+          <StackItem>
+            <Trans t={t} ns="public">
+              If the problem persists, contact{' '}
+              <a href="https://access.redhat.com/support">Red Hat Support</a> or check our{' '}
+              <a href="https://status.redhat.com">status page</a> for known outages.
+            </Trans>
+          </StackItem>
+        </Stack>
+      </EmptyStateBody>
+    </EmptyState>
+  );
+};

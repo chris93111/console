@@ -9,10 +9,13 @@ export const devNavigationMenuPO = {
   search: '[data-test-id="search-header"]',
   helm: '[data-test-id="helm-releases-header"]',
   project: '[data-test-id="project-details-header"]',
-  configMaps: '#ConfigMap',
   secret: '#Secret',
   dropdownButton: '[data-test-id="dropdown-button"]',
   environments: '[data-test-id="environments-header"]',
+};
+
+export const adminNavigationMenuPO = {
+  home: { main: '[data-quickstart-id="qs-nav-home"]', search: "a[href*='/search/ns/']" },
 };
 
 export const createSourceSecret = {
@@ -41,5 +44,11 @@ export const formPO = {
   save: '[data-test="save-changes"]',
   errorAlert: '[aria-label="Danger Alert"]',
   successAlert: '[aria-label="Success Alert"]',
+  confirm: '[data-test="confirm-action"]',
 };
 export const alert = '.pf-c-alert';
+export const pagePO = {
+  create: '[data-test="item-create"]',
+  breadcrumb: '[aria-label="Breadcrumb"]',
+};
+export const resourceRow = '[data-test-rows="resource-row"]';

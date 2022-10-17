@@ -33,6 +33,51 @@ describe('Shared submit utils', () => {
       const serviceObj = createService(mockDeployImageData);
       expect(serviceObj).toMatchSnapshot();
     });
+
+    it('should expose only the custom port as TargetPort when it is set', () => {
+      const mockData: GitImportFormData = _.cloneDeep(mockFormData);
+
+      mockData.build.strategy = 'Source';
+      mockData.git.url = 'https://github.com/nodeshift-blog-examples/react-web-app';
+      mockData.route.unknownTargetPort = '3000';
+      const serviceObj = createService(mockData);
+      const { ports } = serviceObj.spec;
+
+      expect(ports).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            port: 8080,
+          }),
+        ]),
+      );
+    });
+
+    it('While editing, the new custom route port must replace the current route port from services', () => {
+      const mockData: GitImportFormData = _.cloneDeep(mockFormData);
+
+      mockData.build.strategy = 'Source';
+      mockData.git.url = 'https://github.com/nodeshift-blog-examples/react-web-app';
+      mockData.image.ports = [
+        { containerPort: 8080, protocol: 'TCP' },
+        { containerPort: 8081, protocol: 'TCP' },
+        { containerPort: 8082, protocol: 'TCP' },
+      ];
+      mockData.route.unknownTargetPort = '8080';
+      let serviceObj = createService(mockData);
+
+      mockData.route.unknownTargetPort = '3000';
+      serviceObj = createService(mockData);
+
+      const { ports } = serviceObj.spec;
+
+      expect(ports).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            port: 8080,
+          }),
+        ]),
+      );
+    });
   });
 
   describe('Create Route', () => {

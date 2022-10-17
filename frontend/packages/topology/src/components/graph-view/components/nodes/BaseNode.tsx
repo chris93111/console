@@ -1,76 +1,85 @@
 import * as React from 'react';
 import {
+  BadgeLocation,
+  DEFAULT_LAYER,
+  DefaultNode,
+  Layer,
   Node,
-  useAnchor,
-  EllipseAnchor,
-  WithCreateConnectorProps,
+  NodeStatus,
+  observer,
+  ScaleDetailsLevel,
+  TOP_LAYER,
+  useCombineRefs,
+  WithContextMenuProps,
   WithDndDropProps,
   WithDragNodeProps,
   WithSelectionProps,
-  WithContextMenuProps,
-  useCombineRefs,
-  useHover,
-  observer,
-  createSvgIdUrl,
+  StatusModifier,
 } from '@patternfly/react-topology';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import { useAccessReview } from '@console/internal/components/utils';
-import { modelFor, referenceFor } from '@console/internal/module/k8s';
-import {
-  getFilterById,
-  useDisplayFilters,
-  useSearchFilter,
-  SHOW_LABELS_FILTER_ID,
-} from '../../../../filters';
+import { K8sVerb, modelFor, referenceFor } from '@console/internal/module/k8s';
+import { RESOURCE_NAME_TRUNCATE_LENGTH } from '@console/shared';
+import useHover from '../../../../behavior/useHover';
+import { WithCreateConnectorProps } from '../../../../behavior/withCreateConnector';
+import { useSearchFilter } from '../../../../filters';
+import { useShowLabel } from '../../../../filters/useShowLabel';
 import { getTopologyResourceObject } from '../../../../utils/topology-utils';
-import SvgBoxedText from '../../../svg/SvgBoxedText';
-import { NodeShadows, NODE_SHADOW_FILTER_ID_HOVER, NODE_SHADOW_FILTER_ID } from '../NodeShadows';
+import { getKindStringAndAbbreviation } from './nodeUtils';
 
+import '../../../svg/SvgResourceIcon.scss';
 import './BaseNode.scss';
 
 type BaseNodeProps = {
-  className: string;
-  outerRadius: number;
+  className?: string;
   innerRadius?: number;
   icon?: string;
   kind?: string;
+  labelIconClass?: string; // Icon to show in label
+  labelIcon?: React.ReactNode;
+  labelIconPadding?: number;
+  badge?: string;
+  badgeColor?: string;
+  badgeTextColor?: string;
+  badgeBorderColor?: string;
+  badgeClassName?: string;
+  badgeLocation?: BadgeLocation;
   children?: React.ReactNode;
   attachments?: React.ReactNode;
   element: Node;
+  hoverRef?: (node: Element) => () => void;
   dragging?: boolean;
-  edgeDragging?: boolean;
   dropTarget?: boolean;
   canDrop?: boolean;
-} & WithSelectionProps &
-  WithDragNodeProps &
-  WithDndDropProps &
-  WithContextMenuProps &
-  WithCreateConnectorProps;
+  createConnectorAccessVerb?: K8sVerb;
+  nodeStatus?: NodeStatus;
+  showStatusBackground?: boolean;
+  alertVariant?: NodeStatus;
+} & Partial<WithSelectionProps> &
+  Partial<WithDragNodeProps> &
+  Partial<WithDndDropProps> &
+  Partial<WithContextMenuProps> &
+  Partial<WithCreateConnectorProps>;
 
 const BaseNode: React.FC<BaseNodeProps> = ({
   className,
-  outerRadius,
   innerRadius,
   icon,
   kind,
   element,
-  selected,
-  onSelect,
+  hoverRef,
   children,
-  attachments,
-  dragNodeRef,
-  dndDropRef,
-  canDrop,
-  dragging,
-  edgeDragging,
-  dropTarget,
-  onHideCreateConnector,
   onShowCreateConnector,
   onContextMenu,
   contextMenuOpen,
+  createConnectorAccessVerb = 'patch',
+  createConnectorDrag,
+  alertVariant,
+  ...rest
 }) => {
-  const [hover, hoverRef] = useHover();
-  useAnchor(EllipseAnchor);
+  const [hoverChange, setHoverChange] = React.useState<boolean>(false);
+  const [hover, internalHoverRef] = useHover(200, 200, [hoverChange]);
+  const nodeHoverRefs = useCombineRefs(internalHoverRef, hoverRef);
   const { width, height } = element.getDimensions();
   const cx = width / 2;
   const cy = height / 2;
@@ -78,88 +87,81 @@ const BaseNode: React.FC<BaseNodeProps> = ({
   const resourceModel = modelFor(referenceFor(resourceObj));
   const iconRadius = innerRadius * 0.9;
   const editAccess = useAccessReview({
-    group: resourceModel.apiGroup,
-    verb: 'patch',
-    resource: resourceModel.plural,
+    group: resourceModel?.apiGroup,
+    verb: createConnectorAccessVerb,
+    resource: resourceModel?.plural,
     name: resourceObj.metadata.name,
     namespace: resourceObj.metadata.namespace,
   });
   const [filtered] = useSearchFilter(element.getLabel(), resourceObj?.metadata?.labels);
-  const displayFilters = useDisplayFilters();
-  const showLabelsFilter = getFilterById(SHOW_LABELS_FILTER_ID, displayFilters);
-  const showLabels = showLabelsFilter?.value || hover;
-  const refs = useCombineRefs<SVGEllipseElement>(hoverRef, dragNodeRef);
+  const showLabel = useShowLabel(hover || contextMenuOpen);
+  const kindData = kind && getKindStringAndAbbreviation(kind);
 
-  React.useLayoutEffect(() => {
-    if (editAccess) {
-      if (hover) {
-        onShowCreateConnector && onShowCreateConnector();
-      } else {
-        onHideCreateConnector && onHideCreateConnector();
-      }
+  const detailsLevel = element
+    .getController()
+    .getGraph()
+    .getDetailsLevel();
+  const showDetails = hover || contextMenuOpen || detailsLevel !== ScaleDetailsLevel.low;
+  const badgeClassName = kindData
+    ? classNames('odc-resource-icon', {
+        [`odc-resource-icon-${kindData.kindStr.toLowerCase()}`]: !kindData.kindColor,
+      })
+    : '';
+  React.useEffect(() => {
+    if (!createConnectorDrag) {
+      setHoverChange((prev) => !prev);
     }
-  }, [hover, onShowCreateConnector, onHideCreateConnector, editAccess]);
-
+  }, [createConnectorDrag]);
   return (
-    <g
-      className={classNames('odc-base-node', className, {
-        'is-hover': hover || contextMenuOpen,
-        'is-highlight': canDrop,
-        'is-dragging': dragging || edgeDragging,
-        'is-dropTarget': canDrop && dropTarget,
-        'is-filtered': filtered,
-        'is-selected': selected,
-      })}
-    >
-      <NodeShadows />
-      <g
-        data-test-id="base-node-handler"
-        onClick={onSelect}
-        onContextMenu={onContextMenu}
-        ref={refs}
-      >
-        <circle
-          key={
-            hover || dragging || edgeDragging || dropTarget || contextMenuOpen
-              ? 'circle-hover'
-              : 'circle'
-          }
-          className="odc-base-node__bg"
-          ref={dndDropRef}
-          cx={cx}
-          cy={cy}
-          r={outerRadius}
-          filter={createSvgIdUrl(
-            hover || dragging || edgeDragging || dropTarget || contextMenuOpen
-              ? NODE_SHADOW_FILTER_ID_HOVER
-              : NODE_SHADOW_FILTER_ID,
+    <Layer id={hover || contextMenuOpen ? TOP_LAYER : DEFAULT_LAYER}>
+      <g ref={nodeHoverRefs} data-test-id={element.getLabel()}>
+        <DefaultNode
+          className={classNames(
+            'odc-base-node',
+            className,
+            alertVariant && StatusModifier[alertVariant],
+            {
+              'is-filtered': filtered,
+            },
           )}
-        />
-        {icon && (
-          <image
-            x={cx - iconRadius}
-            y={cy - iconRadius}
-            width={iconRadius * 2}
-            height={iconRadius * 2}
-            xlinkHref={icon}
-          />
-        )}
-        {showLabels && (kind || element.getLabel()) && (
-          <SvgBoxedText
-            className="odc-base-node__label"
-            x={cx}
-            y={cy + outerRadius + 24}
-            paddingX={8}
-            paddingY={4}
-            kind={kind}
-          >
-            {element.getLabel()}
-          </SvgBoxedText>
-        )}
-        {children}
+          truncateLength={RESOURCE_NAME_TRUNCATE_LENGTH}
+          element={element}
+          showLabel={showLabel}
+          scaleNode={(hover || contextMenuOpen) && detailsLevel !== ScaleDetailsLevel.high}
+          onShowCreateConnector={
+            editAccess && detailsLevel !== ScaleDetailsLevel.low && onShowCreateConnector
+          }
+          onContextMenu={onContextMenu}
+          contextMenuOpen={contextMenuOpen}
+          badge={kindData?.kindAbbr}
+          badgeColor={kindData?.kindColor}
+          badgeClassName={badgeClassName}
+          showStatusBackground={!showDetails}
+          {...rest}
+        >
+          <g data-test-id="base-node-handler">
+            {icon && showDetails && (
+              <>
+                <circle
+                  fill="var(--pf-global--palette--white)"
+                  cx={cx}
+                  cy={cy}
+                  r={innerRadius + 6}
+                />
+                <image
+                  x={cx - iconRadius}
+                  y={cy - iconRadius}
+                  width={iconRadius * 2}
+                  height={iconRadius * 2}
+                  xlinkHref={icon}
+                />
+              </>
+            )}
+            {showDetails && children}
+          </g>
+        </DefaultNode>
       </g>
-      {attachments}
-    </g>
+    </Layer>
   );
 };
 

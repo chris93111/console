@@ -1,6 +1,17 @@
-import * as classNames from 'classnames';
-import * as React from 'react';
+import classNames from 'classnames';
 import * as _ from 'lodash-es';
+import * as React from 'react';
+import {
+  PrometheusEndpoint,
+  PrometheusLabels,
+  PrometheusResponse,
+  PrometheusResult,
+  PrometheusValue,
+} from '@console/dynamic-plugin-sdk';
+import {
+  formatPrometheusDuration,
+  parsePrometheusDuration,
+} from '@openshift-console/plugin-shared/src/datetime/prometheus';
 import {
   Chart,
   ChartArea,
@@ -9,19 +20,21 @@ import {
   ChartLegend,
   ChartLine,
   ChartStack,
-  ChartThemeColor,
-  ChartThemeVariant,
   ChartVoronoiContainer,
-  getCustomTheme,
 } from '@patternfly/react-charts';
 import {
   Alert,
   Button,
   Checkbox,
+  Dropdown,
+  DropdownItem,
+  DropdownPosition,
+  DropdownToggle,
   EmptyState,
   EmptyStateBody,
   EmptyStateIcon,
   EmptyStateVariant,
+  InputGroup,
   TextInput,
   Title,
 } from '@patternfly/react-core';
@@ -32,43 +45,30 @@ import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 import { VictoryPortal } from 'victory-core';
 
-import { PrometheusEndpoint } from '@console/dynamic-plugin-sdk/src/api/internal-types';
-import { withFallback } from '@console/shared/src/components/error/error-boundary';
+import withFallback from '@console/shared/src/components/error/fallbacks/withFallback';
 
-import { queryBrowserDeleteAllSeries, queryBrowserPatchQuery } from '../../actions/observe';
+import {
+  queryBrowserDeleteAllSeries,
+  queryBrowserPatchQuery,
+  queryBrowserSetTimespan,
+} from '../../actions/observe';
 import { RootState } from '../../redux';
-import { PrometheusLabels, PrometheusResponse, PrometheusResult, PrometheusValue } from '../graphs';
 import { GraphEmpty } from '../graphs/graph-empty';
 import { getPrometheusURL } from '../graphs/helpers';
-import { queryBrowserTheme } from '../graphs/themes';
-import {
-  Dropdown,
-  humanizeNumberSI,
-  LoadingInline,
-  usePoll,
-  useRefWidth,
-  useSafeFetch,
-} from '../utils';
+import { humanizeNumberSI, LoadingInline, usePoll, useRefWidth, useSafeFetch } from '../utils';
 import {
   dateFormatterNoYear,
   dateTimeFormatterWithSeconds,
-  formatPrometheusDuration,
-  parsePrometheusDuration,
   timeFormatter,
   timeFormatterWithSeconds,
 } from '../utils/datetime';
 import { formatNumber } from './format';
+import { useBoolean } from './hooks/useBoolean';
+import { queryBrowserTheme } from './query-browser-theme';
 import { PrometheusAPIError } from './types';
-import { ONE_MINUTE } from '@console/shared/src/constants/time';
 
 const spans = ['5m', '15m', '30m', '1h', '2h', '6h', '12h', '1d', '2d', '1w', '2w'];
-const dropdownItems = _.zipObject(spans, spans);
-const theme = getCustomTheme(
-  ChartThemeColor.multiUnordered,
-  ChartThemeVariant.light,
-  queryBrowserTheme,
-);
-export const colors = theme.line.colorScale;
+export const colors = queryBrowserTheme.line.colorScale;
 
 // Use exponential notation for small or very large numbers to avoid labels with too many characters
 const formatPositiveValue = (v: number): string =>
@@ -100,11 +100,13 @@ const GraphEmptyState: React.FC<GraphEmptyStateProps> = ({ children, title }) =>
 );
 
 const SpanControls: React.FC<SpanControlsProps> = React.memo(
-  ({ defaultSpanText, onChange, span }) => {
+  ({ defaultSpanText, onChange, span, hasReducedResolution }) => {
     const [isValid, setIsValid] = React.useState(true);
     const [text, setText] = React.useState(formatPrometheusDuration(span));
 
     const { t } = useTranslation();
+
+    const [isOpen, setIsOpen, , setClosed] = useBoolean(false);
 
     React.useEffect(() => {
       setText(formatPrometheusDuration(span));
@@ -123,24 +125,35 @@ const SpanControls: React.FC<SpanControlsProps> = React.memo(
       }
     };
 
+    const dropdownItems = spans.map((s) => (
+      <DropdownItem
+        className="query-browser__span-dropdown-item"
+        key={s}
+        onClick={() => setSpan(s, true)}
+      >
+        {s}
+      </DropdownItem>
+    ));
+
     return (
       <>
-        <TextInput
-          aria-label={t('public~graph timespan')}
-          className="query-browser__span-text"
-          validated={isValid ? 'default' : 'error'}
-          onChange={(v) => setSpan(v, true)}
-          type="text"
-          value={text}
-        />
-        <Dropdown
-          ariaLabel={t('public~graph timespan')}
-          buttonClassName="dropdown-button--icon-only"
-          items={dropdownItems}
-          menuClassName="query-browser__span-dropdown-menu"
-          noSelection={true}
-          onChange={(v: string) => setSpan(v)}
-        />
+        <InputGroup className="query-browser__span">
+          <TextInput
+            aria-label={t('public~graph timespan')}
+            className="query-browser__span-text"
+            validated={isValid ? 'default' : 'error'}
+            onChange={(v) => setSpan(v, true)}
+            type="text"
+            value={text}
+          />
+          <Dropdown
+            dropdownItems={dropdownItems}
+            isOpen={isOpen}
+            onSelect={setClosed}
+            position={DropdownPosition.right}
+            toggle={<DropdownToggle aria-label={t('public~graph timespan')} onToggle={setIsOpen} />}
+          />
+        </InputGroup>
         <Button
           className="query-browser__inline-control"
           onClick={() => setSpan(defaultSpanText)}
@@ -149,6 +162,16 @@ const SpanControls: React.FC<SpanControlsProps> = React.memo(
         >
           {t('public~Reset zoom')}
         </Button>
+        {hasReducedResolution && (
+          <Alert
+            isInline
+            isPlain
+            className="query-browser__reduced-resolution"
+            title={t('public~Displaying with reduced resolution due to large dataset.')}
+            variant="info"
+            truncateTitle={1}
+          />
+        )}
       </>
     );
   },
@@ -293,7 +316,7 @@ const LegendContainer = ({ children }: { children?: React.ReactNode }) => {
   const width = children?.[0]?.[0]?.props?.width ?? '100%';
   return (
     <foreignObject height={75} width="100%" y={245}>
-      <div className="monitoring-dashboards__legend-wrap">
+      <div className="monitoring-dashboards__legend-wrap horizontal-scroll">
         <svg width={width}>{children}</svg>
       </div>
     </foreignObject>
@@ -306,6 +329,8 @@ const nullComponent = <Null />;
 type GraphSeries = GraphDataPoint[] | null;
 
 const getXDomain = (endTime: number, span: number): AxisDomain => [endTime - span, endTime];
+
+const ONE_MINUTE = 60 * 1000;
 
 const Graph: React.FC<GraphProps> = React.memo(
   ({
@@ -337,7 +362,7 @@ const Graph: React.FC<GraphProps> = React.memo(
     _.each(allSeries, (series, i) => {
       _.each(series, ([metric, values]) => {
         // Ignore any disabled series
-        data.push(_.some(disabledSeries[i], (s) => _.isEqual(s, metric)) ? null : values);
+        data.push(_.some(disabledSeries?.[i], (s) => _.isEqual(s, metric)) ? null : values);
         if (formatSeriesTitle) {
           const name = formatSeriesTitle(metric, i);
           legendData.push({ name });
@@ -348,7 +373,7 @@ const Graph: React.FC<GraphProps> = React.memo(
       });
     });
 
-    if (data.every(_.isEmpty)) {
+    if (!data.some(Array.isArray)) {
       return <GraphEmpty />;
     }
 
@@ -360,16 +385,16 @@ const Graph: React.FC<GraphProps> = React.memo(
         _.every(series, ([, values]) => _.every(values, { y: 0 })),
       );
       if (isAllZero) {
-        domain.y = [-1, 1];
+        domain.y = [0, 1];
       }
     } else {
       // Set a reasonable Y-axis range based on the min and max values in the data
-      const findMin = (series: GraphSeries) => _.minBy(series, 'y');
-      const findMax = (series: GraphSeries) => _.maxBy(series, 'y');
+      const findMin = (series: GraphSeries): GraphDataPoint => _.minBy(series, 'y');
+      const findMax = (series: GraphSeries): GraphDataPoint => _.maxBy(series, 'y');
       let minY: number = findMin(data.map(findMin))?.y ?? 0;
       let maxY: number = findMax(data.map(findMax))?.y ?? 0;
       if (minY === 0 && maxY === 0) {
-        minY = -1;
+        minY = 0;
         maxY = 1;
       } else if (minY > 0 && maxY > 0) {
         minY = 0;
@@ -408,7 +433,7 @@ const Graph: React.FC<GraphProps> = React.memo(
         domainPadding={{ y: 1 }}
         height={200}
         scale={{ x: 'time', y: 'linear' }}
-        theme={theme}
+        theme={queryBrowserTheme}
         width={width}
       >
         <ChartAxis tickCount={xAxisTickCount} tickFormat={xAxisTickFormat} />
@@ -455,7 +480,7 @@ const Graph: React.FC<GraphProps> = React.memo(
             itemsPerRow={4}
             orientation="vertical"
             style={{
-              labels: { fontSize: 11 },
+              labels: { fontSize: 11, fill: 'var(--pf-global--Color--100)' },
             }}
             symbolSpacer={4}
           />
@@ -510,7 +535,8 @@ const maxStacks = 50;
 // so don't update unless the number of samples would change by at least this proportion
 const samplesLeeway = 0.2;
 
-// Minimum step (milliseconds between data samples) because tiny steps reduce performance for almost no benefit
+// Minimum step (milliseconds between data samples) because tiny steps reduce performance for almost
+// no benefit
 const minStep = 5 * 1000;
 
 // Don't allow zooming to less than this number of milliseconds
@@ -619,7 +645,7 @@ const getMaxSamplesForSpan = (span: number) =>
 const QueryBrowser_: React.FC<QueryBrowserProps> = ({
   defaultSamples,
   defaultTimespan = parsePrometheusDuration('30m'),
-  disabledSeries = [],
+  disabledSeries,
   disableZoom,
   filterLabels,
   fixedEndTime,
@@ -641,6 +667,9 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
   const hideGraphs = useSelector(({ observe }: RootState) => !!observe.get('hideGraphs'));
   const tickInterval = useSelector(
     ({ observe }: RootState) => pollInterval ?? observe.getIn(['queryBrowser', 'pollInterval']),
+  );
+  const lastRequestTime = useSelector(({ observe }: RootState) =>
+    observe.getIn(['queryBrowser', 'lastRequestTime']),
   );
 
   const dispatch = useDispatch();
@@ -715,7 +744,7 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
               namespace,
               query,
               samples,
-              timeout: '30s',
+              timeout: '60s',
               timespan: span,
             }),
           ),
@@ -788,7 +817,17 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
   }
 
   const queriesKey = _.reject(queries, _.isEmpty).join();
-  usePoll(tick, delay, endTime, filterLabels, namespace, queriesKey, samples, span);
+  usePoll(
+    tick,
+    delay,
+    endTime,
+    filterLabels,
+    namespace,
+    queriesKey,
+    samples,
+    span,
+    lastRequestTime,
+  );
 
   React.useLayoutEffect(() => setUpdating(true), [endTime, namespace, queriesKey, samples, span]);
 
@@ -797,9 +836,10 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
       setGraphData(null);
       setXDomain(undefined);
       setSpan(newSpan);
+      dispatch(queryBrowserSetTimespan(newSpan));
       setSamples(defaultSamples || getMaxSamplesForSpan(newSpan));
     },
-    [defaultSamples],
+    [defaultSamples, dispatch],
   );
 
   const isRangeVector = _.get(error, 'json.error', '').match(
@@ -856,6 +896,7 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
   };
 
   const isGraphDataEmpty = !graphData || graphData.every((d) => d.length === 0);
+  const hasReducedResolution = !isGraphDataEmpty && samples < maxSamplesForSpan && !updating;
 
   return (
     <div
@@ -869,7 +910,12 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
       ) : (
         <div className="query-browser__controls">
           <div className="query-browser__controls--left">
-            <SpanControls defaultSpanText={defaultSpanText} onChange={onSpanChange} span={span} />
+            <SpanControls
+              defaultSpanText={defaultSpanText}
+              onChange={onSpanChange}
+              span={span}
+              hasReducedResolution={hasReducedResolution}
+            />
             {updating && <Loading />}
           </div>
           <div className="query-browser__controls--right">
@@ -886,58 +932,46 @@ const QueryBrowser_: React.FC<QueryBrowserProps> = ({
           </div>
         </div>
       )}
-      {error && <Error error={error} />}
-      {isGraphDataEmpty && !updating && <GraphEmpty />}
-      {!isGraphDataEmpty && (
-        <>
-          {samples < maxSamplesForSpan && !updating && (
-            <Alert
-              isInline
-              className="co-alert"
-              title={t('public~Displaying with reduced resolution due to large dataset.')}
-              variant="info"
-            />
-          )}
-          <div
-            className={classNames('graph-wrapper graph-wrapper--query-browser', {
-              'graph-wrapper--query-browser--with-legend': showLegend && !!formatSeriesTitle,
-            })}
-          >
-            <div ref={containerRef} style={{ width: '100%' }}>
-              {width > 0 && (
-                <>
-                  {disableZoom ? (
-                    <Graph
-                      allSeries={graphData}
-                      disabledSeries={disabledSeries}
-                      fixedXDomain={xDomain}
-                      formatSeriesTitle={formatSeriesTitle}
-                      isStack={canStack && isStacked}
-                      showLegend={showLegend}
-                      span={span}
-                      units={units}
-                      width={width}
-                    />
-                  ) : (
-                    <ZoomableGraph
-                      allSeries={graphData}
-                      disabledSeries={disabledSeries}
-                      fixedXDomain={xDomain}
-                      formatSeriesTitle={formatSeriesTitle}
-                      isStack={canStack && isStacked}
-                      onZoom={zoomableGraphOnZoom}
-                      showLegend={showLegend}
-                      span={span}
-                      units={units}
-                      width={width}
-                    />
-                  )}
-                </>
+      <div
+        className={classNames('graph-wrapper graph-wrapper--query-browser', {
+          'graph-wrapper--query-browser--with-legend': showLegend && !!formatSeriesTitle,
+        })}
+      >
+        <div ref={containerRef} style={{ width: '100%' }}>
+          {error && <Error error={error} />}
+          {isGraphDataEmpty && !updating && <GraphEmpty />}
+          {!isGraphDataEmpty && width > 0 && (
+            <>
+              {disableZoom ? (
+                <Graph
+                  allSeries={graphData}
+                  disabledSeries={disabledSeries}
+                  fixedXDomain={xDomain}
+                  formatSeriesTitle={formatSeriesTitle}
+                  isStack={canStack && isStacked}
+                  showLegend={showLegend}
+                  span={span}
+                  units={units}
+                  width={width}
+                />
+              ) : (
+                <ZoomableGraph
+                  allSeries={graphData}
+                  disabledSeries={disabledSeries}
+                  fixedXDomain={xDomain}
+                  formatSeriesTitle={formatSeriesTitle}
+                  isStack={canStack && isStacked}
+                  onZoom={zoomableGraphOnZoom}
+                  showLegend={showLegend}
+                  span={span}
+                  units={units}
+                  width={width}
+                />
               )}
-            </div>
-          </div>
-        </>
-      )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 };
@@ -1015,6 +1049,7 @@ type SpanControlsProps = {
   defaultSpanText: string;
   onChange: (span: number) => void;
   span: number;
+  hasReducedResolution: boolean;
 };
 
 type TooltipProps = {

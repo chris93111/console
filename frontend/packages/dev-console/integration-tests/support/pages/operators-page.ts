@@ -32,7 +32,11 @@ export const operatorsPage = {
     cy.get(operatorsPO.nav.eventing).click({ force: true });
     detailsPage.titleShouldContain(pageTitle.Eventing);
   },
-
+  navigateToServingPage: () => {
+    cy.get(operatorsPO.nav.serverless).click();
+    cy.get(operatorsPO.nav.serving).click({ force: true });
+    detailsPage.titleShouldContain(pageTitle.Serving);
+  },
   navigateToCustomResourceDefinitions: () => {
     cy.get(operatorsPO.nav.administration).click();
     cy.get(operatorsPO.nav.customResourceDefinitions).click({ force: true });
@@ -155,6 +159,36 @@ export const operatorsPage = {
       case 'Service Binding':
       case operators.ServiceBinding: {
         cy.get(operatorsPO.operatorHub.serviceBinding).click();
+        break;
+      }
+      case 'Crunchy Postgres for Kubernetes':
+      case operators.CrunchyPostgresforKubernetes: {
+        cy.get(operatorsPO.operatorHub.CrunchyPostgresforKubernetes).click();
+        break;
+      }
+      case 'Quay Container Security':
+      case operators.QuayContainerSecurity: {
+        cy.get(operatorsPO.operatorHub.quayContainerSecurity).click();
+        break;
+      }
+      case 'Shipwright Operator':
+      case operators.ShipwrightOperator: {
+        cy.get(operatorsPO.operatorHub.shipwrightOperator).click();
+        break;
+      }
+      case 'Redis Operator':
+      case operators.RedisOperator: {
+        cy.get(operatorsPO.operatorHub.redisOperatorCard).click();
+        break;
+      }
+      case 'AMQ Streams':
+      case operators.AMQStreams: {
+        cy.get(operatorsPO.operatorHub.amqStreams).click();
+        break;
+      }
+      case 'RHOAS':
+      case operators.RHOAS: {
+        cy.get(operatorsPO.operatorHub.rhoas).click();
         break;
       }
       default: {

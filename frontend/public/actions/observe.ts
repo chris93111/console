@@ -1,6 +1,6 @@
 import { action, ActionType as Action } from 'typesafe-actions';
 
-import { Rule } from '../components/monitoring/types';
+import { Rule } from '@console/dynamic-plugin-sdk';
 
 export enum ActionType {
   AlertingSetData = 'alertingSetData',
@@ -13,18 +13,20 @@ export enum ActionType {
   DashboardsSetTimespan = 'dashboardsSetTimespan',
   DashboardsVariableOptionsLoaded = 'dashboardsVariableOptionsLoaded',
   QueryBrowserAddQuery = 'queryBrowserAddQuery',
+  QueryBrowserDuplicateQuery = 'queryBrowserDuplicateQuery',
   QueryBrowserDeleteAllQueries = 'queryBrowserDeleteAllQueries',
   QueryBrowserDeleteAllSeries = 'queryBrowserDeleteAllSeries',
   QueryBrowserDeleteQuery = 'queryBrowserDeleteQuery',
   QueryBrowserDismissNamespaceAlert = 'queryBrowserDismissNamespaceAlert',
-  QueryBrowserInsertText = 'queryBrowserInsertText',
   QueryBrowserPatchQuery = 'queryBrowserPatchQuery',
   QueryBrowserRunQueries = 'queryBrowserRunQueries',
   QueryBrowserSetAllExpanded = 'queryBrowserSetAllExpanded',
   QueryBrowserSetMetrics = 'queryBrowserSetMetrics',
   QueryBrowserSetPollInterval = 'queryBrowserSetPollInterval',
+  QueryBrowserSetTimespan = 'queryBrowserSetTimespan',
   QueryBrowserToggleIsEnabled = 'queryBrowserToggleIsEnabled',
   QueryBrowserToggleSeries = 'queryBrowserToggleSeries',
+  QueryBrowserToggleAllSeries = 'queryBrowserToggleAllSeries',
   SetAlertCount = 'SetAlertCount',
   ToggleGraphs = 'toggleGraphs',
 }
@@ -89,6 +91,9 @@ export const toggleGraphs = () => action(ActionType.ToggleGraphs);
 
 export const queryBrowserAddQuery = () => action(ActionType.QueryBrowserAddQuery);
 
+export const queryBrowserDuplicateQuery = (index: number) =>
+  action(ActionType.QueryBrowserDuplicateQuery, { index });
+
 export const queryBrowserDeleteAllQueries = () => action(ActionType.QueryBrowserDeleteAllQueries);
 
 export const queryBrowserDeleteAllSeries = () => action(ActionType.QueryBrowserDeleteAllSeries);
@@ -98,13 +103,6 @@ export const queryBrowserDismissNamespaceAlert = () =>
 
 export const queryBrowserDeleteQuery = (index: number) =>
   action(ActionType.QueryBrowserDeleteQuery, { index });
-
-export const queryBrowserInsertText = (
-  index: number,
-  newText: string,
-  replaceFrom: number,
-  replaceTo: number,
-) => action(ActionType.QueryBrowserInsertText, { index, newText, replaceFrom, replaceTo });
 
 export const queryBrowserPatchQuery = (index: number, patch: { [key: string]: unknown }) =>
   action(ActionType.QueryBrowserPatchQuery, { index, patch });
@@ -119,6 +117,12 @@ export const queryBrowserSetMetrics = (metrics: string[]) =>
 
 export const queryBrowserSetPollInterval = (pollInterval: number) =>
   action(ActionType.QueryBrowserSetPollInterval, { pollInterval });
+
+export const queryBrowserSetTimespan = (timespan: number) =>
+  action(ActionType.QueryBrowserSetTimespan, { timespan });
+
+export const queryBrowserToggleAllSeries = (index: number) =>
+  action(ActionType.QueryBrowserToggleAllSeries, { index });
 
 export const queryBrowserToggleIsEnabled = (index: number) =>
   action(ActionType.QueryBrowserToggleIsEnabled, { index });
@@ -141,16 +145,18 @@ const actions = {
   dashboardsSetTimespan,
   dashboardsVariableOptionsLoaded,
   queryBrowserAddQuery,
+  queryBrowserDuplicateQuery,
   queryBrowserDeleteAllQueries,
   queryBrowserDeleteAllSeries,
   queryBrowserDeleteQuery,
   queryBrowserDismissNamespaceAlert,
-  queryBrowserInsertText,
   queryBrowserPatchQuery,
   queryBrowserRunQueries,
   queryBrowserSetAllExpanded,
   queryBrowserSetMetrics,
   queryBrowserSetPollInterval,
+  queryBrowserSetTimespan,
+  queryBrowserToggleAllSeries,
   queryBrowserToggleIsEnabled,
   queryBrowserToggleSeries,
   setAlertCount,

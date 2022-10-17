@@ -15,6 +15,7 @@ declare module '*.png' {
 declare interface Window {
   SERVER_FLAGS: {
     alertManagerBaseURL: string;
+    alertmanagerUserWorkloadBaseURL: string;
     authDisabled: boolean;
     basePath: string;
     branding: string;
@@ -35,6 +36,7 @@ declare interface Window {
     prometheusBaseURL: string;
     prometheusTenancyBaseURL: string;
     quickStarts: string;
+    releaseVersion: string;
     requestTokenURL: string;
     inactivityTimeout: number;
     statuspageID: string;
@@ -42,13 +44,18 @@ declare interface Window {
     GOOS: string;
     graphqlBaseURL: string;
     developerCatalogCategories: string;
+    perspectives: string;
+    developerCatalogTypes: string;
     userSettingsLocation: string;
     addPage: string; // JSON encoded configuration
     consolePlugins: string[]; // Console dynamic plugins enabled on the cluster
+    i18nNamespaces: string[]; // Available i18n namespaces
     quickStarts: string;
     projectAccessClusterRoles: string;
     clusters: string[];
     controlPlaneTopology: string;
+    telemetry: Record<string, string>;
+    nodeArchitectures: string[];
   };
   windowError?: string;
   __REDUX_DEVTOOLS_EXTENSION_COMPOSE__?: Function;

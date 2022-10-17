@@ -8,20 +8,24 @@ import { useTranslation } from 'react-i18next';
 // @ts-ignore
 import { useDispatch, connect } from 'react-redux';
 import { match as RMatch } from 'react-router-dom';
-import { RowFilter as RowFilterExt } from '@console/dynamic-plugin-sdk';
+import { RowFilter as RowFilterExt, Rule } from '@console/dynamic-plugin-sdk';
 import { alertingLoaded, alertingSetRules } from '@console/internal/actions/observe';
 import { sortList } from '@console/internal/actions/ui';
 import { getFilteredRows } from '@console/internal/components/factory/table-data-hook';
 import { FilterToolbar } from '@console/internal/components/filter-toolbar';
 import { usePrometheusRulesPoll } from '@console/internal/components/graphs/prometheus-rules-hook';
-import { Rule } from '@console/internal/components/monitoring/types';
 import {
   alertingRuleStateOrder,
   getAlertsAndRules,
 } from '@console/internal/components/monitoring/utils';
 import { getURLSearchParams, EmptyBox, LoadingBox } from '@console/internal/components/utils';
 import { RootState } from '@console/internal/redux';
-import { monitoringAlertRows, alertFilters, applyListSort } from './monitoring-alerts-utils';
+import {
+  monitoringAlertRows,
+  alertFilters,
+  applyListSort,
+  useAlertManagerSilencesDispatch,
+} from './monitoring-alerts-utils';
 import { MonitoringAlertColumn } from './MonitoringAlertColumn';
 
 import './MonitoringAlerts.scss';
@@ -62,6 +66,7 @@ export const MonitoringAlerts: React.FC<props> = ({ match, rules, filters, listS
     () => (!loading && !loadError ? getAlertsAndRules(response?.data) : { rules: [], alerts: [] }),
     [response, loadError, loading],
   );
+  useAlertManagerSilencesDispatch({ namespace });
 
   React.useEffect(() => {
     const sortThanosRules = _.sortBy(thanosAlertsAndRules.rules, alertingRuleStateOrder);

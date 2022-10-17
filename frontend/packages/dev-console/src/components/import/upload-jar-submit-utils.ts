@@ -73,7 +73,7 @@ export const createOrUpdateDeployment = (
     ...getTriggerAnnotation(name, imageName, namespace, imageChange),
     jarFileName: fileName,
   };
-  const podLabels = getPodLabels(name);
+  const podLabels = getPodLabels(Resources.Kubernetes, name);
   const templateLabels = getTemplateLabels(originalDeployment);
 
   const jArgsIndex = env?.findIndex((e) => e.name === 'JAVA_ARGS');
@@ -150,7 +150,7 @@ const createOrUpdateDeploymentConfig = (
 
   const imageStreamName = imageStream && imageStream.metadata.name;
   const defaultLabels = getAppLabels({ name, applicationName, imageStreamName, selectedTag });
-  const podLabels = getPodLabels(name);
+  const podLabels = getPodLabels(Resources.OpenShift, name);
   const templateLabels = getTemplateLabels(originalDeploymentConfig);
 
   const jArgsIndex = env?.findIndex((e) => e.name === 'JAVA_ARGS');

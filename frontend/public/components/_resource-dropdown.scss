@@ -34,8 +34,7 @@
     margin-left: 10px;
   }
 }
-.co-search-group__accordion-toggle {
-  margin-top: 30px;
+.co-search__accordion-toggle {
   .pf-c-accordion__toggle-text {
     display: flex;
     flex-direction: column;
@@ -60,18 +59,6 @@
 .co-search-group__resource {
   margin: 0 15px 15px 0;
   width: auto !important;
-}
-
-.co-search-input.pf-c-form-control {
-  --pf-c-form-control--Width: 100%;
-  --pf-c-form-control--PaddingTop: 3px;
-  --pf-c-form-control--PaddingRight: 9px;
-  --pf-c-form-control--PaddingBottom: 3px;
-  --pf-c-form-control--PaddingLeft: 9px;
-
-  align-items: center;
-  display: flex;
-  height: auto; // allow tags to wrap
 }
 
 .co-type-selector {

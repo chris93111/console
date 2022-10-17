@@ -2,8 +2,11 @@ import * as React from 'react';
 import { Button, Tab, TabTitleText, TabTitleIcon } from '@patternfly/react-core';
 import { CloseIcon, PlusIcon } from '@patternfly/react-icons';
 import { useTranslation } from 'react-i18next';
+import { useTelemetry } from '@console/shared/src/hooks/useTelemetry';
 import { Tabs } from '../tabs';
+import { sendActivityTick } from './cloud-shell-utils';
 import CloudShellTerminal from './CloudShellTerminal';
+import { TICK_INTERVAL } from './useActivityTick';
 import './MultiTabbedTerminal.scss';
 
 const MAX_TERMINAL_TABS = 8;
@@ -15,7 +18,32 @@ interface MultiTabbedTerminalProps {
 export const MultiTabbedTerminal: React.FC<MultiTabbedTerminalProps> = ({ onClose }) => {
   const [terminalTabs, setTerminalTabs] = React.useState<number[]>([1]);
   const [activeTabKey, setActiveTabKey] = React.useState<number>(1);
+  const [tickNamespace, setTickNamespace] = React.useState<string>(null);
+  const [tickWorkspace, setTickWorkspace] = React.useState<string>(null);
   const { t } = useTranslation();
+  const fireTelemetryEvent = useTelemetry();
+
+  const tick = React.useCallback(() => {
+    return tickNamespace && tickWorkspace && sendActivityTick(tickWorkspace, tickNamespace);
+  }, [tickWorkspace, tickNamespace]);
+
+  React.useEffect(() => {
+    let startTime;
+    let tickReq;
+    const handleTick = (timestamp) => {
+      if (!startTime || timestamp - startTime >= TICK_INTERVAL) {
+        startTime = timestamp;
+        tick();
+      }
+      tickReq = window.requestAnimationFrame(handleTick);
+    };
+
+    tickReq = window.requestAnimationFrame(handleTick);
+
+    return () => {
+      window.cancelAnimationFrame(tickReq);
+    };
+  }, [tick]);
 
   const addNewTerminal = () => {
     if (terminalTabs.length < MAX_TERMINAL_TABS) {
@@ -24,6 +52,7 @@ export const MultiTabbedTerminal: React.FC<MultiTabbedTerminalProps> = ({ onClos
       tabs.push(newTerminalNumber);
       setTerminalTabs(tabs);
       setActiveTabKey(newTerminalNumber);
+      fireTelemetryEvent('Web Terminal New Tab');
     }
   };
 
@@ -37,12 +66,21 @@ export const MultiTabbedTerminal: React.FC<MultiTabbedTerminalProps> = ({ onClos
     setTerminalTabs(tabs);
   };
 
+  const getWorkspaceNamespace = (namespace: string, terminal: number) => {
+    terminal === activeTabKey && namespace !== tickNamespace && setTickNamespace(namespace);
+  };
+
+  const getWorkspaceName = (name: string, terminal: number) => {
+    terminal === activeTabKey && name !== tickWorkspace && setTickWorkspace(name);
+  };
+
   return (
-    <Tabs activeKey={activeTabKey} isBox>
+    <Tabs activeKey={activeTabKey} isBox data-test="multi-tab-terminal">
       {terminalTabs.map((terminalNumber, tabIndex) => (
         <Tab
           translate="no"
           className="co-multi-tabbed-terminal__tab"
+          data-test="multi-tab-terminal-tab"
           eventKey={terminalNumber}
           key={terminalNumber}
           title={
@@ -76,7 +114,11 @@ export const MultiTabbedTerminal: React.FC<MultiTabbedTerminalProps> = ({ onClos
             </div>
           }
         >
-          <CloudShellTerminal />
+          <CloudShellTerminal
+            terminalNumber={terminalNumber}
+            setWorkspaceName={getWorkspaceName}
+            setWorkspaceNamespace={getWorkspaceNamespace}
+          />
         </Tab>
       ))}
       {terminalTabs.length < MAX_TERMINAL_TABS && (

@@ -5,13 +5,13 @@ import * as _ from 'lodash';
 import { getInfrastructurePlatform } from '@console/shared';
 import { Card, CardBody, CardHeader, CardTitle } from '@patternfly/react-core';
 import DetailsBody from '@console/shared/src/components/dashboard/details-card/DetailsBody';
-import DetailItem from '@console/shared/src/components/dashboard/details-card/DetailItem';
+import { OverviewDetailItem } from '@openshift-console/plugin-shared/src';
 import { useFlag } from '@console/shared/src/hooks/flag';
 import {
   DashboardItemProps,
   withDashboardResources,
 } from '@console/internal/components/dashboard/with-dashboard-resources';
-import { FirehoseResource, ExternalLink, FirehoseResult } from '@console/internal/components/utils';
+import { FirehoseResource, FirehoseResult } from '@console/internal/components/utils';
 import { InfrastructureModel } from '@console/internal/models/index';
 import {
   SubscriptionModel,
@@ -71,13 +71,8 @@ export const ObjectServiceDetailsCard: React.FC<DashboardItemProps> = ({
     'data',
   ]) as PrometheusResponse;
   const systemLoadError = prometheusResults.getIn([NOOBAA_SYSTEM_NAME_QUERY, 'loadError']);
-  const dashboardLinkLoadError = prometheusResults.getIn([
-    NOOBAA_DASHBOARD_LINK_QUERY,
-    'loadError',
-  ]);
 
   const systemName = getMetric(systemResult, 'system_name');
-  const systemLink = getMetric(dashboardLinkResult, 'dashboard');
 
   const infrastructurePlatform = getInfrastructurePlatform(infrastructure);
 
@@ -102,25 +97,20 @@ export const ObjectServiceDetailsCard: React.FC<DashboardItemProps> = ({
       </CardHeader>
       <CardBody>
         <DetailsBody>
-          <DetailItem
-            key="service_name"
-            title={t('ceph-storage-plugin~Service name')}
-            error={false}
-            isLoading={false}
-          >
+          <OverviewDetailItem key="service_name" title={t('ceph-storage-plugin~Service name')}>
             <Link to={servicePath}>{serviceName}</Link>
-          </DetailItem>
-          <DetailItem
+          </OverviewDetailItem>
+          <OverviewDetailItem
             key="system_name"
             title={t('ceph-storage-plugin~System name')}
             isLoading={!systemResult || !dashboardLinkResult}
-            error={systemLoadError || dashboardLinkLoadError || !systemName || !systemLink}
+            error={
+              systemLoadError || !systemName ? t('ceph-storage-plugin~Not available') : undefined
+            }
           >
-            <ExternalLink
-              href={systemLink}
-              dataTestID="system-name-mcg"
-              text={t('ceph-storage-plugin~Multicloud Object Gateway')}
-            />
+            <p data-test-id="system-name-mcg">
+              {t('ceph-storage-plugin~Multicloud Object Gateway')}
+            </p>
             {hasRGW && (
               <p
                 className="ceph-details-card__rgw-system-name--margin"
@@ -129,23 +119,31 @@ export const ObjectServiceDetailsCard: React.FC<DashboardItemProps> = ({
                 {t('ceph-storage-plugin~RADOS Object Gateway')}
               </p>
             )}
-          </DetailItem>
-          <DetailItem
+          </OverviewDetailItem>
+          <OverviewDetailItem
             key="provider"
             title={t('ceph-storage-plugin~Provider')}
-            error={!!infrastructureError || (infrastructure && !infrastructurePlatform)}
+            error={
+              !!infrastructureError || (infrastructure && !infrastructurePlatform)
+                ? t('ceph-storage-plugin~Not available')
+                : undefined
+            }
             isLoading={!infrastructureLoaded}
           >
             {infrastructurePlatform}
-          </DetailItem>
-          <DetailItem
+          </OverviewDetailItem>
+          <OverviewDetailItem
             key="version"
             title={t('ceph-storage-plugin~Version')}
             isLoading={!subscriptionLoaded}
-            error={subscriptionLoaded && !serviceVersion}
+            error={
+              subscriptionLoaded && !serviceVersion
+                ? t('ceph-storage-plugin~Not available')
+                : undefined
+            }
           >
             {serviceVersion}
-          </DetailItem>
+          </OverviewDetailItem>
         </DetailsBody>
       </CardBody>
     </Card>

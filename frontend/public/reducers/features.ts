@@ -12,9 +12,7 @@ import {
   isModelFeatureFlag as isDynamicModelFeatureFlag,
 } from '@console/dynamic-plugin-sdk/src/extensions';
 import {
-  ChargebackReportModel,
   ClusterAutoscalerModel,
-  ClusterServiceClassModel,
   ConsoleCLIDownloadModel,
   ConsoleExternalLogLinkModel,
   ConsoleLinkModel,
@@ -37,14 +35,19 @@ import { pluginStore } from '../plugins';
 // eslint-disable-next-line prettier/prettier
 export type { FeatureState };
 
-export const defaults = _.mapValues(FLAGS, (flag) =>
-  flag === FLAGS.AUTH_ENABLED ? !window.SERVER_FLAGS.authDisabled : undefined,
-);
+export const defaults = _.mapValues(FLAGS, (flag) => {
+  switch (flag) {
+    case FLAGS.AUTH_ENABLED:
+      return !window.SERVER_FLAGS.authDisabled;
+    case FLAGS.MONITORING:
+      return !!window.SERVER_FLAGS.prometheusBaseURL && !!window.SERVER_FLAGS.prometheusTenancyBaseURL;
+    default:
+      return undefined;
+  }
+});
 
 export const baseCRDs = {
-  [referenceForModel(ChargebackReportModel)]: FLAGS.CHARGEBACK,
   [referenceForModel(ClusterAutoscalerModel)]: FLAGS.CLUSTER_AUTOSCALER,
-  [referenceForModel(ClusterServiceClassModel)]: FLAGS.SERVICE_CATALOG,
   [referenceForModel(ConsoleLinkModel)]: FLAGS.CONSOLE_LINK,
   [referenceForModel(ConsoleCLIDownloadModel)]: FLAGS.CONSOLE_CLI_DOWNLOAD,
   [referenceForModel(ConsoleExternalLogLinkModel)]: FLAGS.CONSOLE_EXTERNAL_LOG_LINK,

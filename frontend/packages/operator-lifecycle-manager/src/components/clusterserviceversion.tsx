@@ -15,7 +15,12 @@ import * as _ from 'lodash';
 import { Helmet } from 'react-helmet';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link, match as RouterMatch } from 'react-router-dom';
-import { WatchK8sResource, ResourceStatus, StatusIconAndText } from '@console/dynamic-plugin-sdk';
+import {
+  WatchK8sResource,
+  ResourceStatus,
+  StatusIconAndText,
+  useAccessReviewAllowed,
+} from '@console/dynamic-plugin-sdk';
 import { Conditions, ConditionTypes } from '@console/internal/components/conditions';
 import { ResourceEventStream } from '@console/internal/components/events';
 import {
@@ -27,37 +32,36 @@ import {
   Flatten,
 } from '@console/internal/components/factory';
 import {
-  Kebab,
-  MsgBox,
-  navFactory,
-  ResourceKebab,
-  ResourceLink,
-  Timestamp,
-  SectionHeading,
-  ResourceSummary,
-  ScrollToTopOnMount,
   AsyncComponent,
+  DOC_URL_OPERATORFRAMEWORK_SDK,
+  documentationURLs,
   ExternalLink,
   FirehoseResult,
-  StatusBox,
-  RequireCreatePermission,
-  resourcePathFromModel,
-  KebabOption,
-  resourceObjPath,
+  getDocumentationURL,
+  Kebab,
   KebabAction,
-  isUpstream,
-  openshiftHelpBase,
+  KebabOption,
+  MsgBox,
+  navFactory,
   Page,
+  RequireCreatePermission,
+  ResourceKebab,
+  ResourceLink,
+  resourceObjPath,
+  resourcePathFromModel,
+  ResourceSummary,
+  ScrollToTopOnMount,
+  SectionHeading,
+  StatusBox,
+  Timestamp,
 } from '@console/internal/components/utils';
 import { getBreadcrumbPath } from '@console/internal/components/utils/breadcrumbs';
 import { useK8sWatchResource } from '@console/internal/components/utils/k8s-watch-hook';
 import { useAccessReview } from '@console/internal/components/utils/rbac';
 import { ConsoleOperatorConfigModel } from '@console/internal/models';
 import {
-  modelFor,
   referenceForModel,
   referenceFor,
-  groupVersionFor,
   k8sKill,
   k8sPatch,
   k8sGet,
@@ -65,7 +69,7 @@ import {
   K8sResourceKind,
 } from '@console/internal/module/k8s';
 import { ALL_NAMESPACES_KEY, Status, getNamespace } from '@console/shared';
-import { withFallback } from '@console/shared/src/components/error/error-boundary';
+import { withFallback } from '@console/shared/src/components/error';
 import { consolePluginModal } from '@console/shared/src/components/modals';
 import { RedExclamationCircleIcon } from '@console/shared/src/components/status/icons';
 import { CONSOLE_OPERATOR_CONFIG_NAME } from '@console/shared/src/constants';
@@ -723,16 +727,14 @@ export const ClusterServiceVersionList: React.FC<ClusterServiceVersionListProps>
 export const ClusterServiceVersionsPage: React.FC<ClusterServiceVersionsPageProps> = (props) => {
   const { t } = useTranslation();
   const title = t('olm~Installed Operators');
-  const olmLink = isUpstream()
-    ? `${openshiftHelpBase}operators/understanding/olm-what-operators-are.html`
-    : `${openshiftHelpBase}html/operators/understanding-operators#olm-what-operators-are`;
+  const olmURL = getDocumentationURL(documentationURLs.operators);
   const helpText = (
     <Trans ns="olm">
       Installed Operators are represented by ClusterServiceVersions within this Namespace. For more
       information, see the{' '}
-      <ExternalLink href={olmLink}>Understanding Operators documentation</ExternalLink>. Or create
-      an Operator and ClusterServiceVersion using the{' '}
-      <ExternalLink href="https://sdk.operatorframework.io/">Operator SDK</ExternalLink>.
+      <ExternalLink href={olmURL}>Understanding Operators documentation</ExternalLink>. Or create an
+      Operator and ClusterServiceVersion using the{' '}
+      <ExternalLink href={DOC_URL_OPERATORFRAMEWORK_SDK}>Operator SDK</ExternalLink>.
     </Trans>
   );
 
@@ -877,20 +879,18 @@ const InitializationResourceAlert: React.FC<InitializationResourceAlertProps> = 
   const { initializationResource, csv } = props;
 
   const initializationResourceKind = initializationResource?.kind;
-  const { group: initializationResourceGroup } = groupVersionFor(
-    initializationResource?.apiVersion,
-  );
-  const model = modelFor(referenceFor(initializationResource));
+  const initializationResourceReference = referenceFor(initializationResource);
+  const [model] = useK8sModel(initializationResourceReference);
 
   // Check if the CR is already present - only watches for the model in namespace
   const [customResource, customResourceLoaded] = useK8sWatchResource<K8sResourceCommon[]>({
-    kind: referenceForModel(model),
+    kind: initializationResourceReference,
     namespaced: true,
     isList: true,
   });
 
-  const canCreateCustomResource = useAccessReview({
-    group: initializationResourceGroup,
+  const canCreateCustomResource = useAccessReviewAllowed({
+    group: model?.apiGroup,
     resource: model?.plural,
     namespace: model?.namespaced
       ? initializationResource?.metadata.namespace || csv.metadata.namespace
@@ -914,11 +914,6 @@ const InitializationResourceAlert: React.FC<InitializationResourceAlertProps> = 
         <CreateInitializationResourceButton
           obj={props.csv}
           initializationResource={initializationResource}
-          targetNamespace={
-            model?.namespaced
-              ? initializationResource?.metadata.namespace || csv.metadata?.namespace
-              : null
-          }
         />
       </Alert>
     );
@@ -1111,16 +1106,20 @@ export const ClusterServiceVersionDetails: React.FC<ClusterServiceVersionDetails
               </dd>
               <dt>{t('olm~Status reason')}</dt>
               <dd>{status ? status.message : t('olm~Unknown')}</dd>
-              <dt>{t('olm~Operator Deployments')}</dt>
-              {spec.install.spec.deployments.map(({ name }) => (
-                <dd key={name}>
-                  <ResourceLink
-                    name={name}
-                    kind="Deployment"
-                    namespace={operatorNamespaceFor(props.obj)}
-                  />
-                </dd>
-              ))}
+              {!_.isEmpty(spec.install.spec?.deployments) && (
+                <>
+                  <dt>{t('olm~Operator Deployments')}</dt>
+                  {spec.install.spec.deployments.map(({ name }) => (
+                    <dd key={name}>
+                      <ResourceLink
+                        name={name}
+                        kind="Deployment"
+                        namespace={operatorNamespaceFor(props.obj)}
+                      />
+                    </dd>
+                  ))}
+                </>
+              )}
               {!_.isEmpty(permissions) && (
                 <>
                   <dt>{t('olm~Operator ServiceAccounts')}</dt>

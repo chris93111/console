@@ -1,4 +1,12 @@
-import { Edge, EdgeModel, Model, Node, NodeModel, NodeShape } from '@patternfly/react-topology';
+import {
+  Edge,
+  EdgeModel,
+  EdgeStyle,
+  Model,
+  Node,
+  NodeModel,
+  NodeShape,
+} from '@patternfly/react-topology/dist/esm/types';
 import i18next from 'i18next';
 import * as _ from 'lodash';
 import { WatchK8sResultsObject } from '@console/dynamic-plugin-sdk';
@@ -66,10 +74,14 @@ import {
 export const getKnNodeModelProps = (type: string) => {
   switch (type) {
     case NodeType.EventSource:
+    case NodeType.EventSink:
+    case NodeType.EventSourceKafka:
+    case NodeType.KafkaSink:
       return {
         width: NODE_WIDTH,
         height: NODE_HEIGHT,
         visible: true,
+        shape: NodeShape.rhombus,
         style: {
           padding: NODE_PADDING,
         },
@@ -91,7 +103,7 @@ export const getKnNodeModelProps = (type: string) => {
         width: NODE_WIDTH,
         height: NODE_HEIGHT / 2,
         visible: true,
-        shape: NodeShape.rect,
+        shape: NodeShape.stadium,
         style: {
           padding: NODE_PADDING,
         },
@@ -283,6 +295,11 @@ export const getPubSubSubscribers = (
         relationshipResource: 'triggers',
         isRelatedResource: isSubscriber,
       },
+      {
+        relatedResource: 'kafkasinks',
+        relationshipResource: 'triggers',
+        isRelatedResource: isSubscriber,
+      },
     ],
     Service: [
       {
@@ -306,6 +323,11 @@ export const getPubSubSubscribers = (
       },
       {
         relatedResource: 'services',
+        relationshipResource: 'eventingsubscription',
+        isRelatedResource: isSubscriber,
+      },
+      {
+        relatedResource: 'kafkasinks',
         relationshipResource: 'eventingsubscription',
         isRelatedResource: isSubscriber,
       },
@@ -491,7 +513,7 @@ export const getKnativeServiceData = (
   const configurations = getOwnedResources(resource, resources.configurations?.data);
   const revisions = getKnativeRevisionsData(resource, resources);
   const ksroutes = resources.ksroutes
-    ? getOwnedResources(resource, resources.ksroutes.data)
+    ? getOwnedResources(resource, resources.ksroutes?.data)
     : undefined;
   const eventSources = getSubscribedPubSubNodes(resource, resources);
   const overviewItem: KnativeItem = {
@@ -516,10 +538,10 @@ export const getDeploymentsForKamelet = (
     [EVENT_SOURCE_CAMEL_KIND, CamelKameletBindingModel.kind].includes(resource.kind) &&
     resources.integrations
   ) {
-    const intgrationsOwnData = getOwnedResources(resource, resources.integrations.data);
+    const integrationsOwnData = getOwnedResources(resource, resources.integrations.data);
     const associatedDeployment =
-      intgrationsOwnData?.length > 0
-        ? getOwnedResources(intgrationsOwnData[0], resources.deployments?.data)
+      integrationsOwnData?.length > 0
+        ? getOwnedResources(integrationsOwnData[0], resources.deployments?.data)
         : [];
     return associatedDeployment;
   }
@@ -823,34 +845,38 @@ export const getTriggerTopologyEdgeItems = (broker: K8sResourceKind, resources):
   const {
     metadata: { uid, name },
   } = broker;
-  const { triggers, ksservices } = resources;
+  const { triggers, ksservices, kafkasinks } = resources;
+  const possibleTargetResources = [
+    ...(ksservices?.data.length > 0 ? ksservices.data : []),
+    ...(kafkasinks?.data.length > 0 ? kafkasinks.data : []),
+  ];
   const edges = [];
   _.forEach(triggers?.data, (trigger) => {
     const brokerName = trigger?.spec?.broker;
-    const connectedService = trigger.spec?.subscriber?.ref;
-    if (name === brokerName && ksservices?.data.length > 0) {
-      const knativeService = _.find(ksservices.data as K8sResourceKind[], {
-        metadata: { name: connectedService.name },
+    const connectedResource = trigger.spec?.subscriber?.ref;
+    if (name === brokerName && possibleTargetResources.length > 0) {
+      const targetResource = _.find(possibleTargetResources as K8sResourceKind[], {
+        metadata: { name: connectedResource.name },
       });
       if (
-        knativeService &&
-        getApiGroup(connectedService.apiVersion) ===
-          apiGroupForReference(referenceFor(knativeService))
+        targetResource &&
+        getApiGroup(connectedResource.apiVersion) ===
+          apiGroupForReference(referenceFor(targetResource))
       ) {
         const {
-          metadata: { uid: serviceUid },
-        } = knativeService;
+          metadata: { uid: targetUid },
+        } = targetResource;
         edges.push({
-          id: `${uid}_${serviceUid}`,
+          id: `${uid}_${targetUid}`,
           type: EdgeType.EventPubSubLink,
           source: uid,
-          target: serviceUid,
+          target: targetUid,
           data: {
             resources: {
               obj: trigger,
               eventSources: getSubscribedEventsources(broker, resources),
               brokers: [broker],
-              ksservices: [knativeService],
+              subscriberRes: [targetResource],
               filters: getTriggerFilters(trigger).filters,
             },
           },
@@ -869,14 +895,22 @@ export const getSubscriptionTopologyEdgeItems = (
     kind,
     metadata: { uid, name },
   } = resource;
-  const { eventingsubscription, ksservices } = resources;
+  const { eventingsubscription, ksservices, kafkasinks } = resources;
+  const possibleTargetResources = [
+    ...(ksservices?.data.length > 0 ? ksservices.data : []),
+    ...(kafkasinks?.data.length > 0 ? kafkasinks.data : []),
+  ];
   const edges = [];
   _.forEach(eventingsubscription?.data, (subRes) => {
     const channelData = subRes?.spec?.channel;
-    if (name === channelData?.name && kind === channelData?.kind && ksservices?.data.length > 0) {
+    if (
+      name === channelData?.name &&
+      kind === channelData?.kind &&
+      possibleTargetResources.length > 0
+    ) {
       const svcData = subRes?.spec?.subscriber?.ref;
       svcData &&
-        _.forEach(ksservices.data, (res) => {
+        _.forEach(possibleTargetResources, (res) => {
           const {
             metadata: { uid: resUid, name: resName },
           } = res;
@@ -894,7 +928,7 @@ export const getSubscriptionTopologyEdgeItems = (
                   obj: subRes,
                   eventSources: getSubscribedEventsources(resource, resources),
                   channels: [resource],
-                  ksservices: [res],
+                  subscriberRes: [res],
                 },
               },
             });
@@ -930,6 +964,7 @@ export const getKnSourceKafkaTopologyEdgeItems = (
       acc.push({
         id: edgeId,
         type: EdgeType.EventSourceKafkaLink,
+        edgeStyle: EdgeStyle.dashedMd,
         label: i18next.t('knative-plugin~Kafka connector'),
         source: kafkaSource.metadata?.uid,
         target: kafkaConnection.metadata?.uid,
@@ -1060,11 +1095,11 @@ const getOwnedEventSourceData = (
 };
 
 const getOwnedEventSinkData = (resource: K8sResourceKind, data: TopologyDataObject, resources) => {
-  const ownedIntegrationData = getOwnedResources(resource, resources.integrations.data);
-  const ownedServiceData = getOwnedResources(ownedIntegrationData[0], resources.ksservices.data);
+  const ownedIntegrationData = getOwnedResources(resource, resources.integrations?.data);
+  const ownedServiceData = getOwnedResources(ownedIntegrationData[0], resources.ksservices?.data);
   const ownedDeploymentData = getOwnedResources(
     ownedIntegrationData[0],
-    resources.deployments.data,
+    resources.deployments?.data,
   );
   let knServiceData = {};
   if (ownedServiceData.length > 0) {
@@ -1159,6 +1194,7 @@ export const transformKnNodeData = (
   _.forEach(knResourcesData, (res) => {
     const item = createKnativeDeploymentItems(res, resources, utils);
     switch (type) {
+      case NodeType.KafkaSink:
       case NodeType.EventSink: {
         const data = createEventSinkTopologyNodeData(res, item, type);
         const itemData = getOwnedEventSinkData(res, data, resources);
@@ -1184,7 +1220,10 @@ export const transformKnNodeData = (
         if (!(res.kind === EVENT_SOURCE_SINK_BINDING_KIND && res.metadata?.ownerReferences)) {
           const itemData = getOwnedEventSourceData(res, data, resources);
           knDataModel.nodes.push(...getKnativeTopologyNodeItems(res, type, itemData, resources));
-          knDataModel.edges.push(...getEventTopologyEdgeItems(res, resources.ksservices));
+          knDataModel.edges.push(
+            ...(resources.ksservices ? getEventTopologyEdgeItems(res, resources.ksservices) : []),
+            ...(resources.kafkasinks ? getEventTopologyEdgeItems(res, resources.kafkasinks) : []),
+          );
           sinkURIDataModel(res, resources, data, knDataModel);
           const newGroup = getTopologyGroupItems(res);
           mergeGroup(newGroup, knDataModel.nodes);
@@ -1225,6 +1264,7 @@ export const transformKnNodeData = (
         knDataModel.edges.push(
           ...getKnSourceKafkaTopologyEdgeItems(res, resources.kafkaConnections),
           ...getEventTopologyEdgeItems(res, resources.ksservices),
+          ...getEventTopologyEdgeItems(res, resources.kafkasinks),
         );
         sinkURIDataModel(res, resources, data, knDataModel);
         const newGroup = getTopologyGroupItems(res);

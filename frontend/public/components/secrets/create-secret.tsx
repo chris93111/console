@@ -153,7 +153,7 @@ export const SecretFormWrapper = withTranslation()(
         inProgress: false,
         type: defaultSecretType,
         stringData: _.mapValues(_.get(props.obj, 'data'), (value) => {
-          return value ? Base64.decode(value) : '';
+          return value ? Base64.atob(value) : '';
         }),
         disableForm: false,
       };
@@ -188,13 +188,14 @@ export const SecretFormWrapper = withTranslation()(
         disableForm: disable,
       });
     }
+
     save(e) {
       e.preventDefault();
       const { metadata } = this.state.secret;
       this.setState({ inProgress: true });
       const data = {
         ..._.mapValues(this.state.stringData, (value) => {
-          return Base64.encode(value);
+          return Base64.btoa(value);
         }),
         ...this.state?.base64StringData,
       };
@@ -269,6 +270,7 @@ export const SecretFormWrapper = withTranslation()(
     render() {
       const { secretTypeAbstraction } = this.state;
       const { t, isCreate, modal, onCancel = history.goBack } = this.props;
+
       const title = secretDisplayType(isCreate, secretTypeAbstraction, t);
       return modal ? (
         <form className="co-create-secret-form modal-content" onSubmit={this.save}>
@@ -476,8 +478,20 @@ class ConfigEntryFormWithTranslation extends React.Component<
     this.setState({ email: event.currentTarget.value }, this.propagateChange);
   };
 
+  onBlurHandler: React.ReactEventHandler<HTMLInputElement> = (event) => {
+    const { name, value } = event.currentTarget;
+    this.setState(
+      (prevState) => ({
+        ...prevState,
+        [name]: value.trim(),
+      }),
+      this.propagateChange,
+    );
+  };
+
   render() {
     const { t } = this.props;
+
     return (
       <div className="co-m-pane__body-group" data-test-id="create-image-secret-form">
         <div className="form-group">
@@ -493,6 +507,8 @@ class ConfigEntryFormWithTranslation extends React.Component<
               name="address"
               onChange={this.onAddressChanged}
               value={this.state.address}
+              onBlur={this.onBlurHandler}
+              data-test="image-secret-address"
               required
             />
           </div>
@@ -512,6 +528,8 @@ class ConfigEntryFormWithTranslation extends React.Component<
               name="username"
               onChange={this.onUsernameChanged}
               value={this.state.username}
+              onBlur={this.onBlurHandler}
+              data-test="image-secret-username"
               required
             />
           </div>
@@ -528,6 +546,8 @@ class ConfigEntryFormWithTranslation extends React.Component<
               name="password"
               onChange={this.onPasswordChanged}
               value={this.state.password}
+              onBlur={this.onBlurHandler}
+              data-test="image-secret-password"
               required
             />
           </div>
@@ -544,6 +564,8 @@ class ConfigEntryFormWithTranslation extends React.Component<
               name="email"
               onChange={this.onEmailChanged}
               value={this.state.email}
+              onBlur={this.onBlurHandler}
+              data-test="image-secret-email"
             />
           </div>
         </div>
@@ -917,6 +939,7 @@ class BasicAuthSubformWithTranslation extends React.Component<
       () => this.props.onChange(this.state),
     );
   }
+
   render() {
     const { t } = this.props;
     return (

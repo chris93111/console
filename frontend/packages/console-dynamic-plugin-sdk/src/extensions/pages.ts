@@ -28,7 +28,12 @@ type RoutePageProperties = {
   exact?: boolean;
 };
 
-/** Adds new page to Console router. */
+/**
+ * Adds new page to Console router.
+ *
+ * Under the hood we use React Router.
+ * See https://v5.reactrouter.com/
+ */
 export type RoutePage = ExtensionDeclaration<'console.page/route', RoutePageProperties>;
 
 /** Adds new resource list page to Console router. */
@@ -43,7 +48,10 @@ export type ResourceDetailsPage = ExtensionDeclaration<
   ResourcePageProperties & {}
 >;
 
-/** Adds new resource tab page to Console router. */
+/**
+ * @deprecated - Use `console.tab/horizontalNav` instead
+ * Adds new resource tab page to Console router.
+ */
 export type ResourceTabPage = ExtensionDeclaration<
   'console.page/resource/tab',
   Omit<ResourcePageProperties, 'component'> & {
@@ -58,7 +66,12 @@ export type ResourceTabPage = ExtensionDeclaration<
   }
 >;
 
-/** Adds new standalone page (rendered outside the common page layout) to Console router. */
+/**
+ * Adds new standalone page (rendered outside the common page layout) to Console router.
+ *
+ * Under the hood we use React Router.
+ * See https://v5.reactrouter.com/
+ */
 export type StandaloneRoutePage = ExtensionDeclaration<
   'console.page/route/standalone',
   Omit<RoutePageProperties, 'perspective'>
@@ -77,5 +90,6 @@ export const isResourceListPage = (e: Extension): e is ResourceListPage =>
 export const isResourceDetailsPage = (e: Extension): e is ResourceDetailsPage =>
   e.type === 'console.page/resource/details';
 
+/** @deprecated - use `console.tab/horizontalNav` */
 export const isResourceTabPage = (e: Extension): e is ResourceTabPage =>
   e.type === 'console.page/resource/tab';

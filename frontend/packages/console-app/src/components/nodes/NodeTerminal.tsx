@@ -100,7 +100,7 @@ const NodeTerminalInner: React.FC<NodeTerminalInnerProps> = ({ obj }) => {
   const message = (
     <Trans t={t} ns="console-app">
       <p>
-        To use host binaries, run <code>chroot /host</code>
+        To use host binaries, run <code className="co-code">chroot /host</code>
       </p>
     </Trans>
   );
@@ -139,11 +139,15 @@ const NodeTerminal: React.FC<NodeTerminalProps> = ({ obj: node }) => {
         console.warn('Could not delete node terminal debug namespace.', e);
       }
     };
+    const closeTab = (event) => {
+      event.preventDefault();
+      deleteNamespace(namespace.metadata.name);
+    };
     const createDebugPod = async () => {
       try {
         namespace = await k8sCreate(NamespaceModel, {
           metadata: {
-            generateName: 'openshift-debug-node-',
+            generateName: 'console-debug-node-',
             labels: {
               'openshift.io/run-level': '0',
             },
@@ -175,10 +179,10 @@ const NodeTerminal: React.FC<NodeTerminalProps> = ({ obj: node }) => {
       }
     };
     createDebugPod();
-    window.addEventListener('beforeunload', deleteNamespace);
+    window.addEventListener('beforeunload', closeTab);
     return () => {
       deleteNamespace(namespace.metadata.name);
-      window.removeEventListener('beforeunload', deleteNamespace);
+      window.removeEventListener('beforeunload', closeTab);
     };
   }, [nodeName]);
 

@@ -9,9 +9,13 @@ released, installed and upgraded independently from each other. To ensure compat
 other plugins, each plugin must declare its dependencies using [semantic version](https://semver.org/)
 ranges.
 
-See the
-[OpenShift Console Dynamic Plugins feature page](https://github.com/openshift/enhancements/blob/master/enhancements/console/dynamic-plugins.md)
-for a high level overview of dynamic plugins in relation to OLM operators and cluster administration.
+## Related Documentation
+
+_[Extension Documentation](./docs/console-extensions.md)_ - Detailed documentation of every available console extension point.
+
+_[API Documentation](./docs/api.md)_ - Detailed documentation of hooks, components, and other APIs provided by this package.
+
+_[OpenShift Console Dynamic Plugins feature page](https://github.com/openshift/enhancements/blob/master/enhancements/console/dynamic-plugins.md)_ - A high level overview of dynamic plugins in relation to OLM operators and cluster administration.
 
 Example project structure:
 
@@ -26,11 +30,31 @@ dynamic-demo-plugin/
 
 ## SDK packages
 
-| Package Name | Description |
-| --- | --- |
-| `@openshift-console/dynamic-plugin-sdk` | Provides core APIs, types and utilities used by dynamic plugins at runtime. |
-| `@openshift-console/dynamic-plugin-sdk-webpack` | Provides webpack plugin `ConsoleRemotePlugin` used to build all dynamic plugin assets. |
-| `@openshift-console/dynamic-plugin-sdk-internal` | Internal package exposing additional code. |
+| Package Name                                     | Description                                                                                                                              |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `@openshift-console/dynamic-plugin-sdk`          | Provides core APIs, types and utilities used by dynamic plugins at runtime.                                                              |
+| `@openshift-console/dynamic-plugin-sdk-webpack`  | Provides webpack plugin `ConsoleRemotePlugin` used to build all dynamic plugin assets.                                                   |
+| `@openshift-console/dynamic-plugin-sdk-internal` | Internal package exposing additional code.                                                                                               |
+| `@openshift-console/plugin-shared`               | Provides reusable components and utility functions to build OCP dynamic plugins. Compatible with multiple versions of OpenShift Console. |
+
+## OpenShift Console Versions vs SDK Versions
+
+Not all NPM packages are fully compatible with all versions of the Console. This table will help align compatible versions of the SDK Packages to versions of the OpenShift Console.
+
+| Console Version   | SDK Package                                     | Last Package Version |
+| ----------------- | ----------------------------------------------- | -------------------- |
+| 4.12.x            | `@openshift-console/dynamic-plugin-sdk`         | Latest               |
+|                   | `@openshift-console/dynamic-plugin-sdk-webpack` | Latest               |
+| 4.11.x            | `@openshift-console/dynamic-plugin-sdk`         | 0.0.12               |
+|                   | `@openshift-console/dynamic-plugin-sdk-webpack` | 0.0.7                |
+| 4.10.x **[Tech]** | `@openshift-console/dynamic-plugin-sdk`         | 0.0.3                |
+|                   | `@openshift-console/dynamic-plugin-sdk-webpack` | 0.0.6                |
+| 4.9.x **[Dev]**   | `@openshift-console/dynamic-plugin-sdk`         | 0.0.0-alpha18        |
+
+Notes
+
+- **[Tech]** - Release 4.10 was Tech Preview for the SDK packages
+- **[Dev]** - Release 4.9 was Dev Preview for the SDK packages
 
 ## `package.json`
 
@@ -165,6 +189,8 @@ to your local plugin asset server (web server hosting the plugin's generated ass
 Your plugin should start loading automatically upon Console application startup. Inspect the value of
 `window.SERVER_FLAGS.consolePlugins` to see the list of plugins which Console loads upon its startup.
 
+Note running plugins in this way will likely result in incorrect data in the Cluster Dashboard Dynamic Plugins popover.
+
 ## Plugin detection and management
 
 [Console operator](https://github.com/openshift/console-operator) detects available plugins through
@@ -220,3 +246,9 @@ yarn publish dist/<pkg> --no-git-tag-version --new-version <version>
 ```
 
 If the given package doesn't exist in npm registry, add `--access public` to `yarn publish` command.
+
+## Future Deprecations in Shared Plugin Dependencies
+
+Certain packages are currently in the shared plugin dependencies that will be removed in the future. Plugin authors will need to manually add these items to their configurations or chose other options:
+
+_- react-helmet_

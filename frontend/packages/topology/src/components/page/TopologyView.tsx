@@ -1,6 +1,12 @@
 import * as React from 'react';
 import { Drawer, DrawerContent, DrawerContentBody, Stack, StackItem } from '@patternfly/react-core';
-import { GraphElement, isGraph, Model, Visualization } from '@patternfly/react-topology';
+import {
+  GraphElement,
+  isGraph,
+  Model,
+  TopologyQuadrant,
+  Visualization,
+} from '@patternfly/react-topology';
 import * as classNames from 'classnames';
 import { ConnectDropTarget, DropTargetMonitor } from 'react-dnd';
 import { useTranslation } from 'react-i18next';
@@ -55,7 +61,6 @@ import { setSupportedTopologyFilters, setSupportedTopologyKinds } from '../../re
 import {
   GraphData,
   TopologyDecorator,
-  TopologyDecoratorQuadrant,
   TopologyDisplayFilterType,
   TopologyViewType,
 } from '../../topology-types';
@@ -64,11 +69,13 @@ import TopologyListView from '../list-view/TopologyListView';
 import TopologyQuickSearch from '../quick-search/TopologyQuickSearch';
 import { isSidebarRenderable, SelectedEntityDetails } from '../side-bar/SelectedEntityDetails';
 import TopologySideBar from '../side-bar/TopologySideBar';
+import { LimitExceededState } from './LimitExceededState';
 import TopologyEmptyState from './TopologyEmptyState';
 
 import './TopologyView.scss';
 
 const FILTER_ACTIVE_CLASS = 'odc-m-filter-active';
+const MAX_NODES_LIMIT = 100;
 
 interface StateProps {
   application?: string;
@@ -113,6 +120,7 @@ export const ConnectedTopologyView: React.FC<ComponentProps> = ({
   const [filteredModel, setFilteredModel] = React.useState<Model>();
   const [selectedEntity, setSelectedEntity] = React.useState<GraphElement>(null);
   const [visualization, setVisualization] = React.useState<Visualization>();
+  const [showTopologyAnyway, setShowTopologyAnyway] = React.useState(false);
   const displayFilters = useDisplayFilters();
   const filters = useDeepCompareMemoize(displayFilters);
   const applicationRef = React.useRef<string>(null);
@@ -232,10 +240,10 @@ export const ConnectedTopologyView: React.FC<ComponentProps> = ({
           return acc;
         },
         {
-          [TopologyDecoratorQuadrant.upperLeft]: [],
-          [TopologyDecoratorQuadrant.upperRight]: [],
-          [TopologyDecoratorQuadrant.lowerLeft]: [],
-          [TopologyDecoratorQuadrant.lowerRight]: [],
+          [TopologyQuadrant.upperLeft]: [],
+          [TopologyQuadrant.upperRight]: [],
+          [TopologyQuadrant.lowerLeft]: [],
+          [TopologyQuadrant.lowerRight]: [],
         },
       );
       Object.keys(allDecorators).forEach((key) =>
@@ -320,25 +328,29 @@ export const ConnectedTopologyView: React.FC<ComponentProps> = ({
     }
   }, [searchParams, labelParams]);
 
+  const nodesLength = filteredModel?.nodes?.length ?? 0;
+
   const viewContent = React.useMemo(
     () =>
-      viewType === TopologyViewType.list ? (
-        <TopologyListView
-          model={filteredModel}
-          namespace={namespace}
-          onSelect={onSelect}
-          setVisualization={setVisualization}
-        />
-      ) : (
-        <Topology
-          model={filteredModel}
-          namespace={namespace}
-          application={applicationRef.current}
-          onSelect={onSelect}
-          setVisualization={setVisualization}
-        />
-      ),
-    [filteredModel, namespace, onSelect, viewType],
+      nodesLength <= MAX_NODES_LIMIT || showTopologyAnyway ? (
+        viewType === TopologyViewType.list ? (
+          <TopologyListView
+            model={filteredModel}
+            namespace={namespace}
+            onSelect={onSelect}
+            setVisualization={setVisualization}
+          />
+        ) : (
+          <Topology
+            model={filteredModel}
+            namespace={namespace}
+            application={applicationRef.current}
+            onSelect={onSelect}
+            setVisualization={setVisualization}
+          />
+        )
+      ) : null,
+    [filteredModel, namespace, onSelect, viewType, nodesLength, showTopologyAnyway],
   );
 
   const isSidebarAvailable = isSidebarRenderable(selectedEntity);
@@ -355,7 +367,9 @@ export const ConnectedTopologyView: React.FC<ComponentProps> = ({
             viewType={viewType}
             visualization={visualization}
             setIsQuickSearchOpen={setIsQuickSearchOpenAndFireEvent}
-            isDisabled={!model.nodes?.length}
+            isDisabled={
+              !model.nodes?.length || (nodesLength > MAX_NODES_LIMIT && !showTopologyAnyway)
+            }
           />
         </StackItem>
         <StackItem isFilled className="pf-topology-container">
@@ -386,7 +400,13 @@ export const ConnectedTopologyView: React.FC<ComponentProps> = ({
                         </span>
                       </div>
                     )}
-                    {viewContent}
+                    {nodesLength > MAX_NODES_LIMIT && !showTopologyAnyway ? (
+                      <LimitExceededState
+                        onShowTopologyAnyway={() => setShowTopologyAnyway(true)}
+                      />
+                    ) : (
+                      viewContent
+                    )}
                     {!model.nodes?.length ? (
                       <TopologyEmptyState setIsQuickSearchOpen={setIsQuickSearchOpenAndFireEvent} />
                     ) : null}

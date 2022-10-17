@@ -1,18 +1,14 @@
 import * as React from 'react';
-import {
-  GraphElement,
-  withDragNode,
-  withSelection,
-  withCreateConnector,
-} from '@patternfly/react-topology';
+import { GraphElement, withDragNode, withSelection } from '@patternfly/react-topology';
 import { contextMenuActions } from '@console/topology/src/actions';
+import { withCreateConnector } from '@console/topology/src/behavior';
 import {
   createConnectorCallback,
   nodeDragSourceSpec,
   withContextMenu,
   CreateConnector,
 } from '@console/topology/src/components/graph-view';
-import BindableNode from '@console/topology/src/components/graph-view/components/nodes/trapezoidNode/BindableNode';
+import BindableNode from '@console/topology/src/components/graph-view/components/nodes/BindableNode';
 import { withEditReviewAccess } from '@console/topology/src/utils';
 import { TYPE_BINDABLE_NODE } from '../const';
 

@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { ClipboardCopy, Tooltip } from '@patternfly/react-core';
 import { useTranslation } from 'react-i18next';
+import { GenericStatus } from '@console/dynamic-plugin-sdk';
 import {
   NodeLink,
   ResourceLink,
@@ -19,7 +20,7 @@ import {
 } from '../../constants';
 import { useGuestAgentInfo } from '../../hooks/use-guest-agent-info';
 import useSSHCommand from '../../hooks/use-ssh-command';
-import useSSHService from '../../hooks/use-ssh-service';
+import { useSSHService2 } from '../../hooks/use-ssh-service';
 import { asVMILikeWrapper } from '../../k8s/wrapper/utils/convert';
 import { GuestAgentInfoWrapper } from '../../k8s/wrapper/vm/guest-agent-info/guest-agent-info-wrapper';
 import { VMWrapper } from '../../k8s/wrapper/vm/vm-wrapper';
@@ -64,8 +65,9 @@ import evictionStrategyModal from '../modals/scheduling-modals/eviction-strategy
 import nodeSelectorModal from '../modals/scheduling-modals/node-selector-modal/connected-node-selector-modal';
 import tolerationsModal from '../modals/scheduling-modals/tolerations-modal/connected-tolerations-modal';
 import { vmStatusModal } from '../modals/vm-status-modal/vm-status-modal';
+import { TARGET_PORT } from '../ssh-service/SSHForm/ssh-form-utils';
 import SSHModal from '../ssh-service/SSHModal';
-import { VMStatus } from '../vm-status/vm-status';
+import { getVMStatusIcon } from '../vm-status/vm-status';
 import VMDetailsItem from './VMDetailsItem';
 import VMDetailsItemTemplate from './VMDetailsItemTemplate';
 import VMEditWithPencil from './VMEditWithPencil';
@@ -162,10 +164,14 @@ export const VMDetailsList: React.FC<VMResourceListProps> = ({
   const ipAddrs = getVmiIpAddresses(vmi);
   const workloadProfile = vmiLikeWrapper?.getWorkloadProfile();
 
-  const { sshServices } = useSSHService(vm);
-  const { command, user } = useSSHCommand(vm);
+  const [sshService] = useSSHService2(vmi);
+
+  const { command, user } = useSSHCommand(vmi);
   const vmiReady = isVMIReady(vmi);
-  const sshServicesRunning = sshServices?.running;
+  const sshServicesRunning = !!sshService;
+  const sshServicePort = sshService?.spec?.ports?.find(
+    (port) => parseInt(port.targetPort, 10) === TARGET_PORT,
+  )?.nodePort;
 
   const [canWatchHC] = useAccessReview2({
     group: HyperConvergedModel?.apiGroup,
@@ -182,7 +188,7 @@ export const VMDetailsList: React.FC<VMResourceListProps> = ({
         onEditClick={() => vmStatusModal({ vmi })}
         idValue={prefixedID(id, 'vm-statuses')}
       >
-        <VMStatus vm={vm} vmi={vmi} vmStatusBundle={vmStatusBundle} />
+        <GenericStatus title={vm?.status?.printableStatus} Icon={getVMStatusIcon(status, false)} />
       </VMDetailsItem>
 
       <VMDetailsItem
@@ -294,7 +300,7 @@ export const VMDetailsList: React.FC<VMResourceListProps> = ({
         <span data-test="details-item-ssh-access-port">
           {vmiReady ? (
             sshServicesRunning ? (
-              t('kubevirt-plugin~port: {{port}}', { port: sshServices?.port })
+              t('kubevirt-plugin~port: {{port}}', { port: sshServicePort })
             ) : (
               t('kubevirt-plugin~SSH service disabled')
             )

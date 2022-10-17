@@ -8,16 +8,19 @@ import {
   AlertItemProps,
   HealthItemProps,
   ResourceInventoryItemProps,
-  DetailItemProps,
   DetailsBodyProps,
   UtilizationItemProps,
   UtilizationBodyProps,
   UtilizationDurationDropdownProps,
   UseUtilizationDuration,
-  UsePrometheusPoll,
   UseActiveNamespace,
   VirtualizedGridProps,
   LazyActionMenuProps,
+  UseDashboardResources,
+  UseUserSettings,
+  QuickStartsLoaderProps,
+  UseURLPoll,
+  UseLastNamespace,
 } from './internal-types';
 
 export const ActivityItem: React.FC<ActivityItemProps> = require('@console/shared/src/components/dashboard/activity-card/ActivityItem')
@@ -38,8 +41,6 @@ export const HealthBody: React.FC = require('@console/shared/src/components/dash
   .default;
 export const ResourceInventoryItem: React.FC<ResourceInventoryItemProps> = require('@console/shared/src/components/dashboard/inventory-card/InventoryItem')
   .ResourceInventoryItem;
-export const DetailItem: React.FC<DetailItemProps> = require('@console/shared/src/components/dashboard/details-card/DetailItem')
-  .default;
 export const DetailsBody: React.FC<DetailsBodyProps> = require('@console/shared/src/components/dashboard/details-card/DetailsBody')
   .default;
 export const UtilizationItem: React.FC<UtilizationItemProps> = require('@console/shared/src/components/dashboard/utilization-card/UtilizationItem')
@@ -52,11 +53,20 @@ export const VirtualizedGrid: React.FC<VirtualizedGridProps> = require('@console
   .default;
 export const LazyActionMenu: React.FC<LazyActionMenuProps> = require('@console/shared/src/components/actions/LazyActionMenu')
   .default;
+export const QuickStartsLoader: React.FC<QuickStartsLoaderProps> = require('@console/app/src/components/quick-starts/loader/QuickStartsLoader')
+  .default;
 
 export const useUtilizationDuration: UseUtilizationDuration = require('@console/shared/src/hooks/useUtilizationDuration')
   .useUtilizationDuration;
-export const usePrometheusPoll: UsePrometheusPoll = require('@console/internal/components/graphs/prometheus-poll-hook')
-  .usePrometheusPoll;
 export const useActiveNamespace: UseActiveNamespace = require('@console/shared/src/hooks/useActiveNamespace')
   .useActiveNamespace;
 export const ServicesList = require('@console/internal/components/service').ServicesList;
+export const useDashboardResources: UseDashboardResources = require('@console/shared/src/hooks/useDashboardResources')
+  .useDashboardResources;
+export const useUserSettings: UseUserSettings = require('@console/shared/src/hooks/useUserSettings')
+  .useUserSettings;
+export const useURLPoll: UseURLPoll = require('@console/internal/components/utils/url-poll-hook')
+  .useURLPoll;
+export const useLastNamespace: UseLastNamespace = require('@console/app/src/components/detect-namespace/useLastNamespace')
+  .useLastNamespace;
+

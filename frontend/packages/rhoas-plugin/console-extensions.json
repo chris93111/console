@@ -129,7 +129,8 @@
           },
           "opts": {
             "isList": true,
-            "optional": true
+            "optional": true,
+            "namespaced": true
           }
         }
       },
@@ -199,8 +200,8 @@
     "properties": {
       "id": "rhoas-plugin-tab-section-default",
       "tab": "topology-side-bar-tab-details",
-      "section": {
-        "$codeRef": "rhoasTopologySidebar.getDetailsTabSectionForTopologySideBar"
+      "provider": {
+        "$codeRef": "rhoasTopologySidebar.useDetailsTabSectionForTopologySideBar"
       }
     },
     "flags": {
@@ -212,8 +213,8 @@
     "properties": {
       "id": "rhoas-plugin-tab-section-resource",
       "tab": "topology-side-bar-tab-resource",
-      "section": {
-        "$codeRef": "rhoasTopologySidebar.getResourceTabSectionForTopologySideBar"
+      "provider": {
+        "$codeRef": "rhoasTopologySidebar.useResourceTabSectionForTopologySideBar"
       }
     },
     "flags": {

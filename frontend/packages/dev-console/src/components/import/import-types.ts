@@ -182,7 +182,7 @@ export interface DockerData {
   dockerfileHasError?: boolean;
 }
 
-type DevfileData = {
+export type DevfileData = {
   devfilePath?: string;
   devfileContent?: string;
   devfileSourceUrl?: string;
@@ -212,8 +212,8 @@ export interface RouteData {
 }
 
 export interface TLSData {
-  termination: string;
-  insecureEdgeTerminationPolicy: string;
+  termination: TerminationType;
+  insecureEdgeTerminationPolicy: InsecureTrafficType | PassthroughInsecureTrafficType;
   certificate: string;
   key: string;
   caCertificate: string;
@@ -265,6 +265,8 @@ export interface ServerlessScaling {
   maxpods: number | '';
   concurrencytarget: number | '';
   concurrencylimit: number | '';
+  defaultConcurrencytarget?: number | '';
+  defaultConcurrencyutilization?: number | '';
   autoscale: AutoscaleWindowType;
   concurrencyutilization: number | '';
 }
@@ -289,11 +291,17 @@ export enum Resources {
   KnativeService = 'knative',
 }
 
-export const ReadableResourcesNames = {
+export const ReadableResourcesNames: Record<Resources, string> = {
   [Resources.OpenShift]: DeploymentConfigModel.labelKey,
   [Resources.Kubernetes]: DeploymentModel.labelKey,
   // t('devconsole~Serverless Deployment')
   [Resources.KnativeService]: `devconsole~Serverless Deployment`,
+};
+
+export const ResourcesKinds: Record<Resources, string> = {
+  [Resources.OpenShift]: DeploymentConfigModel.kind,
+  [Resources.Kubernetes]: DeploymentModel.kind,
+  [Resources.KnativeService]: 'Service',
 };
 
 export interface ImportData {
@@ -303,33 +311,26 @@ export interface ImportData {
   loader: LazyLoader<GitImportFormProps | SourceToImageFormProps>;
 }
 
-export enum TerminationTypes {
-  // t('devconsole~Edge')
-  edge = 'Edge',
-  // t('devconsole~Passthrough')
-  passthrough = 'Passthrough',
-  // t('devconsole~Re-encrypt')
-  reencrypt = 'Re-encrypt',
+export enum TerminationType {
+  EDGE = 'edge',
+  PASSTHROUGH = 'passthrough',
+  REENCRYPT = 'reencrypt',
 }
 
-export enum InsecureTrafficTypes {
-  // t('devconsole~None')
+export enum InsecureTrafficType {
   None = 'None',
-  // t('devconsole~Allow')
   Allow = 'Allow',
-  // t('devconsole~Redirect')
   Redirect = 'Redirect',
 }
 
-export enum PassthroughInsecureTrafficTypes {
-  // t('devconsole~None')
+export enum PassthroughInsecureTrafficType {
   None = 'None',
-  // t('devconsole~Redirect')
   Redirect = 'Redirect',
 }
 
 export interface AutoscaleWindowType {
   autoscalewindow: number | '';
+  defaultAutoscalewindow?: number | '';
   autoscalewindowUnit: string;
   defaultAutoscalewindowUnit: string;
 }

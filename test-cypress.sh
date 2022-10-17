@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd frontend
-yarn install
+
+if [ ! -d node_modules ]; then
+  yarn install
+fi
 
 function generateReport {
   yarn run cypress-postreport
@@ -65,9 +68,9 @@ if [ -n "${headless-}" ] && [ -z "${pkg-}" ]; then
   yarn run test-cypress-dev-console-headless
   yarn run test-cypress-olm-headless
   yarn run test-cypress-helm-headless
-  yarn run test-cypress-knative-headless
+# yarn run test-cypress-knative-headless
   yarn run test-cypress-topology-headless
-  yarn run test-cypress-pipelines-headless
+#  yarn run test-cypress-pipelines-headless
   exit;
 fi
 

@@ -1,11 +1,11 @@
 import * as React from 'react';
+import { parsePrometheusDuration } from '@openshift-console/plugin-shared/src/datetime/prometheus';
 import { shallow } from 'enzyme';
 import { DEFAULT_PROMETHEUS_TIMESPAN } from '@console/internal/components/graphs';
 import { GraphEmpty } from '@console/internal/components/graphs/graph-empty';
 import { LoadingInline } from '@console/internal/components/utils';
-import { parsePrometheusDuration } from '@console/internal/components/utils/datetime';
 import { PipelineExampleNames, pipelineTestData } from '../../../../test-data/pipeline-data';
-import { DEFAULT_REFRESH_INTERVAL } from '../../const';
+import { DEFAULT_REFRESH_INTERVAL, PipelineMetricsLevel } from '../../const';
 import * as hookUtils from '../../hooks';
 import { TimeSeriesChart } from '../charts/TimeSeriesChart';
 import { MetricsQueryPrefix } from '../pipeline-metrics-utils';
@@ -30,6 +30,7 @@ describe('Pipeline Run Count Graph', () => {
       timespan: DEFAULT_PROMETHEUS_TIMESPAN,
       interval: parsePrometheusDuration(DEFAULT_REFRESH_INTERVAL),
       queryPrefix: MetricsQueryPrefix.TEKTON_PIPELINES_CONTROLLER,
+      metricsLevel: PipelineMetricsLevel.PIPELINERUN_TASKRUN_LEVEL,
     };
   });
 

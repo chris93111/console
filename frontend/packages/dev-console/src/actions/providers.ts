@@ -18,10 +18,10 @@ import {
   K8sResourceKind,
   referenceFor,
 } from '@console/internal/module/k8s';
+import { ServiceBindingModel } from '@console/service-binding-plugin/src/models';
 import { useActiveNamespace } from '@console/shared';
 import { useK8sModel } from '@console/shared/src/hooks/useK8sModel';
 import { TYPE_APPLICATION_GROUP } from '@console/topology/src/const';
-import { ServiceBindingModel } from '@console/topology/src/models';
 import { AddActions, disabledActionsFilter } from './add-resources';
 import { DeleteApplicationAction } from './context-menu';
 import { EditImportApplication } from './creators';
@@ -208,20 +208,24 @@ export const useTopologyApplicationActionProvider: TopologyActionProvider = ({
     if (element.getType() === TYPE_APPLICATION_GROUP) {
       if (inFlight) return [[], !inFlight, undefined];
       const path = connectorSource ? '' : 'add-to-application';
+      const sourceObj = connectorSource?.getData()?.resource;
+      const sourceReference = sourceObj
+        ? `${referenceFor(sourceObj)}/${sourceObj?.metadata?.name}`
+        : undefined;
       const actions = [
         ...(connectorSource ? [] : [DeleteApplicationAction(appData, kindObj)]),
-        AddActions.FromGit(namespace, application, undefined, path, !isImportResourceAccess),
+        AddActions.FromGit(namespace, application, sourceReference, path, !isImportResourceAccess),
         AddActions.ContainerImage(
           namespace,
           application,
-          undefined,
+          sourceReference,
           path,
           !isCatalogImageResourceAccess,
         ),
         AddActions.UploadJarFile(
           namespace,
           application,
-          undefined,
+          sourceReference,
           path,
           !isCatalogImageResourceAccess,
         ),

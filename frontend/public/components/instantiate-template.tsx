@@ -3,7 +3,7 @@ import { connect } from 'react-redux';
 import * as _ from 'lodash-es';
 import { Helmet } from 'react-helmet';
 import * as classNames from 'classnames';
-import { ActionGroup, Button } from '@patternfly/react-core';
+import { ActionGroup, Button, Divider } from '@patternfly/react-core';
 /* eslint-disable import/named */
 import { useTranslation, withTranslation, WithTranslation } from 'react-i18next';
 
@@ -29,12 +29,12 @@ import {
 } from './utils';
 import { SecretModel, TemplateInstanceModel } from '../models';
 import {
-  k8sCreate,
   K8sResourceKind,
   TemplateKind,
   TemplateInstanceKind,
   TemplateParameter,
 } from '../module/k8s';
+import { k8sCreateResource, k8sUpdateResource } from '@console/dynamic-plugin-sdk/src/utils/k8s';
 import { RootState } from '../redux';
 
 const TemplateResourceDetails: React.FC<TemplateResourceDetailsProps> = ({ template }) => {
@@ -45,7 +45,7 @@ const TemplateResourceDetails: React.FC<TemplateResourceDetailsProps> = ({ templ
 
   return (
     <>
-      <hr />
+      <Divider className="co-divider" />
       <p>The following resources will be created:</p>
       <ul>
         {resources.map((kind: string) => (
@@ -71,24 +71,26 @@ const TemplateInfo: React.FC<TemplateInfoProps> = ({ template }) => {
   return (
     <div className="co-catalog-item-info">
       <div className="co-catalog-item-details">
-        <span className="co-catalog-item-icon">
-          {imgURL ? (
-            <img
-              className="co-catalog-item-icon__img co-catalog-item-icon__img--large"
-              src={imgURL}
-              alt={displayName}
-              aria-hidden
-            />
-          ) : (
-            <span
-              className={classNames(
-                'co-catalog-item-icon__icon co-catalog-item-icon__icon--large',
-                normalizeIconClass(iconClass),
-              )}
-              aria-hidden
-            />
-          )}
-        </span>
+        <div className="co-catalog-item-icon">
+          <span className="co-catalog-item-icon__bg">
+            {imgURL ? (
+              <img
+                className="co-catalog-item-icon__img co-catalog-item-icon__img--large"
+                src={imgURL}
+                alt={displayName}
+                aria-hidden
+              />
+            ) : (
+              <span
+                className={classNames(
+                  'co-catalog-item-icon__icon co-catalog-item-icon__icon--large',
+                  normalizeIconClass(iconClass),
+                )}
+                aria-hidden
+              />
+            )}
+          </span>
+        </div>
         <div>
           <h2 className="co-section-heading co-catalog-item-details__name">{displayName}</h2>
           {!_.isEmpty(tags) && (
@@ -145,7 +147,7 @@ class TemplateForm_ extends React.Component<
   }
 
   componentDidUpdate(prevProps: TemplateFormProps & WithTranslation) {
-    if (this.props.obj !== prevProps.obj) {
+    if (this.props.obj.data?.parameters !== prevProps.obj.data?.parameters) {
       const parameters = this.getParameterValues(this.props);
       this.setState({ parameters });
     }
@@ -186,7 +188,10 @@ class TemplateForm_ extends React.Component<
       // Remove empty values.
       stringData: parameters,
     };
-    return k8sCreate(SecretModel, secret);
+    return k8sCreateResource({
+      model: SecretModel,
+      data: secret,
+    });
   }
 
   createTemplateInstance(secret: K8sResourceKind): Promise<K8sResourceKind> {
@@ -206,7 +211,36 @@ class TemplateForm_ extends React.Component<
         },
       },
     };
-    return k8sCreate(TemplateInstanceModel, instance);
+    return k8sCreateResource({
+      model: TemplateInstanceModel,
+      data: instance,
+    });
+  }
+
+  updatesecretOwnerRef(
+    secret: K8sResourceKind,
+    templateInstance: K8sResourceKind,
+  ): Promise<K8sResourceKind> {
+    const updatedSecret = {
+      ...secret,
+      metadata: {
+        ...secret.metadata,
+        ownerReferences: [
+          {
+            apiVersion: templateInstance.apiVersion,
+            kind: templateInstance.kind,
+            name: templateInstance.metadata.name,
+            uid: templateInstance.metadata.uid,
+          },
+        ],
+      },
+    };
+    return k8sUpdateResource({
+      model: SecretModel,
+      data: updatedSecret,
+      name: secret.metadata.name,
+      ns: secret.metadata.namespace,
+    });
   }
 
   save = (event: React.FormEvent<EventTarget>) => {
@@ -221,16 +255,17 @@ class TemplateForm_ extends React.Component<
     this.setState({ error: '', inProgress: true });
     this.createTemplateSecret()
       .then((secret: K8sResourceKind) => {
-        return this.createTemplateInstance(secret).then(() => {
-          this.setState({ inProgress: false });
-          const activeExtension = perspectiveExtensions.find(
-            (p) => p.properties.id === activePerspective,
-          );
-          (async () => {
+        return this.createTemplateInstance(secret).then(
+          async (templateInstance: K8sResourceKind) => {
+            await this.updatesecretOwnerRef(secret, templateInstance);
+            this.setState({ inProgress: false });
+            const activeExtension = perspectiveExtensions.find(
+              (p) => p.properties.id === activePerspective,
+            );
             const url = (await activeExtension.properties.importRedirectURL())(namespace);
             history.push(url);
-          })();
-        });
+          },
+        );
       })
       .catch((err) => this.setState({ inProgress: false, error: err.message }));
   };
@@ -281,7 +316,7 @@ class TemplateForm_ extends React.Component<
               }: TemplateParameter) => {
                 const value = this.state.parameters[name] || '';
                 const helpID = description ? `${name}-help` : '';
-                const placeholder = generate ? '(generated if empty)' : '';
+                const placeholder = generate ? t('public~(generated if empty)') : '';
                 // Only set required for parameters not generated.
                 const requiredInput = requiredParam && !generate;
                 return (

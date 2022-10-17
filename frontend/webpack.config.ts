@@ -136,7 +136,7 @@ const config: Configuration = {
       },
       {
         test: /\.s?css$/,
-        exclude: /node_modules\/(?!(@patternfly)\/).*/,
+        exclude: /node_modules\/(?!(@patternfly|@console\/plugin-shared)\/).*/,
         use: [
           {
             loader: MiniCssExtractPlugin.loader,
@@ -243,6 +243,8 @@ const config: Configuration = {
     new CopyWebpackPlugin([{ from: './packages/knative-plugin/locales', to: 'locales' }]),
     new CopyWebpackPlugin([{ from: './packages/container-security/locales', to: 'locales' }]),
     new CopyWebpackPlugin([{ from: './packages/pipelines-plugin/locales', to: 'locales' }]),
+    new CopyWebpackPlugin([{ from: './packages/service-binding-plugin/locales', to: 'locales' }]),
+    new CopyWebpackPlugin([{ from: './packages/shipwright-plugin/locales', to: 'locales' }]),
     new CopyWebpackPlugin([{ from: './packages/topology/locales', to: 'locales' }]),
     new CopyWebpackPlugin([{ from: './packages/helm-plugin/locales', to: 'locales' }]),
     new CopyWebpackPlugin([{ from: './packages/rhoas-plugin/locales', to: 'locales' }]),
