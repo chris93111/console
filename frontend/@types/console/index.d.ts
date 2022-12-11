@@ -14,6 +14,7 @@ declare module '*.png' {
 
 declare interface Window {
   SERVER_FLAGS: {
+    copiedCSVsDisabled: boolean;
     alertManagerBaseURL: string;
     alertmanagerUserWorkloadBaseURL: string;
     authDisabled: boolean;
@@ -56,6 +57,7 @@ declare interface Window {
     controlPlaneTopology: string;
     telemetry: Record<string, string>;
     nodeArchitectures: string[];
+    hubConsoleURL: string;
   };
   windowError?: string;
   __REDUX_DEVTOOLS_EXTENSION_COMPOSE__?: Function;

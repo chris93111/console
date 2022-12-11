@@ -68,10 +68,8 @@
       "customOverviewDetailItem": "./components/CustomOverviewDetailItem",
       "projectOverviewInventory": "./components/ProjectOverview/Inventory",
       "projectOverview": "./utils/project-overview",
-      "modalPage": "./components/Modals/ModalPage"
-    },
-    "dependencies": {
-      "@console/pluginAPI": "*"
+      "modalPage": "./components/Modals/ModalPage",
+      "sampleErrorBoundaryPage": "./components/ErrorBoundary/SampleErrorBoundaryPage"
     },
     "disableStaticPlugins": [
       "@console/demo-plugin"

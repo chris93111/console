@@ -53,29 +53,30 @@
 51.  [`console.resource/create`](#consoleresourcecreate)
 52.  [`console.storage-class/provisioner`](#consolestorage-classprovisioner)
 53.  [`console.storage-provider`](#consolestorage-provider)
-54.  [`console.tab/horizontalNav`](#consoletabhorizontalNav)
-55.  [`console.telemetry/listener`](#consoletelemetrylistener)
-56.  [`console.topology/adapter/build`](#consoletopologyadapterbuild)
-57.  [`console.topology/adapter/network`](#consoletopologyadapternetwork)
-58.  [`console.topology/adapter/pod`](#consoletopologyadapterpod)
-59.  [`console.topology/component/factory`](#consoletopologycomponentfactory)
-60.  [`console.topology/create/connector`](#consoletopologycreateconnector)
-61.  [`console.topology/data/factory`](#consoletopologydatafactory)
-62.  [`console.topology/decorator/provider`](#consoletopologydecoratorprovider)
-63.  [`console.topology/details/resource-alert`](#consoletopologydetailsresource-alert)
-64.  [`console.topology/details/resource-link`](#consoletopologydetailsresource-link)
-65.  [`console.topology/details/tab`](#consoletopologydetailstab)
-66.  [`console.topology/details/tab-section`](#consoletopologydetailstab-section)
-67.  [`console.topology/display/filters`](#consoletopologydisplayfilters)
-68.  [`console.topology/relationship/provider`](#consoletopologyrelationshipprovider)
-69.  [`console.user-preference/group`](#consoleuser-preferencegroup)
-70.  [`console.user-preference/item`](#consoleuser-preferenceitem)
-71.  [`console.yaml-template`](#consoleyaml-template)
-72.  [`dev-console.add/action`](#dev-consoleaddaction)
-73.  [`dev-console.add/action-group`](#dev-consoleaddaction-group)
-74.  [`dev-console.import/environment`](#dev-consoleimportenvironment)
-75. [DEPRECATED] [`console.dashboards/overview/detail/item`](#consoledashboardsoverviewdetailitem)
-76. [DEPRECATED] [`console.page/resource/tab`](#consolepageresourcetab)
+54.  [`console.tab`](#consoletab)
+55.  [`console.tab/horizontalNav`](#consoletabhorizontalNav)
+56.  [`console.telemetry/listener`](#consoletelemetrylistener)
+57.  [`console.topology/adapter/build`](#consoletopologyadapterbuild)
+58.  [`console.topology/adapter/network`](#consoletopologyadapternetwork)
+59.  [`console.topology/adapter/pod`](#consoletopologyadapterpod)
+60.  [`console.topology/component/factory`](#consoletopologycomponentfactory)
+61.  [`console.topology/create/connector`](#consoletopologycreateconnector)
+62.  [`console.topology/data/factory`](#consoletopologydatafactory)
+63.  [`console.topology/decorator/provider`](#consoletopologydecoratorprovider)
+64.  [`console.topology/details/resource-alert`](#consoletopologydetailsresource-alert)
+65.  [`console.topology/details/resource-link`](#consoletopologydetailsresource-link)
+66.  [`console.topology/details/tab`](#consoletopologydetailstab)
+67.  [`console.topology/details/tab-section`](#consoletopologydetailstab-section)
+68.  [`console.topology/display/filters`](#consoletopologydisplayfilters)
+69.  [`console.topology/relationship/provider`](#consoletopologyrelationshipprovider)
+70.  [`console.user-preference/group`](#consoleuser-preferencegroup)
+71.  [`console.user-preference/item`](#consoleuser-preferenceitem)
+72.  [`console.yaml-template`](#consoleyaml-template)
+73.  [`dev-console.add/action`](#dev-consoleaddaction)
+74.  [`dev-console.add/action-group`](#dev-consoleaddaction-group)
+75.  [`dev-console.import/environment`](#dev-consoleimportenvironment)
+76. [DEPRECATED] [`console.dashboards/overview/detail/item`](#consoledashboardsoverviewdetailitem)
+77. [DEPRECATED] [`console.page/resource/tab`](#consolepageresourcetab)
 
 ---
 
@@ -972,6 +973,23 @@ Adds a new storage class provisioner as an option during storage class creation.
 
 ---
 
+## `console.tab`
+
+### Summary 
+
+Adds a tab to a horizontal nav matching the `contextId`.
+
+### Properties
+
+| Name | Value Type | Optional | Description |
+| ---- | ---------- | -------- | ----------- |
+| `contextId` | `string` | no | Context ID assigned to the horizontal nav in which the tab will be injected.<br/>Possible values:<br/>- `dev-console-observe` |
+| `name` | `string` | no | The display label of the tab |
+| `href` | `string` | no | The href appended to the existing URL |
+| `component` | `CodeRef<React.ComponentType<PageComponentProps<K8sResourceCommon>>>` | no | Tab content component. |
+
+---
+
 ## `console.tab/horizontalNav`
 
 ### Summary 
@@ -1218,9 +1236,9 @@ Topology relationship provider connector extension
 | Name | Value Type | Optional | Description |
 | ---- | ---------- | -------- | ----------- |
 | `id` | `string` | no | ID used to identify the user preference group. |
-| `label` | `string` | no | The label of the user preference group |
-| `insertBefore` | `string` | yes | ID of user preference group before which this group should be placed |
-| `insertAfter` | `string` | yes | ID of user preference group after which this group should be placed |
+| `label` | `string` | no | The label of the user preference group. |
+| `insertBefore` | `string` | yes | ID of user preference group before which this group should be placed. |
+| `insertAfter` | `string` | yes | ID of user preference group after which this group should be placed. |
 
 ---
 
@@ -1235,12 +1253,12 @@ Topology relationship provider connector extension
 | Name | Value Type | Optional | Description |
 | ---- | ---------- | -------- | ----------- |
 | `id` | `string` | no | ID used to identify the user preference item and referenced in insertAfter and insertBefore to define the item order. |
-| `label` | `string` | no | The label of the user preference |
+| `groupId` | `string` | no | IDs used to identify the user preference groups the item would belong to. |
+| `label` | `string` | no | The label of the user preference. |
 | `description` | `string` | no | The description of the user preference. |
 | `field` | `UserPreferenceField` | no | The input field options used to render the values to set the user preference. |
-| `groupId` | `string` | yes | IDs used to identify the user preference groups the item would belong to. |
-| `insertBefore` | `string` | yes | ID of user preference item before which this item should be placed |
-| `insertAfter` | `string` | yes | ID of user preference item after which this item should be placed |
+| `insertBefore` | `string` | yes | ID of user preference item before which this item should be placed. |
+| `insertAfter` | `string` | yes | ID of user preference item after which this item should be placed. |
 
 ---
 

@@ -5,7 +5,9 @@ import {
   AlertStates,
   BlueInfoCircleIcon,
   GreenCheckCircleIcon,
+  K8sKind,
   PrometheusAlert,
+  PrometheusEndpoint,
   PrometheusLabels,
   RedExclamationCircleIcon,
   ResourceStatus,
@@ -19,9 +21,17 @@ import {
 import { formatPrometheusDuration } from '@openshift-console/plugin-shared/src/datetime/prometheus';
 import {
   Alert as PFAlert,
+  Breadcrumb,
+  BreadcrumbItem,
   Button,
   CodeBlock,
   CodeBlockCode,
+  Label,
+  Dropdown,
+  DropdownItem,
+  DropdownPosition,
+  DropdownToggle,
+  KebabToggle,
   Popover,
   Toolbar,
   ToolbarContent,
@@ -49,15 +59,19 @@ import { Link, Redirect, Route, Switch } from 'react-router-dom';
 
 import { withFallback } from '@console/shared/src/components/error';
 import { useActiveNamespace } from '@console/shared/src/hooks/useActiveNamespace';
-import { ActionContext } from '@console/dynamic-plugin-sdk/src/api/internal-types';
-import { ActionServiceProvider } from '@console/dynamic-plugin-sdk/src/lib-core';
+import {
+  ActionServiceProvider,
+  ResourceLink,
+  Timestamp,
+} from '@console/dynamic-plugin-sdk/src/lib-core';
+import { consoleFetchJSON } from '@console/dynamic-plugin-sdk/src/utils/fetch';
+
 import {
   alertingErrored,
   alertingLoaded,
   alertingLoading,
   alertingSetRules,
 } from '../../actions/observe';
-import { coFetchJSON } from '../../co-fetch';
 import {
   ContainerModel,
   DaemonSetModel,
@@ -68,27 +82,21 @@ import {
   PodModel,
   StatefulSetModel,
 } from '../../models';
-import { K8sKind } from '../../module/k8s';
 import { RootState } from '../../redux';
-import { breadcrumbsForGlobalConfig } from '../cluster-settings/global-config';
 import { RowFunctionArgs, Table, TableData, TableProps } from '../factory';
 import { FilterToolbar } from '../filter-toolbar';
-import { getPrometheusURL, PrometheusEndpoint } from '../graphs/helpers';
+import { getPrometheusURL } from '../graphs/helpers';
 import { confirmModal } from '../modals';
 import { refreshNotificationPollers } from '../notification-drawer';
-import { ActionsMenu } from '../utils/dropdown';
-import { Firehose } from '../utils/firehose';
-import { ActionButtons, BreadCrumbs, SectionHeading } from '../utils/headings';
-import { Kebab } from '../utils/kebab';
+import { SectionHeading } from '../utils/headings';
 import { ExternalLink, getURLSearchParams, LinkifyExternal } from '../utils/link';
-import { ResourceLink } from '../utils/resource-link';
 import { history } from '../utils/router';
 import { LoadingInline, StatusBox } from '../utils/status-box';
-import { Timestamp } from '../utils/timestamp';
-import { AlertmanagerConfigWrapper } from './alert-manager-config';
-import { AlertmanagerYAMLEditorWrapper } from './alert-manager-yaml-editor';
+import AlertmanagerPage from './alertmanager/alertmanager-page';
 import MonitoringDashboardsPage from './dashboards';
-import { Label, Labels } from './labels';
+import { useBoolean } from './hooks/useBoolean';
+import KebabDropdown from './kebab-dropdown';
+import { Labels } from './labels';
 import { QueryBrowserPage, ToggleGraph } from './metrics';
 import { FormatSeriesTitle, QueryBrowser } from './query-browser';
 import { CreateSilence, EditSilence } from './silence-form';
@@ -104,6 +112,7 @@ import {
   getAlertsAndRules,
   labelsToParams,
   RuleResource,
+  silenceMatcherEqualitySymbol,
   SilenceResource,
   silenceState,
 } from './utils';
@@ -113,44 +122,10 @@ const ruleURL = (rule: Rule) => `${RuleResource.plural}/${_.get(rule, 'id')}`;
 const pollers = {};
 const pollerTimeouts = {};
 
-const silenceAlert = (alert: Alert) => ({
-  callback: () => history.push(`${SilenceResource.plural}/~new?${labelsToParams(alert.labels)}`),
-  label: i18next.t('public~Silence alert'),
-});
+const silenceAlert = (alert: Alert) =>
+  history.push(`${SilenceResource.plural}/~new?${labelsToParams(alert.labels)}`);
 
-const viewAlertRule = (alert: Alert) => ({
-  label: i18next.t('public~View alerting rule'),
-  href: ruleURL(alert.rule),
-});
-
-const editSilence = (silence: Silence) => ({
-  label:
-    silenceState(silence) === SilenceStates.Expired
-      ? i18next.t('public~Recreate silence')
-      : i18next.t('public~Edit silence'),
-  href: `${SilenceResource.plural}/${silence.id}/edit`,
-});
-
-const cancelSilence = (silence: Silence) => ({
-  label: i18next.t('public~Expire silence'),
-  callback: () =>
-    confirmModal({
-      title: i18next.t('public~Expire silence'),
-      message: i18next.t('public~Are you sure you want to expire this silence?'),
-      btnText: i18next.t('public~Expire silence'),
-      executeFn: () =>
-        coFetchJSON
-          .delete(`${window.SERVER_FLAGS.alertManagerBaseURL}/api/v2/silence/${silence.id}`)
-          .then(() => refreshNotificationPollers()),
-    }),
-});
-
-const silenceMenuActions = (silence: Silence) =>
-  silenceState(silence) === SilenceStates.Expired
-    ? [editSilence(silence)]
-    : [editSilence(silence), cancelSilence(silence)];
-
-const SilenceKebab = ({ silence }) => <Kebab options={silenceMenuActions(silence)} />;
+const viewAlertRule = (alert: Alert) => history.push(ruleURL(alert.rule));
 
 const MonitoringResourceIcon: React.FC<MonitoringResourceIconProps> = ({ className, resource }) => (
   <span
@@ -341,15 +316,18 @@ export const StateCounts: React.FC<{ alerts: PrometheusAlert[] }> = ({ alerts })
   );
 };
 
-const PopoverField: React.FC<{ body: React.ReactNode; label: string }> = ({ body, label }) => (
-  <Popover headerContent={label} bodyContent={body}>
+const PopoverField: React.FC<{ bodyContent: React.ReactNode; label: string }> = ({
+  bodyContent,
+  label,
+}) => (
+  <Popover headerContent={label} bodyContent={bodyContent}>
     <Button variant="plain" className="details-item__popover-button">
       {label}
     </Button>
   </Popover>
 );
 
-const AlertStateHelp: React.FC<{}> = React.memo(() => {
+const AlertStateHelp: React.FC<{}> = () => {
   const { t } = useTranslation();
   return (
     <dl className="co-inline">
@@ -380,9 +358,9 @@ const AlertStateHelp: React.FC<{}> = React.memo(() => {
       </dd>
     </dl>
   );
-});
+};
 
-const SeverityHelp: React.FC<{}> = React.memo(() => {
+const SeverityHelp: React.FC<{}> = () => {
   const { t } = useTranslation();
   return (
     <dl className="co-inline">
@@ -415,9 +393,9 @@ const SeverityHelp: React.FC<{}> = React.memo(() => {
       </dd>
     </dl>
   );
-});
+};
 
-const SourceHelp: React.FC<{}> = React.memo(() => {
+const SourceHelp: React.FC<{}> = () => {
   const { t } = useTranslation();
   return (
     <dl className="co-inline">
@@ -439,7 +417,7 @@ const SourceHelp: React.FC<{}> = React.memo(() => {
       </dd>
     </dl>
   );
-});
+};
 
 type ActionWithHref = Omit<Action, 'cta'> & { cta: { href: string; external?: boolean } };
 
@@ -487,13 +465,17 @@ const tableSilenceClasses = [
   'pf-m-hidden pf-m-visible-on-sm pf-m-hidden-on-md pf-m-visible-on-lg',
   '',
   'pf-m-hidden pf-m-visible-on-sm',
-  Kebab.columnClass,
+  'dropdown-kebab-pf pf-c-table__action',
 ];
 
 const SilenceMatchersList = ({ silence }) => (
   <div className={`co-text-${SilenceResource.kind.toLowerCase()}`}>
-    {_.map(silence.matchers, ({ name, isRegex, value }, i) => (
-      <Label key={i} k={name} v={isRegex ? `~${value}` : value} />
+    {_.map(silence.matchers, ({ name, isEqual, isRegex, value }, i) => (
+      <Label className="co-label" key={i}>
+        <span className="co-label__key">{name}</span>
+        <span className="co-label__eq">{silenceMatcherEqualitySymbol(isEqual, isRegex)}</span>
+        <span className="co-label__value">{value}</span>
+      </Label>
     ))}
   </div>
 );
@@ -537,7 +519,7 @@ const SilenceTableRow: React.FC<RowFunctionArgs<Silence>> = ({ obj }) => {
       </TableData>
       <TableData className={tableSilenceClasses[3]}>{createdBy || '-'}</TableData>
       <TableData className={tableSilenceClasses[4]}>
-        <SilenceKebab silence={obj} />
+        <SilenceDropdownKebab silence={obj} />
       </TableData>
     </>
   );
@@ -588,8 +570,12 @@ const AlertMessage: React.FC<AlertMessageProps> = ({ alertText, labels, template
         );
         messageParts = _.flatMap(messageParts, (part) => {
           if (_.isString(part) && part.indexOf(labelValue) !== -1) {
-            const [before, after] = part.split(labelValue);
-            return [before, link, after];
+            // `part` contains at least one instance of the resource name, so replace each instance
+            // with the link to the resource. Since the link is a component, we can't simply do a
+            // string substitution. Instead, create an array that contains each of the string parts
+            // and the resource links in the correct order.
+            const splitParts = part.split(labelValue);
+            return _.flatMap(splitParts, (p) => [p, link]).slice(0, -1);
           }
           return [part];
         });
@@ -691,8 +677,6 @@ const AlertsDetailsPage_: React.FC<{ match: any }> = ({ match }) => {
   // eslint-disable-next-line camelcase
   const runbookURL = alert?.annotations?.runbook_url;
 
-  const actionsContext: ActionContext = { 'alert-detail-toolbar-actions': { alert } };
-
   return (
     <>
       <Helmet>
@@ -705,15 +689,17 @@ const AlertsDetailsPage_: React.FC<{ match: any }> = ({ match }) => {
         loadError={alerts?.loadError}
       >
         <div className="pf-c-page__main-breadcrumb">
-          <BreadCrumbs
-            breadcrumbs={[
-              {
-                name: t('public~Alerts'),
-                path: namespace ? `/dev-monitoring/ns/${namespace}/alerts` : '/monitoring/alerts',
-              },
-              { name: t('public~Alert details'), path: undefined },
-            ]}
-          />
+          <Breadcrumb className="monitoring-breadcrumbs">
+            <BreadcrumbItem>
+              <Link
+                className="pf-c-breadcrumb__link"
+                to={namespace ? `/dev-monitoring/ns/${namespace}/alerts` : '/monitoring/alerts'}
+              >
+                {t('public~Alerts')}
+              </Link>
+            </BreadcrumbItem>
+            <BreadcrumbItem isActive>{t('public~Alert details')}</BreadcrumbItem>
+          </Breadcrumb>
         </div>
         <div className="co-m-nav-title co-m-nav-title--detail co-m-nav-title--breadcrumbs">
           <h1 className="co-m-pane__heading">
@@ -723,8 +709,14 @@ const AlertsDetailsPage_: React.FC<{ match: any }> = ({ match }) => {
               <SeverityBadge severity={labels?.severity} />
             </div>
             {state !== AlertStates.Silenced && (
-              <div className="co-actions" data-test-id="details-actions">
-                <ActionButtons actionButtons={[silenceAlert(alert)]} />
+              <div data-test-id="details-actions">
+                <Button
+                  className="co-action-buttons__btn"
+                  onClick={() => silenceAlert(alert)}
+                  variant="primary"
+                >
+                  {t('public~Silence alert')}
+                </Button>
               </div>
             )}
           </h1>
@@ -737,7 +729,7 @@ const AlertsDetailsPage_: React.FC<{ match: any }> = ({ match }) => {
                 <SectionHeading text={t('public~Alert details')} />
               </ToolbarItem>
               <ToolbarGroup alignment={{ default: 'alignRight' }}>
-                <ActionServiceProvider context={actionsContext}>
+                <ActionServiceProvider context={{ 'alert-detail-toolbar-actions': { alert } }}>
                   {({ actions, loaded }) =>
                     loaded
                       ? actions.filter(isActionWithHref).map((action) => (
@@ -772,7 +764,7 @@ const AlertsDetailsPage_: React.FC<{ match: any }> = ({ match }) => {
                   <dt>{t('public~Name')}</dt>
                   <dd>{labels?.alertname}</dd>
                   <dt>
-                    <PopoverField label={t('public~Severity')} body={SeverityHelp} />
+                    <PopoverField bodyContent={<SeverityHelp />} label={t('public~Severity')} />
                   </dt>
                   <dd>
                     <Severity severity={labels?.severity} />
@@ -820,11 +812,11 @@ const AlertsDetailsPage_: React.FC<{ match: any }> = ({ match }) => {
               <div className="col-sm-6">
                 <dl className="co-m-pane__details">
                   <dt>
-                    <PopoverField label={t('public~Source')} body={SourceHelp} />
+                    <PopoverField bodyContent={<SourceHelp />} label={t('public~Source')} />
                   </dt>
                   <dd>{alert && getSourceKey(_.startCase(alertSource(alert)))}</dd>
                   <dt>
-                    <PopoverField label={t('public~State')} body={AlertStateHelp} />
+                    <PopoverField bodyContent={<AlertStateHelp />} label={t('public~State')} />
                   </dt>
                   <dd>
                     <AlertState state={state} />
@@ -949,7 +941,13 @@ const ActiveAlerts: React.FC<{ alerts; ruleID: string; namespace: string }> = (p
             <div className="col-sm-2 col-xs-3 co-truncate">{a.value}</div>
             {a.state !== AlertStates.Silenced && (
               <div className="dropdown-kebab-pf">
-                <Kebab options={[silenceAlert(a)]} />
+                <KebabDropdown
+                  dropdownItems={[
+                    <DropdownItem component="button" key="silence" onClick={() => silenceAlert(a)}>
+                      {t('public~Silence alert')}
+                    </DropdownItem>,
+                  ]}
+                />
               </div>
             )}
           </div>
@@ -990,17 +988,17 @@ const AlertRulesDetailsPage_: React.FC<{ match: any }> = ({ match }) => {
       </Helmet>
       <StatusBox data={rule} label={RuleResource.label} loaded={loaded} loadError={loadError}>
         <div className="pf-c-page__main-breadcrumb">
-          <BreadCrumbs
-            breadcrumbs={[
-              {
-                name: namespace ? t('public~Alerts') : t('public~Alerting rules'),
-                path: namespace
-                  ? `/dev-monitoring/ns/${namespace}/alerts`
-                  : '/monitoring/alertrules',
-              },
-              { name: t('public~Alerting rule details'), path: undefined },
-            ]}
-          />
+          <Breadcrumb className="monitoring-breadcrumbs">
+            <BreadcrumbItem>
+              <Link
+                className="pf-c-breadcrumb__link"
+                to={namespace ? `/dev-monitoring/ns/${namespace}/alerts` : '/monitoring/alertrules'}
+              >
+                {namespace ? t('public~Alerts') : t('public~Alerting rules')}
+              </Link>
+            </BreadcrumbItem>
+            <BreadcrumbItem isActive>{t('public~Alerting rule details')}</BreadcrumbItem>
+          </Breadcrumb>
         </div>
         <div className="co-m-nav-title co-m-nav-title--detail co-m-nav-title--breadcrumbs">
           <h1 className="co-m-pane__heading">
@@ -1022,7 +1020,7 @@ const AlertRulesDetailsPage_: React.FC<{ match: any }> = ({ match }) => {
                   <dt>{t('public~Name')}</dt>
                   <dd>{rule?.name}</dd>
                   <dt>
-                    <PopoverField label={t('public~Severity')} body={SeverityHelp} />
+                    <PopoverField bodyContent={<SeverityHelp />} label={t('public~Severity')} />
                   </dt>
                   <dd>
                     <Severity severity={rule?.labels?.severity} />
@@ -1062,7 +1060,7 @@ const AlertRulesDetailsPage_: React.FC<{ match: any }> = ({ match }) => {
               <div className="col-sm-6">
                 <dl className="co-m-pane__details">
                   <dt>
-                    <PopoverField label={t('public~Source')} body={SourceHelp} />
+                    <PopoverField bodyContent={<SourceHelp />} label={t('public~Source')} />
                   </dt>
                   <dd>{rule && getSourceKey(_.startCase(alertingRuleSource(rule)))}</dd>
                   {_.isInteger(rule?.duration) && (
@@ -1140,6 +1138,76 @@ const AlertRulesDetailsPage_: React.FC<{ match: any }> = ({ match }) => {
 };
 export const AlertRulesDetailsPage = withFallback(AlertRulesDetailsPage_);
 
+const SilenceDropdown: React.FC<SilenceDropdownProps> = ({
+  className,
+  isPlain,
+  silence,
+  Toggle,
+}) => {
+  const { t } = useTranslation();
+
+  const [isOpen, setIsOpen, , setClosed] = useBoolean(false);
+
+  const editSilence = () => {
+    history.push(`${SilenceResource.plural}/${silence.id}/edit`);
+  };
+
+  const cancelSilence = () => {
+    confirmModal({
+      btnText: t('public~Expire silence'),
+      executeFn: () =>
+        consoleFetchJSON
+          .delete(`${window.SERVER_FLAGS.alertManagerBaseURL}/api/v2/silence/${silence.id}`)
+          .then(() => refreshNotificationPollers()),
+      message: t('public~Are you sure you want to expire this silence?'),
+      title: t('public~Expire silence'),
+    });
+  };
+
+  const dropdownItems =
+    silenceState(silence) === SilenceStates.Expired
+      ? [
+          <DropdownItem key="edit-silence" component="button" onClick={editSilence}>
+            {t('public~Recreate silence')}
+          </DropdownItem>,
+        ]
+      : [
+          <DropdownItem key="edit-silence" component="button" onClick={editSilence}>
+            {t('public~Edit silence')}
+          </DropdownItem>,
+          <DropdownItem key="cancel-silence" component="button" onClick={cancelSilence}>
+            {t('public~Expire silence')}
+          </DropdownItem>,
+        ];
+
+  return (
+    <Dropdown
+      className={className}
+      data-test="silence-actions"
+      dropdownItems={dropdownItems}
+      isOpen={isOpen}
+      isPlain={isPlain}
+      onSelect={setClosed}
+      position={DropdownPosition.right}
+      toggle={<Toggle onToggle={setIsOpen} />}
+    />
+  );
+};
+
+const SilenceDropdownKebab: React.FC<{ silence: Silence }> = ({ silence }) => (
+  <SilenceDropdown isPlain silence={silence} Toggle={KebabToggle} />
+);
+
+const ActionsToggle: React.FC<{ onToggle: OnToggle }> = ({ onToggle, ...props }) => (
+  <DropdownToggle data-test="silence-actions-toggle" onToggle={onToggle} {...props}>
+    Actions
+  </DropdownToggle>
+);
+
+const SilenceDropdownActions: React.FC<{ silence: Silence }> = ({ silence }) => (
+  <SilenceDropdown className="co-actions-menu" silence={silence} Toggle={ActionsToggle} />
+);
+
 const SilencedAlertsList = ({ alerts }) => {
   const { t } = useTranslation();
 
@@ -1168,7 +1236,13 @@ const SilencedAlertsList = ({ alerts }) => {
               <Severity severity={a.labels.severity} />
             </div>
             <div className="dropdown-kebab-pf">
-              <Kebab options={[viewAlertRule(a)]} />
+              <KebabDropdown
+                dropdownItems={[
+                  <DropdownItem key="view-rule" onClick={() => viewAlertRule(a)}>
+                    {t('public~View alerting rule')}
+                  </DropdownItem>,
+                ]}
+              />
             </div>
           </div>
         ))}
@@ -1203,18 +1277,21 @@ const SilencesDetailsPage_: React.FC<{ match: any }> = ({ match }) => {
         loadError={silences?.loadError}
       >
         <div className="pf-c-page__main-breadcrumb">
-          <BreadCrumbs
-            breadcrumbs={[
-              {
-                name: perspective === 'dev' ? t('public~Alerts') : t('public~Silences'),
-                path:
+          <Breadcrumb className="monitoring-breadcrumbs">
+            <BreadcrumbItem>
+              <Link
+                className="pf-c-breadcrumb__link"
+                to={
                   perspective === 'dev'
                     ? `/dev-monitoring/ns/${namespace}/alerts`
-                    : '/monitoring/silences',
-              },
-              { name: t('public~Silence details'), path: undefined },
-            ]}
-          />
+                    : '/monitoring/silences'
+                }
+              >
+                {perspective === 'dev' ? t('public~Alerts') : t('public~Silences')}
+              </Link>
+            </BreadcrumbItem>
+            <BreadcrumbItem isActive>{t('public~Silence details')}</BreadcrumbItem>
+          </Breadcrumb>
         </div>
         <div className="co-m-nav-title co-m-nav-title--detail co-m-nav-title--breadcrumbs">
           <h1 className="co-m-pane__heading">
@@ -1226,7 +1303,7 @@ const SilencesDetailsPage_: React.FC<{ match: any }> = ({ match }) => {
               {silence?.name}
             </div>
             <div className="co-actions" data-test-id="details-actions">
-              {silence && <ActionsMenu actions={silenceMenuActions(silence)} />}
+              {silence && <SilenceDropdownActions silence={silence} />}
             </div>
           </h1>
         </div>
@@ -1312,13 +1389,28 @@ const tableAlertClasses = [
   'pf-m-hidden pf-m-visible-on-sm',
   '',
   'pf-m-hidden pf-m-visible-on-sm',
-  Kebab.columnClass,
+  'dropdown-kebab-pf pf-c-table__action',
 ];
 
 const AlertTableRow: React.FC<RowFunctionArgs<Alert>> = ({ obj }) => {
+  const { t } = useTranslation();
+
   const { annotations = {}, labels } = obj;
   const description = annotations.description || annotations.message;
   const state = alertState(obj);
+
+  const dropdownItems = [
+    <DropdownItem key="view-rule" onClick={() => viewAlertRule(obj)}>
+      {t('public~View alerting rule')}
+    </DropdownItem>,
+  ];
+  if (state !== AlertStates.Silenced) {
+    dropdownItems.unshift(
+      <DropdownItem key="silence-alert" onClick={() => silenceAlert(obj)}>
+        {t('public~Silence alert')}
+      </DropdownItem>,
+    );
+  }
 
   return (
     <>
@@ -1348,13 +1440,7 @@ const AlertTableRow: React.FC<RowFunctionArgs<Alert>> = ({ obj }) => {
           : i18next.t('public~Platform')}
       </TableData>
       <TableData className={tableAlertClasses[4]}>
-        <Kebab
-          options={
-            state === AlertStates.Silenced
-              ? [viewAlertRule(obj)]
-              : [silenceAlert(obj), viewAlertRule(obj)]
-          }
-        />
+        <KebabDropdown dropdownItems={dropdownItems} />
       </TableData>
     </>
   );
@@ -1754,42 +1840,6 @@ const SilencesPage_: React.FC<Silences> = () => {
 };
 const SilencesPage = withFallback(SilencesPage_);
 
-const AlertmanagerYAML = () => {
-  return (
-    <Firehose
-      resources={[
-        {
-          kind: 'Secret',
-          name: 'alertmanager-main',
-          namespace: 'openshift-monitoring',
-          isList: false,
-          prop: 'obj',
-        },
-      ]}
-    >
-      <AlertmanagerYAMLEditorWrapper />
-    </Firehose>
-  );
-};
-
-const AlertmanagerConfig = () => {
-  return (
-    <Firehose
-      resources={[
-        {
-          kind: 'Secret',
-          name: 'alertmanager-main',
-          namespace: 'openshift-monitoring',
-          isList: false,
-          prop: 'obj',
-        },
-      ]}
-    >
-      <AlertmanagerConfigWrapper />
-    </Firehose>
-  );
-};
-
 const Tab: React.FC<{ active: boolean; children: React.ReactNode }> = ({ active, children }) => (
   <li
     className={classNames('co-m-horizontal-nav__menu-item', {
@@ -1800,74 +1850,41 @@ const Tab: React.FC<{ active: boolean; children: React.ReactNode }> = ({ active,
   </li>
 );
 
-const AlertingPage: React.FC<{ match: any }> = ({ match }) => {
+const AlertingPage: React.FC<{ match: { url: string } }> = ({ match }) => {
   const { t } = useTranslation();
 
   const alertsPath = '/monitoring/alerts';
   const rulesPath = '/monitoring/alertrules';
   const silencesPath = '/monitoring/silences';
-  const configPath = '/monitoring/alertmanagerconfig';
-  const YAMLPath = '/monitoring/alertmanageryaml';
 
   const { url } = match;
-  const isAlertmanager = url === configPath || url === YAMLPath;
 
   return (
     <>
-      {isAlertmanager && (
-        <div className="pf-c-page__main-breadcrumb">
-          <BreadCrumbs
-            breadcrumbs={breadcrumbsForGlobalConfig(
-              'Alertmanager',
-              '/monitoring/alertmanagerconfig',
-            )}
-          />
-        </div>
-      )}
-      <div
-        className={classNames('co-m-nav-title', 'co-m-nav-title--detail', {
-          'co-m-nav-title--breadcrumbs': isAlertmanager,
-        })}
-      >
+      <div className="co-m-nav-title co-m-nav-title--detail">
         <h1 className="co-m-pane__heading">
           <div className="co-m-pane__name co-resource-item">
             <span className="co-resource-item__resource-name" data-test-id="resource-title">
-              {isAlertmanager ? t('public~Alertmanager') : t('public~Alerting')}
+              {t('public~Alerting')}
             </span>
           </div>
         </h1>
       </div>
       <ul className="co-m-horizontal-nav__menu">
-        {(url === alertsPath || url === rulesPath || url === silencesPath) && (
-          <>
-            <Tab active={url === alertsPath}>
-              <Link to={alertsPath}>{t('public~Alerts')}</Link>
-            </Tab>
-            <Tab active={url === silencesPath}>
-              <Link to={silencesPath}>{t('public~Silences')}</Link>
-            </Tab>
-            <Tab active={url === rulesPath}>
-              <Link to={rulesPath}>{t('public~Alerting rules')}</Link>
-            </Tab>
-          </>
-        )}
-        {isAlertmanager && (
-          <>
-            <Tab active={url === configPath}>
-              <Link to={configPath}>{t('public~Details')}</Link>
-            </Tab>
-            <Tab active={url === YAMLPath}>
-              <Link to={YAMLPath}>{t('public~YAML')}</Link>
-            </Tab>
-          </>
-        )}
+        <Tab active={url === alertsPath}>
+          <Link to={alertsPath}>{t('public~Alerts')}</Link>
+        </Tab>
+        <Tab active={url === silencesPath}>
+          <Link to={silencesPath}>{t('public~Silences')}</Link>
+        </Tab>
+        <Tab active={url === rulesPath}>
+          <Link to={rulesPath}>{t('public~Alerting rules')}</Link>
+        </Tab>
       </ul>
       <Switch>
         <Route path={alertsPath} exact component={AlertsPage} />
         <Route path={rulesPath} exact component={RulesPage} />
         <Route path={silencesPath} exact component={SilencesPage} />
-        <Route path={configPath} exact component={AlertmanagerConfig} />
-        <Route path={YAMLPath} exact component={AlertmanagerYAML} />
       </Switch>
     </>
   );
@@ -1885,7 +1902,7 @@ const PollerPages = () => {
       dispatch(alertingLoading(alertsKey));
       const url = getPrometheusURL({ endpoint: PrometheusEndpoint.RULES });
       const poller = (): void => {
-        coFetchJSON(url)
+        consoleFetchJSON(url)
           .then(({ data }) => {
             const { alerts, rules } = getAlertsAndRules(data);
             dispatch(alertingLoaded(alertsKey, alerts));
@@ -1904,11 +1921,7 @@ const PollerPages = () => {
 
   return (
     <Switch>
-      <Route
-        path="/monitoring/(alertmanageryaml|alerts|alertrules|silences|alertmanagerconfig)"
-        exact
-        component={AlertingPage}
-      />
+      <Route path="/monitoring/(alerts|alertrules|silences)" exact component={AlertingPage} />
       <Route path="/monitoring/alertrules/:id" exact component={AlertRulesDetailsPage} />
       <Route path="/monitoring/alerts/:ruleID" exact component={AlertsDetailsPage} />
       <Route path="/monitoring/silences/:id" exact component={SilencesDetailsPage} />
@@ -1930,6 +1943,8 @@ export const MonitoringUI = () => (
     {/* This redirect also handles the `/monitoring/#/alerts?...` link URLs generated by
     Alertmanager (because the `#` is considered the end of the URL) */}
     <Redirect from="/monitoring" exact to="/monitoring/alerts" />
+    <Route path="/monitoring/alertmanagerconfig" exact component={AlertmanagerPage} />
+    <Route path="/monitoring/alertmanageryaml" exact component={AlertmanagerPage} />
     <Route path="/monitoring/dashboards/:board?" exact component={MonitoringDashboardsPage} />
     <Route path="/monitoring/graph" exact component={PrometheusUIRedirect} />
     <Route path="/monitoring/query-browser" exact component={QueryBrowserPage} />
@@ -1961,4 +1976,13 @@ type GraphProps = {
 type MonitoringResourceIconProps = {
   className?: string;
   resource: MonitoringResource;
+};
+
+type OnToggle = (value: boolean, e: MouseEvent) => void;
+
+type SilenceDropdownProps = {
+  className?: string;
+  isPlain?: boolean;
+  silence: Silence;
+  Toggle: React.FC<{ onToggle: OnToggle }>;
 };

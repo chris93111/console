@@ -17,7 +17,6 @@ import {
   Text,
   TextContent,
   TextVariants,
-  Tooltip,
 } from '@patternfly/react-core';
 import { Link } from 'react-router-dom';
 import { HashLink } from 'react-router-hash-link';
@@ -205,6 +204,16 @@ export const CurrentChannel: React.FC<CurrentChannelProps> = ({ cv, canUpgrade }
   );
 };
 
+const StatusMessagePopover: React.FC<CVStatusMessagePopoverProps> = ({ bodyContent, children }) => {
+  return (
+    <Popover bodyContent={truncateMiddle(bodyContent, { length: 256 })}>
+      <Button variant="link" isInline>
+        <span>{children}</span>
+      </Button>
+    </Popover>
+  );
+};
+
 const InvalidMessage: React.FC<CVStatusMessageProps> = ({ cv }) => {
   const { t } = useTranslation();
   return (
@@ -215,6 +224,25 @@ const InvalidMessage: React.FC<CVStatusMessageProps> = ({ cv }) => {
       <Button onClick={() => cancelUpdate(cv)} variant="primary">
         {t('public~Cancel update')}
       </Button>
+    </>
+  );
+};
+
+const ReleaseNotAcceptedMessage: React.FC<CVStatusMessageProps> = ({ cv }) => {
+  const releaseNotAcceptedCondition = getClusterVersionCondition(
+    cv,
+    ClusterVersionConditionType.ReleaseAccepted,
+    K8sResourceConditionStatus.False,
+  );
+  const { t } = useTranslation();
+  return (
+    <>
+      <div>
+        <StatusMessagePopover bodyContent={releaseNotAcceptedCondition.message}>
+          <RedExclamationCircleIcon /> {t('public~Release not accepted')}
+        </StatusMessagePopover>
+      </div>
+      <ClusterVersionConditionsLink cv={cv} />
     </>
   );
 };
@@ -237,11 +265,9 @@ const FailingMessageText: React.FC<CVStatusMessageProps> = ({ cv }) => {
   const { t } = useTranslation();
   return (
     <div>
-      <Tooltip content={truncateMiddle(failingCondition.message, { length: 256 })}>
-        <span>
-          <RedExclamationCircleIcon /> {t('public~Failing')}
-        </span>
-      </Tooltip>
+      <StatusMessagePopover bodyContent={failingCondition.message}>
+        <RedExclamationCircleIcon /> {t('public~Failing')}
+      </StatusMessagePopover>
     </div>
   );
 };
@@ -288,21 +314,17 @@ const ErrorRetrievingMessage: React.FC<CVStatusMessageProps> = ({ cv }) => {
   const { t } = useTranslation();
   return retrievedUpdatesCondition.reason === 'NoChannel' ? (
     <>
-      <BlueInfoCircleIcon /> {t('public~Not configured to request update recommedations.')}
+      <BlueInfoCircleIcon /> {retrievedUpdatesCondition.message}
     </>
   ) : (
-    <Tooltip
-      content={truncateMiddle(retrievedUpdatesCondition.message, {
-        length: 256,
-      })}
-    >
-      <span>
-        <RedExclamationCircleIcon />{' '}
-        {retrievedUpdatesCondition.reason === 'VersionNotFound'
-          ? t('public~Version not found')
-          : t('public~Error retrieving')}
-      </span>
-    </Tooltip>
+    <>
+      <div>
+        <StatusMessagePopover bodyContent={retrievedUpdatesCondition.message}>
+          <RedExclamationCircleIcon /> {t('public~Not retrieving updates')}
+        </StatusMessagePopover>
+      </div>
+      <ClusterVersionConditionsLink cv={cv} />
+    </>
   );
 };
 
@@ -329,6 +351,8 @@ export const UpdateStatus: React.FC<UpdateStatusProps> = ({ cv }) => {
   switch (status) {
     case ClusterUpdateStatus.Invalid:
       return <InvalidMessage cv={cv} />;
+    case ClusterUpdateStatus.ReleaseNotAccepted:
+      return <ReleaseNotAcceptedMessage cv={cv} />;
     case ClusterUpdateStatus.UpdatesAvailable:
       return <UpdatesAvailableMessage cv={cv} />;
     case ClusterUpdateStatus.Updating:
@@ -616,11 +640,12 @@ export const NodesUpdatesGroup: React.FC<NodesUpdatesGroupProps> = ({
     kind: referenceForModel(MachineConfigModel),
     name: machineConfigPool?.spec?.configuration?.name,
   });
+  const mcpName = machineConfigPool?.metadata?.name;
   const machineConfigPoolIsEditable = useAccessReview({
     group: MachineConfigPoolModel.apiGroup,
     resource: MachineConfigPoolModel.plural,
     verb: 'patch',
-    name,
+    name: mcpName,
   });
   const isMaster = isMCPMaster(machineConfigPool);
   const isPaused = isMCPPaused(machineConfigPool);
@@ -638,15 +663,14 @@ export const NodesUpdatesGroup: React.FC<NodesUpdatesGroupProps> = ({
       : 0;
   const percentMCPNodes = calculatePercentage(updatedMCPNodes, totalMCPNodes);
   const isUpdated = percentMCPNodes === 100;
+  const nodeRoleFilterValue = isMaster ? 'control-plane' : mcpName;
   const { t } = useTranslation();
   return totalMCPNodes === 0 || (hideIfComplete && isUpdated)
     ? null
     : machineConfigOperatorLoaded && renderedConfigLoaded && (
         <UpdatesGroup divided={divided}>
           <UpdatesType>
-            <Link
-              to={`/k8s/cluster/nodes?rowFilter-node-role=${machineConfigPool?.metadata?.name}`}
-            >
+            <Link to={`/k8s/cluster/nodes?rowFilter-node-role=${nodeRoleFilterValue}`}>
               {`${name} ${NodeModel.labelPlural}`}
             </Link>
             {!isMaster && (
@@ -1019,10 +1043,8 @@ export const ClusterSettingsAlerts: React.FC<ClusterSettingsAlertsProps> = ({
   canUpgrade,
   cv,
   machineConfigPools,
-  status,
 }) => {
   const { t } = useTranslation();
-  const channel = cv.spec.channel;
   if (!canUpgrade) {
     return (
       <Alert
@@ -1035,30 +1057,6 @@ export const ClusterSettingsAlerts: React.FC<ClusterSettingsAlertsProps> = ({
   }
   return (
     <>
-      {!channel && (
-        <Alert
-          variant="info"
-          isInline
-          title={t(
-            'public~This cluster is not currently requesting update notifications. To request update recommendations, configure a channel.',
-          )}
-          className="co-alert"
-        />
-      )}
-      {channel && status === ClusterUpdateStatus.ErrorRetrieving && (
-        <Alert
-          variant="danger"
-          isInline
-          title={t(
-            'public~Version {{version}} not found in channel {{channel}}. To request update recommendations, configure a channel that supports your version.',
-            {
-              version: getLastCompletedUpdate(cv),
-              channel,
-            },
-          )}
-          className="co-alert"
-        />
-      )}
       {!!getConditionUpgradeableFalse(cv) && <ClusterNotUpgradeableAlert cv={cv} />}
       <MachineConfigPoolsArePausedAlert machineConfigPools={machineConfigPools} />
     </>
@@ -1390,6 +1388,11 @@ export const ClusterSettingsPage: React.FC<ClusterSettingsPageProps> = ({ match 
 
 type UpdateStatusProps = {
   cv: ClusterVersionKind;
+};
+
+type CVStatusMessagePopoverProps = {
+  bodyContent: string;
+  children: React.ReactNode;
 };
 
 type CVStatusMessageProps = {
