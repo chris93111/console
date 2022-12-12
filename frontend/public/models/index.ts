@@ -248,8 +248,8 @@ export const BuildModel: K8sKind = {
   label: 'Build',
   // t('public~Build')
   labelKey: 'public~Build',
-  apiVersion: 'v1',
-  apiGroup: 'build.openshift.io',
+  apiVersion: 'v1alpha1',
+  apiGroup: 'shipwright.io',
   plural: 'builds',
   abbr: 'B',
   namespaced: true,

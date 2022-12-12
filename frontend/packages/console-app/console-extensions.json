@@ -404,8 +404,7 @@
       "id": "builds",
       "name": "%console-app~Builds%",
       "dataAttributes": { "data-quickstart-id": "qs-nav-builds" }
-    },
-    "flags": { "required": ["OPENSHIFT"] }
+    }
   },
   {
     "type": "console.navigation/section",
@@ -871,8 +870,8 @@
       "insertAfter": "buildconfigs",
       "name": "%console-app~Builds%",
       "model": {
-        "group": "build.openshift.io",
-        "version": "v1",
+        "group": "shipwright.io",
+        "version": "v1alpha1",
         "kind": "Build"
       }
     }
