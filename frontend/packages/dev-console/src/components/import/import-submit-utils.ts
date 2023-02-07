@@ -29,6 +29,7 @@ import {
   getDomainMappingRequests,
   getKnativeServiceDepResource,
 } from '@console/knative-plugin/src/utils/create-knative-utils';
+import { PipelineType } from '@console/pipelines-plugin/src/components/import/import-types';
 import {
   createPipelineForImportFlow,
   createPipelineRunForImportFlow,
@@ -37,6 +38,7 @@ import {
 import { PIPELINE_SERVICE_ACCOUNT } from '@console/pipelines-plugin/src/components/pipelines/const';
 import { createTrigger } from '@console/pipelines-plugin/src/components/pipelines/modals/triggers/submit-utils';
 import { setPipelineNotStarted } from '@console/pipelines-plugin/src/components/pipelines/pipeline-overview/pipeline-overview-utils';
+import { createRepositoryResources } from '@console/pipelines-plugin/src/components/repository/repository-form-utils';
 import { PipelineKind } from '@console/pipelines-plugin/src/types';
 import {
   updateServiceAccount,
@@ -696,6 +698,12 @@ export const createOrUpdateResources = async (
     return createDevfileResources(formData, dryRun, appResources, generatedImageStreamName);
   }
 
+  if (pipeline.type === PipelineType.PAC) {
+    const pacRepository = formData?.pac?.repository;
+    const repo = await createRepositoryResources(pacRepository, namespace, dryRun);
+    responses.push(repo);
+  }
+
   const imageStreamResponse = await createOrUpdateImageStream(
     formData,
     imageStream,
@@ -706,7 +714,7 @@ export const createOrUpdateResources = async (
   );
   responses.push(imageStreamResponse);
 
-  if (pipeline.enabled) {
+  if (pipeline.enabled && pipeline.type !== PipelineType.PAC) {
     if (!dryRun) {
       const pipelineResources = await managePipelineResources(
         formData,

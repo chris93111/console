@@ -407,6 +407,18 @@ export type HPAMetric = {
   };
 };
 
+type HPAScalingPolicy = {
+  hpaScalingPolicyType: 'Pods' | 'Percent';
+  value: number;
+  periodSeconds: number;
+};
+
+type HPAScalingRules = {
+  stabilizationWindowSeconds?: number;
+  selectPolicy?: 'Max' | 'Min' | 'Disabled';
+  policies?: HPAScalingPolicy[];
+};
+
 type HPACurrentMetrics = {
   type: 'Object' | 'Pods' | 'Resource' | 'External';
   external?: {
@@ -438,6 +450,10 @@ export type HorizontalPodAutoscalerKind = K8sResourceCommon & {
     minReplicas?: number;
     maxReplicas: number;
     metrics?: HPAMetric[];
+    behavior?: {
+      scaleUp?: HPAScalingRules;
+      scaleDown?: HPAScalingRules;
+    };
   };
   status?: {
     currentReplicas: number;
@@ -1116,24 +1132,24 @@ export type ConsolePluginKind = K8sResourceCommon & {
     displayName: string;
     backend: {
       service: {
-        basePath: string;
+        basePath?: string;
         name: string;
         namespace: string;
         port: number;
       };
       type: 'Service';
     };
-    i18n: {
+    i18n?: {
       loadType: 'Preload' | 'Lazy' | '';
     };
-    proxy: ConsolePluginProxy[];
+    proxy?: ConsolePluginProxy[];
   };
 };
 
 export type ConsolePluginProxy = {
   alias: string;
-  authorization: 'UserToken' | 'None';
-  caCertificate: string;
+  authorization?: 'UserToken' | 'None';
+  caCertificate?: string;
   endpoint: {
     service: {
       name: string;
@@ -1200,3 +1216,14 @@ export type ReplicationControllerKind = {
 } & K8sResourceCommon;
 
 export type ReplicaSetKind = {} & ReplicationControllerKind;
+
+type EndpointSlice = {
+  kind?: string;
+  name?: string;
+  namespace?: string;
+  uid?: string;
+};
+
+export type EndpointSliceKind = {
+  endpoints?: EndpointSlice[];
+} & K8sResourceCommon;

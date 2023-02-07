@@ -19,6 +19,7 @@ import { useProjectOrNamespaceModel } from '@console/internal/components/utils';
 import { useK8sWatchResource } from '@console/internal/components/utils/k8s-watch-hook';
 import { ProjectModel } from '@console/internal/models';
 import { K8sKind, K8sResourceKind } from '@console/internal/module/k8s';
+import { alphanumericCompare } from '@console/shared';
 import {
   Filter,
   Footer,
@@ -67,7 +68,7 @@ const NamespaceDropdown: React.FC = () => {
       const { name } = item.metadata;
       return { title: name, key: name };
     });
-    items.sort((a, b) => a.title.localeCompare(b.title));
+    items.sort((a, b) => alphanumericCompare(a.title, b.title));
     return items;
   }, [options, optionsLoaded]);
 

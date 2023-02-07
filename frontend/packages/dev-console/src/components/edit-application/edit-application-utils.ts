@@ -1,5 +1,6 @@
 import { TFunction } from 'i18next';
 import * as _ from 'lodash';
+import { ImportStrategy } from '@console/git-service/src';
 import { BuildStrategyType } from '@console/internal/components/build';
 import { hasIcon } from '@console/internal/components/catalog/catalog-item-icon';
 import { DeploymentConfigModel, DeploymentModel } from '@console/internal/models';
@@ -18,7 +19,9 @@ import {
   KNATIVE_SERVING_LABEL,
   ServiceModel,
 } from '@console/knative-plugin';
+import { PipelineType } from '@console/pipelines-plugin/src/components/import/import-types';
 import { isDockerPipeline } from '@console/pipelines-plugin/src/components/import/pipeline/pipeline-template-utils';
+import { defaultRepositoryFormValues } from '@console/pipelines-plugin/src/components/repository/consts';
 import {
   PIPELINE_RUNTIME_LABEL,
   PIPELINE_RUNTIME_VERSION_LABEL,
@@ -384,6 +387,13 @@ export const getCommonInitialValues = (
     serverless: getServerlessData(editAppResource),
     pipeline: {
       enabled: !_.isEmpty(pipelineData),
+      type: PipelineType.PIPELINE,
+    },
+    pac: {
+      pacHasError: false,
+      repository: {
+        ...defaultRepositoryFormValues,
+      },
     },
     deployment: getDeploymentData(editAppResource),
     labels: getUserLabels(editAppResource),
@@ -391,6 +401,12 @@ export const getCommonInitialValues = (
     healthChecks: getHealthChecksData(editAppResource),
     import: {
       showEditImportStrategy: true,
+      selectedStrategy: {
+        name: '',
+        type: ImportStrategy.S2I,
+        priority: 0,
+        detectedFiles: [],
+      },
     },
   };
   return commonInitialValues;

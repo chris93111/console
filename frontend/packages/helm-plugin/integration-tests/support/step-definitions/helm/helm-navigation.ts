@@ -58,15 +58,15 @@ When('user searches and selects {string} card from catalog page', (cardName: str
   catalogPage.selectHelmChartCard(cardName);
 });
 
-Then('Install Helm Chart page is displayed', () => {
-  cy.get('h1.pf-c-title').should('have.text', pageTitle.InstallHelmCharts);
+Then('Create Helm Release page is displayed', () => {
+  cy.get('h1.pf-c-title').should('have.text', pageTitle.CreateHelmRelease);
 });
 
 Then('release name displays as {string}', (name: string) => {
   cy.get(catalogPO.installHelmChart.releaseName).should('have.value', name);
 });
 
-Given('user is at Install Helm Chart page', () => {
+Given('user is at Create Helm Release page', () => {
   navigateTo(devNavigationMenu.Add);
   addPage.selectCardFromOptions(addOptions.HelmChart);
   catalogPage.search('Nodejs');
@@ -126,7 +126,7 @@ Then('user will see the Release Notes tab', () => {
 });
 
 Then(
-  'user will see the Actions drop down menu with options Upgrade, Rollback, and Uninstall Helm Release',
+  'user will see the Actions drop down menu with options Upgrade, Rollback, and Delete Helm Release',
   () => {
     helmDetailsPage.verifyActionsDropdown();
     helmDetailsPage.clickActionMenu();
@@ -320,4 +320,47 @@ When('user navigates to Helm page', () => {
 When('user can see {string} {string} details page', (type: string, name: string) => {
   cy.get(`[title=${type}`).should('be.visible');
   cy.byLegacyTestID('resource-title').contains(name);
+});
+
+Given(
+  'user has installed helm chart {string} with helm release name {string}',
+  (chartName: string, releaseName: string) => {
+    catalogPage.createHelmChart(releaseName, chartName);
+  },
+);
+
+Given('user is able to see {string} in helm page', (helmRelease: string) => {
+  navigateTo(devNavigationMenu.Helm);
+  helmPage.search(helmRelease);
+});
+
+Given('user is able to see the status and status icon of {string} under helm releases tab', () => {
+  helmPage.verifyHelmChartStatus();
+});
+
+Given(
+  'user is able to see the {string}, {string} and {string} options under filter bar',
+  (item1: string, item2: string, item3: string) => {
+    helmPage.verifyDropdownItem(item1, item2, item3);
+  },
+);
+
+Then('user is able to see the status and status icon in title after {string}', () => {
+  cy.byLegacyTestID('resource-title').within(() => {
+    helmPage.verifyHelmChartStatus();
+  });
+});
+
+Then('user is able to see the status and status icon under helm release details', () => {
+  cy.byTestID('helm-release-status-details').within(() => {
+    helmPage.verifyHelmChartStatus();
+  });
+});
+
+Then('user is able to see the status and status icon of Revision history page', () => {
+  helmPage.verifyHelmChartStatus();
+});
+
+Then('user switch to Revision history tab', () => {
+  helmDetailsPage.clickRevisionHistoryTab();
 });

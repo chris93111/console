@@ -2,6 +2,7 @@ import { BaseService } from '../services/base-service';
 import { RepoStatus } from '../types';
 import { ImportStrategy } from '../types/git';
 import { detectBuildTypes } from './build-tool-type-detector';
+import { isServerlessFxRepository } from './serverless-strategy-detector';
 
 type ImportStrategyType = {
   name: string;
@@ -16,12 +17,18 @@ const ImportStrategyList: ImportStrategyType[] = [
     name: 'Devfile',
     type: ImportStrategy.DEVFILE,
     expectedRegexp: /^\.?devfile\.yaml$/,
-    priority: 2,
+    priority: 3,
   },
   {
     name: 'Dockerfile',
     type: ImportStrategy.DOCKERFILE,
     expectedRegexp: /^Dockerfile.*/,
+    priority: 2,
+  },
+  {
+    name: 'Serverless Function',
+    type: ImportStrategy.SERVERLESS_FUNCTION,
+    expectedRegexp: /^func\.(yaml|yml)$/,
     priority: 1,
   },
   {
@@ -51,18 +58,24 @@ type DetectedServiceData = {
 export const detectImportStrategies = async (
   repository: string,
   gitService: BaseService,
+  isServerlessEnabled: boolean = false,
 ): Promise<DetectedServiceData> => {
   let detectedStrategies: DetectedStrategy[] = [];
+  let addServerlessFxStrategy: boolean;
   let loaded: boolean = false;
   let loadError = null;
 
-  const repositoryStatus = gitService ? await gitService.isRepoReachable() : RepoStatus.Unreachable;
+  const repositoryStatus = gitService
+    ? await gitService.isRepoReachable()
+    : RepoStatus.GitTypeNotDetected;
   let detectedFiles: string[] = [];
   let detectedCustomData: string[];
 
   if (repositoryStatus === RepoStatus.Reachable) {
     try {
-      const { files } = await gitService.getRepoFileList();
+      const { files } = await gitService.getRepoFileList({ includeFolder: true });
+      addServerlessFxStrategy = await isServerlessFxRepository(isServerlessEnabled, gitService);
+
       detectedStrategies = await Promise.all(
         ImportStrategyList.map<Promise<DetectedStrategy>>(async (strategy) => {
           detectedFiles = files.filter((f) => strategy.expectedRegexp.test(f));
@@ -85,6 +98,12 @@ export const detectImportStrategies = async (
     }
   } else {
     loaded = true;
+  }
+
+  if (!addServerlessFxStrategy) {
+    detectedStrategies = detectedStrategies.filter(
+      (strategy) => strategy.type !== ImportStrategy.SERVERLESS_FUNCTION,
+    );
   }
 
   detectedStrategies = detectedStrategies

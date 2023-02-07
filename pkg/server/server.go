@@ -116,7 +116,7 @@ type jsGlobals struct {
 	Telemetry                       serverconfig.MultiKeyValue `json:"telemetry"`
 	ReleaseVersion                  string                     `json:"releaseVersion"`
 	NodeArchitectures               []string                   `json:"nodeArchitectures"`
-	CopiedCSVsDisabled              bool                       `json:"copiedCSVsDisabled"`
+	CopiedCSVsDisabled              map[string]bool            `json:"copiedCSVsDisabled"`
 	HubConsoleURL                   string                     `json:"hubConsoleURL"`
 }
 
@@ -181,7 +181,7 @@ type Server struct {
 	ProjectAccessClusterRoles    string
 	Perspectives                 string
 	Telemetry                    serverconfig.MultiKeyValue
-	CopiedCSVsDisabled           bool
+	CopiedCSVsDisabled           map[string]bool
 	HubConsoleURL                *url.URL
 }
 
@@ -234,6 +234,14 @@ func (s *Server) getK8sClient(cluster string) *http.Client {
 			TLSClientConfig: s.ManagedClusterProxyConfig.TLSClientConfig,
 		},
 	}
+}
+
+func (s *Server) getManagedClusterList() []string {
+	clusters := make([]string, 0, len(s.Authers))
+	for cluster := range s.Authers {
+		clusters = append(clusters, cluster)
+	}
+	return clusters
 }
 
 func (s *Server) HTTPHandler() http.Handler {
@@ -625,7 +633,22 @@ func (s *Server) HTTPHandler() http.Handler {
 		}
 	}
 
-	handle(updatesEndpoint, authHandler(pluginsHandler.HandleCheckUpdates))
+	handle(updatesEndpoint, authHandler(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			w.Header().Set("Allow", "GET")
+			serverutils.SendResponse(w, http.StatusMethodNotAllowed, serverutils.ApiError{Err: "Method unsupported, the only supported methods is GET"})
+			return
+		}
+		serverutils.SendResponse(w, http.StatusOK, struct {
+			ConsoleCommit   string   `json:"consoleCommit"`
+			ManagedClusters []string `json:"managedClusters"`
+			Plugins         []string `json:"plugins"`
+		}{
+			ConsoleCommit:   os.Getenv("SOURCE_GIT_COMMIT"),
+			ManagedClusters: s.getManagedClusterList(),
+			Plugins:         pluginsHandler.GetPluginsList(),
+		})
+	}))
 
 	// Helm Endpoints
 	metricsHandler := func(next http.Handler) http.Handler {
@@ -675,9 +698,11 @@ func (s *Server) HTTPHandler() http.Handler {
 			helmHandlers.HandleHelmInstallAsync(user, w, r)
 		case http.MethodPut:
 			helmHandlers.HandleUpgradeReleaseAsync(user, w, r)
+		case http.MethodDelete:
+			helmHandlers.HandleUninstallReleaseAsync(user, w, r)
 		default:
-			w.Header().Set("Allow", " POST, PUT")
-			serverutils.SendResponse(w, http.StatusMethodNotAllowed, serverutils.ApiError{Err: "Unsupported method, supported methods are GET, POST, PATCH, PUT, DELETE"})
+			w.Header().Set("Allow", "POST, PUT , DELETE")
+			serverutils.SendResponse(w, http.StatusMethodNotAllowed, serverutils.ApiError{Err: "Unsupported method, supported methods are POST, PUT , DELETE"})
 		}
 	}))
 
@@ -721,11 +746,6 @@ func (s *Server) indexHandler(w http.ResponseWriter, r *http.Request) {
 		plugins = append(plugins, plugin)
 	}
 
-	clusters := make([]string, 0, len(s.Authers))
-	for cluster := range s.Authers {
-		clusters = append(clusters, cluster)
-	}
-
 	jsg := &jsGlobals{
 		ConsoleVersion:             version.Version,
 		AuthDisabled:               s.authDisabled(),
@@ -761,7 +781,7 @@ func (s *Server) indexHandler(w http.ResponseWriter, r *http.Request) {
 		AddPage:                    s.AddPage,
 		ProjectAccessClusterRoles:  s.ProjectAccessClusterRoles,
 		Perspectives:               s.Perspectives,
-		Clusters:                   clusters,
+		Clusters:                   s.getManagedClusterList(),
 		Telemetry:                  s.Telemetry,
 		ReleaseVersion:             s.ReleaseVersion,
 		NodeArchitectures:          s.NodeArchitectures,

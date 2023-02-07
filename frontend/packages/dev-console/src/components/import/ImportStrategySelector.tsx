@@ -3,9 +3,15 @@ import { FormGroup, Grid, GridItem, Tile } from '@patternfly/react-core';
 import { LayerGroupIcon, CubeIcon, GitAltIcon, StarIcon } from '@patternfly/react-icons';
 import { FormikValues, useFormikContext } from 'formik';
 import { useTranslation } from 'react-i18next';
+import { useAccessReview } from '@console/dynamic-plugin-sdk/src';
 import { ImportStrategy } from '@console/git-service/src';
+import { getActiveNamespace } from '@console/internal/actions/ui';
 import { BuildStrategyType } from '@console/internal/components/build';
-import { getFieldId, useFormikValidationFix } from '@console/shared/src';
+import { ServerlessBuildStrategyType } from '@console/knative-plugin/src';
+import { FLAG_KNATIVE_SERVING_SERVICE } from '@console/knative-plugin/src/const';
+import { ServiceModel as ksvcModel } from '@console/knative-plugin/src/models';
+import { getFieldId, useFlag, useFormikValidationFix } from '@console/shared/src';
+import ServerlessFxIcon from './ServerlessFxIcon';
 import './ImportStrategySelector.scss';
 
 const ImportStrategySelector: React.FC = () => {
@@ -19,7 +25,16 @@ const ImportStrategySelector: React.FC = () => {
   } = useFormikContext<FormikValues>();
   const fieldId = getFieldId('import.selectedStrategy', 'importStrategySelect');
 
-  const itemList = [
+  type ItemListType = {
+    name: string;
+    type: ImportStrategy;
+    build: BuildStrategyType | ServerlessBuildStrategyType;
+    priority: number;
+    detectedFiles: string[];
+    icon: React.ReactNode;
+  };
+
+  const itemList: ItemListType[] = [
     {
       name: 'Devfile',
       type: ImportStrategy.DEVFILE,
@@ -45,6 +60,26 @@ const ImportStrategySelector: React.FC = () => {
       icon: <GitAltIcon />,
     },
   ];
+
+  const [knativeServiceAccess] = useAccessReview({
+    group: ksvcModel.apiGroup,
+    resource: ksvcModel.plural,
+    namespace: getActiveNamespace(),
+    verb: 'create',
+  });
+
+  const canIncludeKnative = useFlag(FLAG_KNATIVE_SERVING_SERVICE) && knativeServiceAccess;
+
+  if (recommendedStrategy?.type === ImportStrategy.SERVERLESS_FUNCTION && canIncludeKnative) {
+    itemList.push({
+      name: 'Serverless Function',
+      type: ImportStrategy.SERVERLESS_FUNCTION,
+      build: ServerlessBuildStrategyType.ServerlessFunction,
+      priority: 3,
+      detectedFiles: [],
+      icon: <ServerlessFxIcon />,
+    });
+  }
 
   const onSelect = React.useCallback(
     (item) => {

@@ -27,6 +27,7 @@ import {
   ALL_NAMESPACES_KEY,
   NAMESPACE_USERSETTINGS_PREFIX,
   NAMESPACE_LOCAL_STORAGE_KEY,
+  alphanumericCompare,
 } from '@console/shared';
 import { FLAGS } from '@console/shared/src/constants';
 import { useFlag } from '@console/shared/src/hooks/flag';
@@ -250,7 +251,7 @@ const NamespaceMenu: React.FC<{
     if (!items.some((option) => option.title === selected) && selected !== ALL_NAMESPACES_KEY) {
       items.push({ title: selected, key: selected }); // Add current namespace if it isn't included
     }
-    items.sort((a, b) => a.title.localeCompare(b.title));
+    items.sort((a, b) => alphanumericCompare(a.title, b.title));
 
     if (canList) {
       items.unshift({ title: allNamespacesTitle, key: ALL_NAMESPACES_KEY });

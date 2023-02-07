@@ -27,9 +27,15 @@ export type PerspectiveVisibility = {
   accessReview?: PerspectiveAccessReview;
 };
 
+export type PerspectivePinnedResource = {
+  group: string;
+  version: string;
+  resource: string;
+};
 export type Perspective = {
   id: string;
   visibility: PerspectiveVisibility;
+  pinnedResources?: PerspectivePinnedResource[];
 };
 
 export const getPerspectiveVisitedKey = (perspective: PerspectiveType): string =>
@@ -163,4 +169,12 @@ export const usePerspectives = (): LoadedExtension<PerspectiveExtension>[] => {
       : filteredExtensions;
   }, [perspectiveExtensions, results]);
   return perspectives;
+};
+
+export const usePerspectiveExtension = (id: string): LoadedExtension<PerspectiveExtension> => {
+  const perspectiveExtensions = usePerspectives();
+  return React.useMemo(() => perspectiveExtensions.find((e) => e.properties.id === id), [
+    id,
+    perspectiveExtensions,
+  ]);
 };

@@ -76,7 +76,7 @@ const HelmReleaseList: React.FC<HelmReleaseListProps> = (props) => {
         setReleases([]);
       } else if (newCount !== secretsCountRef.current) {
         setReleasesLoaded(false);
-        fetchHelmReleases(namespace)
+        fetchHelmReleases(namespace, true)
           .then((helmReleases) => {
             if (!destroyed) {
               setReleases(helmReleases);
@@ -127,7 +127,7 @@ const HelmReleaseList: React.FC<HelmReleaseListProps> = (props) => {
         {isHelmEnabled ? (
           <EmptyStateSecondaryActions>
             <Link to={installURL}>
-              {t('helm-plugin~Install a Helm Chart from the developer catalog')}
+              {t('helm-plugin~Browse the catalog to discover and install Helm Charts')}
             </Link>
           </EmptyStateSecondaryActions>
         ) : null}

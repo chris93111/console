@@ -2,10 +2,11 @@ import { modal } from '@console/cypress-integration-tests/views/modal';
 import { helmActions } from '@console/dev-console/integration-tests/support/constants';
 import { helmPO } from '@console/dev-console/integration-tests/support/pageObjects';
 
-const actions = [helmActions.upgrade, helmActions.rollback, helmActions.uninstallHelmRelease];
+const actions = [helmActions.upgrade, helmActions.rollback, helmActions.deleteHelmRelease];
 
 export const helmDetailsPage = {
   verifyTitle: () => cy.byTestSectionHeading('Helm Release details').should('be.visible'),
+  verifyHelmReleaseStatus: () => cy.get('[data-test="status-text"]').should('be.visible'),
   verifyResourcesTab: () => cy.get(helmPO.resourcesTab).should('be.visible'),
   verifyReleaseNotesTab: () => cy.get(helmPO.revisionHistoryTab).should('be.visible'),
   verifyActionsDropdown: () => cy.byLegacyTestID('actions-menu-button').should('be.visible'),
@@ -26,13 +27,13 @@ export const helmDetailsPage = {
   },
   uninstallHelmRelease: () => {
     cy.get('form.modal-content').within(() => {
-      cy.byLegacyTestID('modal-title').should('contain.text', 'Uninstall Helm Release?');
+      cy.byLegacyTestID('modal-title').should('contain.text', 'Delete Helm Release?');
       cy.get('button[type=submit]').click({ force: true });
     });
     modal.shouldBeClosed();
   },
   enterReleaseNameInUninstallPopup: (releaseName: string = 'nodejs-release') => {
-    modal.modalTitleShouldContain('Uninstall Helm Release?');
+    modal.modalTitleShouldContain('Delete Helm Release?');
     cy.get('form strong').should('have.text', releaseName);
     cy.get(helmPO.uninstallHelmRelease.releaseName).type(releaseName);
   },
@@ -79,4 +80,5 @@ export const helmDetailsPage = {
       .contains('Repository')
       .click();
   },
+  clickRevisionHistoryTab: () => cy.get(helmPO.revisionHistoryTab).click(),
 };

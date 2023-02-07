@@ -59,6 +59,35 @@
   {
     "type": "console.cluster-configuration/item",
     "properties": {
+      "id": "dev-console.PinnedResourcesConfiguration",
+      "groupId": "developer",
+      "label": "%devconsole~Pre-pinned navigation items%",
+      "description": "%devconsole~Resource links that are shown below the standard navigation items. These pinned resources can still be changed by the user.%",
+      "field": {
+        "type": "custom",
+        "component": { "$codeRef": "catalog.PinnedResourcesConfiguration" }
+      },
+      "readAccessReview": [
+        {
+          "group": "operator.openshift.io/v1",
+          "resource": "consoles",
+          "verb": "get",
+          "name": "cluster"
+        }
+      ],
+      "writeAccessReview": [
+        {
+          "group": "operator.openshift.io/v1",
+          "resource": "consoles",
+          "verb": "patch",
+          "name": "cluster"
+        }
+      ]
+    }
+  },
+  {
+    "type": "console.cluster-configuration/item",
+    "properties": {
       "id": "dev-console.AddPageConfiguration",
       "groupId": "developer",
       "label": "%devconsole~Add page actions%",
@@ -867,7 +896,7 @@
         "options": [
           {
             "value": "latest",
-            "label": "Last used",
+            "label": "%devconsole~Last used%",
             "description": "%devconsole~The last resource type used when adding a resource.%"
           },
           {
@@ -903,7 +932,7 @@
         "options": [
           {
             "value": "latest",
-            "label": "Last used",
+            "label": "%devconsole~Last used%",
             "description": "%devconsole~The last resource type used when adding a resource.%"
           },
           {
@@ -945,6 +974,19 @@
       "exact": true,
       "path": ["/project-access/ns/:ns", "/project-access/all-namespaces"],
       "component": { "$codeRef": "projectAccess.ProjectAccessPage" }
+    }
+  },
+  {
+    "type": "console.page/route",
+    "properties": {
+      "exact": true,
+      "path": ["/serverless-function/all-namespaces", "/serverless-function/ns/:ns"],
+      "component": {
+        "$codeRef": "serverlessFunction.ServerlessFunctionPage"
+      }
+    },
+    "flags": {
+      "required": ["KNATIVE_SERVING", "KNATIVE_SERVING_SERVICE"]
     }
   }
 ]

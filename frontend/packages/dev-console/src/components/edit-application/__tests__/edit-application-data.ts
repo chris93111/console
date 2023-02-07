@@ -1,6 +1,8 @@
-import { GitProvider } from '@console/git-service/src';
+import { GitProvider, ImportStrategy } from '@console/git-service/src';
 import { K8sResourceKind } from '@console/internal/module/k8s';
 import { ServiceModel } from '@console/knative-plugin';
+import { PipelineType } from '@console/pipelines-plugin/src/components/import/import-types';
+import { defaultRepositoryFormValues } from '@console/pipelines-plugin/src/components/repository/consts';
 import { UNASSIGNED_KEY } from '@console/topology/src/const';
 import { healthChecksData } from '../../health-checks/__tests__/create-health-checks-probe-data';
 import { healthChecksProbeInitialData } from '../../health-checks/health-checks-probe-utils';
@@ -509,8 +511,14 @@ export const gitImportInitialValues: GitImportFormData = {
     labels: {},
   },
   resources: Resources.OpenShift,
+  pac: {
+    pacHasError: false,
+    repository: {
+      ...defaultRepositoryFormValues,
+    },
+  },
   serverless: serverlessInitialValues,
-  pipeline: { enabled: false },
+  pipeline: { enabled: false, type: PipelineType.PIPELINE },
   deployment: { env: [], triggers: { image: true, config: true }, replicas: 1 },
   labels: {
     'app.kubernetes.io/component': 'nationalparks-py',
@@ -563,6 +571,12 @@ export const gitImportInitialValues: GitImportFormData = {
   },
   healthChecks: healthChecksProbeInitialData,
   import: {
+    selectedStrategy: {
+      name: '',
+      type: ImportStrategy.S2I,
+      priority: 0,
+      detectedFiles: [],
+    },
     showEditImportStrategy: true,
   },
 };
@@ -594,7 +608,13 @@ export const externalImageValues: DeployImageFormData = {
   },
   resources: Resources.OpenShift,
   serverless: serverlessInitialValues,
-  pipeline: { enabled: false },
+  pac: {
+    pacHasError: false,
+    repository: {
+      ...defaultRepositoryFormValues,
+    },
+  },
+  pipeline: { enabled: false, type: PipelineType.PIPELINE },
   deployment: { env: [], triggers: { image: true, config: true }, replicas: 1 },
   labels: { 'app.kubernetes.io/component': 'nationalparks-py', 'app.kubernetes.io/name': 'python' },
   limits: {
@@ -637,6 +657,12 @@ export const externalImageValues: DeployImageFormData = {
   isSearchingForImage: false,
   healthChecks: healthChecksProbeInitialData,
   import: {
+    selectedStrategy: {
+      name: '',
+      type: ImportStrategy.S2I,
+      priority: 0,
+      detectedFiles: [],
+    },
     showEditImportStrategy: true,
   },
 };
@@ -668,7 +694,13 @@ export const internalImageValues: DeployImageFormData = {
   },
   resources: Resources.OpenShift,
   serverless: serverlessInitialValues,
-  pipeline: { enabled: false },
+  pipeline: { enabled: false, type: PipelineType.PIPELINE },
+  pac: {
+    pacHasError: false,
+    repository: {
+      ...defaultRepositoryFormValues,
+    },
+  },
   deployment: { env: [], triggers: { image: true, config: true }, replicas: 1 },
   labels: { 'app.kubernetes.io/component': 'nationalparks-py', 'app.kubernetes.io/name': 'python' },
   limits: {
@@ -711,6 +743,12 @@ export const internalImageValues: DeployImageFormData = {
   isSearchingForImage: false,
   healthChecks: healthChecksProbeInitialData,
   import: {
+    selectedStrategy: {
+      name: '',
+      type: ImportStrategy.S2I,
+      priority: 0,
+      detectedFiles: [],
+    },
     showEditImportStrategy: true,
   },
 };
@@ -767,7 +805,13 @@ export const knExternalImageValues: DeployImageFormData = {
     },
   },
   name: 'nationalparks-py',
-  pipeline: { enabled: false },
+  pipeline: { enabled: false, type: PipelineType.PIPELINE },
+  pac: {
+    pacHasError: false,
+    repository: {
+      ...defaultRepositoryFormValues,
+    },
+  },
   project: { name: 'div' },
   runtimeIcon: null,
   registry: 'external',
@@ -796,6 +840,12 @@ export const knExternalImageValues: DeployImageFormData = {
   serverless: serverlessInitialValues,
   healthChecks: healthChecksProbeInitialData,
   import: {
+    selectedStrategy: {
+      name: '',
+      type: ImportStrategy.S2I,
+      priority: 0,
+      detectedFiles: [],
+    },
     showEditImportStrategy: true,
   },
 };
@@ -804,6 +854,12 @@ export const gitImportInitialValuesWithHealthChecksEnabled: GitImportFormData = 
   ...gitImportInitialValues,
   healthChecks: healthChecksData,
   import: {
+    selectedStrategy: {
+      name: '',
+      type: ImportStrategy.S2I,
+      priority: 0,
+      detectedFiles: [],
+    },
     showEditImportStrategy: true,
   },
 };

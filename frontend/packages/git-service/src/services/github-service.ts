@@ -62,8 +62,19 @@ export class GithubService extends BaseService {
         return RepoStatus.Reachable;
       }
     } catch (e) {
-      if (e.status === 403) {
-        return RepoStatus.RateLimitExceeded;
+      switch (e.status) {
+        case 403: {
+          return RepoStatus.RateLimitExceeded;
+        }
+        case 404: {
+          return RepoStatus.PrivateRepo;
+        }
+        case 422: {
+          return RepoStatus.InvalidGitTypeSelected;
+        }
+        default: {
+          return RepoStatus.Unreachable;
+        }
       }
     }
     return RepoStatus.Unreachable;
@@ -84,12 +95,14 @@ export class GithubService extends BaseService {
     }
   };
 
-  getRepoFileList = async (): Promise<RepoFileList> => {
+  getRepoFileList = async (params?: { specificPath?: string }): Promise<RepoFileList> => {
     try {
       const resp = await this.client.repos.getContents({
         owner: this.metadata.owner,
         repo: this.metadata.repoName,
-        path: this.metadata.contextDir,
+        ...(params && params?.specificPath
+          ? { path: `${this.metadata.contextDir}/${params.specificPath}` }
+          : { path: this.metadata.contextDir }),
         ...(this.metadata.defaultBranch ? { ref: this.metadata.defaultBranch } : {}),
       });
       let files = [];
@@ -152,8 +165,18 @@ export class GithubService extends BaseService {
   isDockerfilePresent = () =>
     this.isFilePresent(`${this.metadata.contextDir}/${this.metadata.dockerfilePath}`);
 
+  isTektonFolderPresent = () => this.isFilePresent(`${this.metadata.contextDir}/.tekton`);
+
   getDockerfileContent = () =>
     this.getFileContent(`${this.metadata.contextDir}/${this.metadata.dockerfilePath}`);
+
+  isFuncYamlPresent = () =>
+    this.isFilePresent(`${this.metadata.contextDir}/func.yaml`) ||
+    this.isFilePresent(`${this.metadata.contextDir}/func.yml`);
+
+  getFuncYamlContent = () =>
+    this.getFileContent(`${this.metadata.contextDir}/func.yaml`) ||
+    this.getFileContent(`${this.metadata.contextDir}/func.yml`);
 
   isDevfilePresent = () =>
     this.isFilePresent(`${this.metadata.contextDir}/${this.metadata.devfilePath}`);

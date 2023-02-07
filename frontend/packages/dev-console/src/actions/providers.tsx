@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { GraphElement, Node, isGraph } from '@patternfly/react-topology';
+import i18next from 'i18next';
 import { getCommonResourceActions } from '@console/app/src/actions/creators/common-factory';
 import { K8sModel, Action, SetFeatureFlag } from '@console/dynamic-plugin-sdk';
 import { TopologyApplicationObject } from '@console/dynamic-plugin-sdk/src/extensions/topology-types';
@@ -22,6 +23,7 @@ import { ServiceBindingModel } from '@console/service-binding-plugin/src/models'
 import {
   isCatalogTypeEnabled,
   useActiveNamespace,
+  useFlag,
   useIsDeveloperCatalogEnabled,
 } from '@console/shared';
 import { useK8sModel } from '@console/shared/src/hooks/useK8sModel';
@@ -59,11 +61,24 @@ export const useEditImportActionProvider = (resource: K8sResourceKind) => {
 
 export const useServiceBindingActionProvider = (resource: K8sResourceKind) => {
   const [k8sKind, inFlight] = useK8sModel(referenceFor(resource));
-  const action = React.useMemo(() => getCommonResourceActions(k8sKind, resource), [
-    k8sKind,
-    resource,
-  ]);
-  return [action, !inFlight, undefined];
+  const actions = React.useMemo(() => {
+    let commonActions: Action[];
+    if (resource.spec.application.labelSelector) {
+      const message = (
+        <p>
+          {i18next.t(
+            'devconsole~Deletion of a Service Binding resource that utilizes label selector will result in the removal of all bindings on applications that share the labels defined in the Service Binding resource.',
+          )}
+        </p>
+      );
+      commonActions = getCommonResourceActions(k8sKind, resource, message);
+    } else {
+      commonActions = getCommonResourceActions(k8sKind, resource);
+    }
+
+    return commonActions;
+  }, [k8sKind, resource]);
+  return [actions, !inFlight, undefined];
 };
 
 const resourceAttributes = (model: K8sModel, namespace: string): AccessReviewResourceAttributes => {
@@ -114,6 +129,7 @@ export const useTopologyGraphActionProvider: TopologyActionProvider = ({
     OPERATOR_BACKED_SERVICE_CATALOG_TYPE_ID,
   );
   const isSampleTypeEnabled = isCatalogTypeEnabled(SAMPLE_CATALOG_TYPE_ID);
+  const isServerlessEnabled = useFlag('KNATIVE_SERVING_SERVICE');
 
   return React.useMemo(() => {
     const sourceObj = connectorSource?.getData()?.resource;
@@ -155,6 +171,18 @@ export const useTopologyGraphActionProvider: TopologyActionProvider = ({
         !isCatalogImageResourceAccess,
       ),
     );
+
+    if (isServerlessEnabled) {
+      actionsWithSourceRef.push(
+        AddActions.CreateServerlessFunction(
+          namespace,
+          undefined,
+          sourceReference,
+          '',
+          !isCatalogImageResourceAccess,
+        ),
+      );
+    }
 
     const actionsWithoutSourceRef: Action[] = [];
     if (isSampleTypeEnabled) {
@@ -209,6 +237,17 @@ export const useTopologyGraphActionProvider: TopologyActionProvider = ({
         !isCatalogImageResourceAccess,
       ),
     );
+    if (isServerlessEnabled) {
+      actionsWithoutSourceRef.push(
+        AddActions.CreateServerlessFunction(
+          namespace,
+          undefined,
+          undefined,
+          ADD_TO_PROJECT,
+          !isCatalogImageResourceAccess,
+        ),
+      );
+    }
 
     if (isGraph(element)) {
       const actions = sourceReference
@@ -223,6 +262,7 @@ export const useTopologyGraphActionProvider: TopologyActionProvider = ({
     isImportResourceAccess,
     isCatalogImageResourceAccess,
     isOperatorBackedServiceEnabled,
+    isServerlessEnabled,
     isSampleTypeEnabled,
     isDevCatalogEnabled,
     element,
@@ -254,7 +294,7 @@ export const useTopologyApplicationActionProvider: TopologyActionProvider = ({
     routeAccess &&
     serviceAccess;
   const isCatalogImageResourceAccess = isImportResourceAccess && imageStreamImportAccess;
-
+  const isServerlessEnabled = useFlag('KNATIVE_SERVING_SERVICE');
   const application = element.getLabel();
   const appData: TopologyApplicationObject = React.useMemo(
     () => ({
@@ -292,6 +332,17 @@ export const useTopologyApplicationActionProvider: TopologyActionProvider = ({
           path,
           !isCatalogImageResourceAccess,
         ),
+        ...(isServerlessEnabled
+          ? [
+              AddActions.CreateServerlessFunction(
+                namespace,
+                application,
+                sourceReference,
+                path,
+                !isCatalogImageResourceAccess,
+              ),
+            ]
+          : []),
       ].filter(disabledActionsFilter);
       return [actions, !inFlight, undefined];
     }
@@ -300,11 +351,12 @@ export const useTopologyApplicationActionProvider: TopologyActionProvider = ({
     element,
     inFlight,
     connectorSource,
+    appData,
+    kindObj,
     namespace,
     application,
     isImportResourceAccess,
     isCatalogImageResourceAccess,
-    appData,
-    kindObj,
+    isServerlessEnabled,
   ]);
 };

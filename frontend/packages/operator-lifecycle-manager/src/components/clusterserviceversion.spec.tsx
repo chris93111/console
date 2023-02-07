@@ -4,6 +4,7 @@ import { shallow, ShallowWrapper, mount, ReactWrapper } from 'enzyme';
 import * as _ from 'lodash';
 import { Provider } from 'react-redux';
 import { Link, Router } from 'react-router-dom';
+import * as utils from '@console/dynamic-plugin-sdk';
 import {
   DetailsPage,
   Table,
@@ -69,9 +70,14 @@ jest.mock('@console/shared/src/hooks/redux-selectors', () => {
   };
 });
 
+jest.mock('@console/shared/src/hooks/useActiveCluster', () => ({
+  useActiveCluster: () => ['local-cluster', () => {}],
+}));
+
 describe(ClusterServiceVersionTableRow.displayName, () => {
   let wrapper: ShallowWrapper<ClusterServiceVersionTableRowProps>;
   beforeEach(() => {
+    window.SERVER_FLAGS.copiedCSVsDisabled = { 'local-cluster': false };
     wrapper = shallow(
       <ClusterServiceVersionTableRow
         catalogSourceMissing={false}
@@ -543,10 +549,16 @@ describe(CSVSubscription.displayName, () => {
 
 describe(ClusterServiceVersionDetailsPage.displayName, () => {
   let wrapper: ReactWrapper<ClusterServiceVersionsDetailsPageProps>;
+  let spyUseAccessReview;
+
   const name = 'example';
   const ns = 'default';
 
   beforeEach(() => {
+    spyUseAccessReview = jest.spyOn(utils, 'useAccessReview');
+    spyUseAccessReview.mockReturnValue([true, false]);
+
+    window.SERVER_FLAGS.copiedCSVsDisabled = { 'local-cluster': false };
     wrapper = mount(
       <ClusterServiceVersionDetailsPage
         match={{ params: { ns, name }, isExact: true, url: '', path: '' }}

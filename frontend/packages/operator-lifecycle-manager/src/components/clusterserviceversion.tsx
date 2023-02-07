@@ -20,6 +20,7 @@ import {
   ResourceStatus,
   StatusIconAndText,
   useAccessReviewAllowed,
+  useAccessReview,
 } from '@console/dynamic-plugin-sdk';
 import { Conditions, ConditionTypes } from '@console/internal/components/conditions';
 import { ResourceEventStream } from '@console/internal/components/events';
@@ -57,7 +58,6 @@ import {
 } from '@console/internal/components/utils';
 import { getBreadcrumbPath } from '@console/internal/components/utils/breadcrumbs';
 import { useK8sWatchResource } from '@console/internal/components/utils/k8s-watch-hook';
-import { useAccessReview } from '@console/internal/components/utils/rbac';
 import { ConsoleOperatorConfigModel } from '@console/internal/models';
 import {
   referenceForModel,
@@ -74,6 +74,7 @@ import { consolePluginModal } from '@console/shared/src/components/modals';
 import { RedExclamationCircleIcon } from '@console/shared/src/components/status/icons';
 import { CONSOLE_OPERATOR_CONFIG_NAME } from '@console/shared/src/constants';
 import { useActiveNamespace } from '@console/shared/src/hooks/redux-selectors';
+import { useActiveCluster } from '@console/shared/src/hooks/useActiveCluster';
 import { useK8sModel } from '@console/shared/src/hooks/useK8sModel';
 import { isPluginEnabled } from '@console/shared/src/utils';
 import { GLOBAL_OPERATOR_NAMESPACES, GLOBAL_COPIED_CSV_NAMESPACE } from '../const';
@@ -156,6 +157,7 @@ const uninstall = (sub: SubscriptionKind, csv?: ClusterServiceVersionKind): Keba
             k8sPatch,
             subscription: sub,
             csv,
+            blocking: true,
           }),
         accessReview: {
           group: SubscriptionModel.apiGroup,
@@ -263,7 +265,7 @@ const ConsolePlugins: React.FC<ConsolePluginsProps> = ({ csvPlugins, trusted }) 
   };
   const [consoleOperatorConfig] = useK8sWatchResource<K8sResourceKind>(console);
   const { t } = useTranslation();
-  const canPatchConsoleOperatorConfig = useAccessReview({
+  const [canPatchConsoleOperatorConfig] = useAccessReview({
     group: ConsoleOperatorConfigModel.apiGroup,
     resource: ConsoleOperatorConfigModel.plural,
     verb: 'patch',
@@ -318,7 +320,7 @@ const ConsolePluginStatus: React.FC<ConsolePluginStatusProps> = ({ csv, csvPlugi
   };
   const [consoleOperatorConfig] = useK8sWatchResource<K8sResourceKind>(console);
   const { t } = useTranslation();
-  const canPatchConsoleOperatorConfig = useAccessReview({
+  const [canPatchConsoleOperatorConfig] = useAccessReview({
     group: ConsoleOperatorConfigModel.apiGroup,
     resource: ConsoleOperatorConfigModel.plural,
     verb: 'patch',
@@ -579,6 +581,7 @@ export const ClusterServiceVersionList: React.FC<ClusterServiceVersionListProps>
 }) => {
   const { t } = useTranslation();
   const activeNamespace = useActiveNamespace();
+  const [cluster] = useActiveCluster();
   const nameHeader: Header = {
     title: t('olm~Name'),
     sortField: 'metadata.name',
@@ -652,7 +655,7 @@ export const ClusterServiceVersionList: React.FC<ClusterServiceVersionListProps>
       }
 
       if (
-        window.SERVER_FLAGS.copiedCSVsDisabled &&
+        window.SERVER_FLAGS.copiedCSVsDisabled[cluster] &&
         operator.metadata.namespace === GLOBAL_COPIED_CSV_NAMESPACE &&
         activeNamespace !== GLOBAL_COPIED_CSV_NAMESPACE
       ) {
@@ -720,6 +723,7 @@ export const ClusterServiceVersionList: React.FC<ClusterServiceVersionListProps>
 
 export const ClusterServiceVersionsPage: React.FC<ClusterServiceVersionsPageProps> = (props) => {
   const { t } = useTranslation();
+  const [cluster] = useActiveCluster();
   const title = t('olm~Installed Operators');
   const olmURL = getDocumentationURL(documentationURLs.operators);
   const helpText = (
@@ -764,7 +768,7 @@ export const ClusterServiceVersionsPage: React.FC<ClusterServiceVersionsPageProp
         {...props}
         resources={[
           ...(!GLOBAL_OPERATOR_NAMESPACES.includes(props.namespace) &&
-          window.SERVER_FLAGS.copiedCSVsDisabled
+          window.SERVER_FLAGS.copiedCSVsDisabled[cluster]
             ? [
                 {
                   kind: referenceForModel(ClusterServiceVersionModel),
@@ -1221,7 +1225,7 @@ export const ClusterServiceVersionDetailsPage: React.FC<ClusterServiceVersionsDe
     ];
   };
 
-  const canListSubscriptions = useAccessReview({
+  const [canListSubscriptions, canListSubscriptionsPending] = useAccessReview({
     group: SubscriptionModel.apiGroup,
     resource: SubscriptionModel.plural,
     verb: 'list',
@@ -1270,7 +1274,7 @@ export const ClusterServiceVersionDetailsPage: React.FC<ClusterServiceVersionsDe
     [canListSubscriptions],
   );
 
-  return (
+  return canListSubscriptionsPending ? null : (
     <DetailsPage
       {...props}
       obj={{ data, loaded, loadError }}

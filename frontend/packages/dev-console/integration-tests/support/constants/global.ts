@@ -14,10 +14,12 @@ export enum devNavigationMenu {
   Environments = 'Environments',
   Routes = 'Routes',
   Deployments = 'Deployments',
+  Consoles = 'Consoles',
 }
 
 export enum adminNavigationBar {
   Home = 'Home',
+  Workloads = 'Workloads',
 }
 
 export enum switchPerspective {

@@ -8,18 +8,23 @@ import {
   RoutePage as DynamicRoutePage,
   isRoutePage as isDynamicRoutePage,
 } from '@console/dynamic-plugin-sdk';
+import { useAllFlags } from '@console/dynamic-plugin-sdk/src/utils/flags';
 import { useDynamicPluginInfo } from '@console/plugin-sdk/src/api/useDynamicPluginInfo';
-import { FLAGS, useUserSettings, getPerspectiveVisitedKey, usePerspectives } from '@console/shared';
+import { useUserSettings, getPerspectiveVisitedKey, usePerspectives } from '@console/shared';
 import { ErrorBoundaryPage } from '@console/shared/src/components/error';
-import { connectToFlags } from '../reducers/connectToFlags';
-import { flagPending, FlagsObject } from '../reducers/features';
+import { flagPending } from '../reducers/features';
 import { GlobalNotifications } from './global-notifications';
 import { NamespaceBar } from './namespace-bar';
 import { SearchPage } from './search';
 import { ResourceDetailsPage, ResourceListPage } from './resource-list';
 import { AsyncComponent, LoadingBox } from './utils';
 import { namespacedPrefixes } from './utils/link';
-import { AlertmanagerModel, CronJobModel, VolumeSnapshotModel } from '../models';
+import {
+  AlertmanagerModel,
+  CronJobModel,
+  HorizontalPodAutoscalerModel,
+  VolumeSnapshotModel,
+} from '../models';
 import { referenceForModel } from '../module/k8s';
 import { NamespaceRedirect } from './utils/namespace-redirect';
 
@@ -68,12 +73,9 @@ const DefaultPageRedirect: React.FC<{
   return resolvedUrl ? <Redirect to={resolvedUrl} /> : null;
 };
 
-type DefaultPageProps = {
-  flags: FlagsObject;
-};
-
 // The default page component lets us connect to flags without connecting the entire App.
-const DefaultPage_: React.FC<DefaultPageProps> = ({ flags }) => {
+const DefaultPage: React.FC = () => {
+  const flags = useAllFlags();
   const [activePerspective] = useActivePerspective();
   const perspectiveExtensions = usePerspectives();
   const [visited, setVisited, visitedLoaded] = useUserSettings<boolean>(
@@ -109,8 +111,6 @@ const DefaultPage_: React.FC<DefaultPageProps> = ({ flags }) => {
     />
   );
 };
-
-const DefaultPage = connectToFlags(FLAGS.OPENSHIFT, FLAGS.CAN_LIST_NS)(DefaultPage_);
 
 const LazyRoute = (props) => (
   <Route
@@ -296,6 +296,12 @@ const AppContents: React.FC<{}> = () => {
         exact
         from="/k8s/ns/:ns/batch~v1beta1~CronJob/:name"
         to={`/k8s/ns/:ns/${CronJobModel.plural}/:name`}
+      />
+
+      <Redirect
+        exact
+        from="/k8s/ns/:ns/autoscaling~v2beta2~HorizontalPodAutoscaler/:name"
+        to={`/k8s/ns/:ns/${HorizontalPodAutoscalerModel.plural}/:name`}
       />
 
       <LazyRoute

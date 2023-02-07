@@ -1,6 +1,11 @@
-import { HelmRelease } from '../types/helm-types';
+import { HelmRelease, HelmReleaseStatus } from '../types/helm-types';
 
-type HelmActionObj = { name: string; namespace: string; version: number | string };
+type HelmActionObj = {
+  name: string;
+  namespace: string;
+  version: number | string;
+  info?: { status: HelmReleaseStatus };
+};
 
 export type HelmActionsScope = {
   release: HelmRelease | HelmActionObj;
