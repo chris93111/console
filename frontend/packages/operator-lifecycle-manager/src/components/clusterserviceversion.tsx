@@ -14,12 +14,13 @@ import * as classNames from 'classnames';
 import * as _ from 'lodash';
 import { Helmet } from 'react-helmet';
 import { Trans, useTranslation } from 'react-i18next';
-import { Link, match as RouterMatch } from 'react-router-dom';
+import { Link, match as RouterMatch, useParams } from 'react-router-dom';
 import {
   WatchK8sResource,
   ResourceStatus,
   StatusIconAndText,
   useAccessReviewAllowed,
+  useAccessReview,
 } from '@console/dynamic-plugin-sdk';
 import { Conditions, ConditionTypes } from '@console/internal/components/conditions';
 import { ResourceEventStream } from '@console/internal/components/events';
@@ -57,7 +58,6 @@ import {
 } from '@console/internal/components/utils';
 import { getBreadcrumbPath } from '@console/internal/components/utils/breadcrumbs';
 import { useK8sWatchResource } from '@console/internal/components/utils/k8s-watch-hook';
-import { useAccessReview } from '@console/internal/components/utils/rbac';
 import { ConsoleOperatorConfigModel } from '@console/internal/models';
 import {
   referenceForModel,
@@ -74,9 +74,10 @@ import { consolePluginModal } from '@console/shared/src/components/modals';
 import { RedExclamationCircleIcon } from '@console/shared/src/components/status/icons';
 import { CONSOLE_OPERATOR_CONFIG_NAME } from '@console/shared/src/constants';
 import { useActiveNamespace } from '@console/shared/src/hooks/redux-selectors';
+import { useActiveCluster } from '@console/shared/src/hooks/useActiveCluster';
 import { useK8sModel } from '@console/shared/src/hooks/useK8sModel';
 import { isPluginEnabled } from '@console/shared/src/utils';
-import { OPERATOR_TYPE_ANNOTATION, NON_STANDALONE_ANNOTATION_VALUE } from '../const';
+import { GLOBAL_OPERATOR_NAMESPACES, GLOBAL_COPIED_CSV_NAMESPACE } from '../const';
 import {
   ClusterServiceVersionModel,
   SubscriptionModel,
@@ -102,6 +103,9 @@ import {
   isCatalogSourceTrusted,
   upgradeRequiresApproval,
 } from '../utils';
+import { isCopiedCSV, isStandaloneCSV } from '../utils/clusterserviceversions';
+import { useClusterServiceVersion } from '../utils/useClusterServiceVersion';
+import { useClusterServiceVersionPath } from '../utils/useClusterServiceVersionPath';
 import { createUninstallOperatorModal } from './modals/uninstall-operator-modal';
 import { ProvidedAPIsPage, ProvidedAPIPage, ProvidedAPIPageProps } from './operand';
 import { operatorGroupFor, operatorNamespaceFor } from './operator-group';
@@ -153,6 +157,7 @@ const uninstall = (sub: SubscriptionKind, csv?: ClusterServiceVersionKind): Keba
             k8sPatch,
             subscription: sub,
             csv,
+            blocking: true,
           }),
         accessReview: {
           group: SubscriptionModel.apiGroup,
@@ -260,7 +265,7 @@ const ConsolePlugins: React.FC<ConsolePluginsProps> = ({ csvPlugins, trusted }) 
   };
   const [consoleOperatorConfig] = useK8sWatchResource<K8sResourceKind>(console);
   const { t } = useTranslation();
-  const canPatchConsoleOperatorConfig = useAccessReview({
+  const [canPatchConsoleOperatorConfig] = useAccessReview({
     group: ConsoleOperatorConfigModel.apiGroup,
     resource: ConsoleOperatorConfigModel.plural,
     verb: 'patch',
@@ -315,7 +320,7 @@ const ConsolePluginStatus: React.FC<ConsolePluginStatusProps> = ({ csv, csvPlugi
   };
   const [consoleOperatorConfig] = useK8sWatchResource<K8sResourceKind>(console);
   const { t } = useTranslation();
-  const canPatchConsoleOperatorConfig = useAccessReview({
+  const [canPatchConsoleOperatorConfig] = useAccessReview({
     group: ConsoleOperatorConfigModel.apiGroup,
     resource: ConsoleOperatorConfigModel.plural,
     verb: 'patch',
@@ -358,7 +363,7 @@ export const ClusterServiceVersionTableRow = withFallback<ClusterServiceVersionT
     const { t } = useTranslation();
     const olmOperatorNamespace = obj.metadata?.annotations?.['olm.operatorNamespace'] ?? '';
     const [icon] = obj.spec.icon ?? [];
-    const route = resourceObjPath(obj, referenceFor(obj));
+    const route = useClusterServiceVersionPath(obj);
     const providedAPIs = providedAPIsForCSV(obj);
     const csvPlugins = getClusterServiceVersionPlugins(obj?.metadata?.annotations);
 
@@ -576,6 +581,7 @@ export const ClusterServiceVersionList: React.FC<ClusterServiceVersionListProps>
 }) => {
   const { t } = useTranslation();
   const activeNamespace = useActiveNamespace();
+  const [cluster] = useActiveCluster();
   const nameHeader: Header = {
     title: t('olm~Name'),
     sortField: 'metadata.name',
@@ -636,35 +642,26 @@ export const ClusterServiceVersionList: React.FC<ClusterServiceVersionListProps>
     kebabHeader,
   ];
 
-  const isCopiedCSV = (source: ClusterServiceVersionKind, kind: string) => {
-    return (
-      referenceForModel(ClusterServiceVersionModel) === kind &&
-      (source.status?.reason === 'Copied' || source.metadata?.labels?.['olm.copiedFrom'])
-    );
-  };
-
-  const isStandaloneCSV = (operator: ClusterServiceVersionKind) => {
-    return (
-      operator.metadata.annotations?.[OPERATOR_TYPE_ANNOTATION] !==
-        NON_STANDALONE_ANNOTATION_VALUE ||
-      operator.status?.phase === ClusterServiceVersionPhase.CSVPhaseFailed
-    );
-  };
-
   const filterOperators = (
     operators: (ClusterServiceVersionKind | SubscriptionKind)[],
     allNamespaceActive: boolean,
   ): (ClusterServiceVersionKind | SubscriptionKind)[] => {
-    return operators.filter((source) => {
-      const kind = referenceFor(source);
-      if (isSubscription(source)) {
+    return operators.filter((operator) => {
+      if (isSubscription(operator)) {
         return true;
       }
-      const csv = source as ClusterServiceVersionKind;
       if (allNamespaceActive) {
-        return !isCopiedCSV(csv, kind) && isStandaloneCSV(csv);
+        return !isCopiedCSV(operator) && isStandaloneCSV(operator);
       }
-      return isStandaloneCSV(csv);
+
+      if (
+        window.SERVER_FLAGS.copiedCSVsDisabled[cluster] &&
+        operator.metadata.namespace === GLOBAL_COPIED_CSV_NAMESPACE &&
+        activeNamespace !== GLOBAL_COPIED_CSV_NAMESPACE
+      ) {
+        return isCopiedCSV(operator) && isStandaloneCSV(operator);
+      }
+      return isStandaloneCSV(operator);
     });
   };
 
@@ -696,7 +693,7 @@ export const ClusterServiceVersionList: React.FC<ClusterServiceVersionListProps>
 
   const customData = React.useMemo(
     () => ({
-      catalogSources: catalogSources?.data ?? [],
+      catalogoperators: catalogSources?.data ?? [],
       subscriptions: subscriptions?.data ?? [],
       activeNamespace,
     }),
@@ -726,6 +723,7 @@ export const ClusterServiceVersionList: React.FC<ClusterServiceVersionListProps>
 
 export const ClusterServiceVersionsPage: React.FC<ClusterServiceVersionsPageProps> = (props) => {
   const { t } = useTranslation();
+  const [cluster] = useActiveCluster();
   const title = t('olm~Installed Operators');
   const olmURL = getDocumentationURL(documentationURLs.operators);
   const helpText = (
@@ -739,10 +737,12 @@ export const ClusterServiceVersionsPage: React.FC<ClusterServiceVersionsPageProp
   );
 
   const flatten: Flatten<{
+    globalClusterServiceVersions: ClusterServiceVersionKind[];
     clusterServiceVersions: ClusterServiceVersionKind[];
     subscriptions: SubscriptionKind[];
-  }> = ({ clusterServiceVersions, subscriptions }) =>
+  }> = ({ globalClusterServiceVersions, clusterServiceVersions, subscriptions }) =>
     [
+      ...(globalClusterServiceVersions?.data ?? []),
       ...(clusterServiceVersions?.data ?? []),
       ...(subscriptions?.data ?? []).filter(
         (sub) =>
@@ -767,6 +767,16 @@ export const ClusterServiceVersionsPage: React.FC<ClusterServiceVersionsPageProp
       <MultiListPage
         {...props}
         resources={[
+          ...(!GLOBAL_OPERATOR_NAMESPACES.includes(props.namespace) &&
+          window.SERVER_FLAGS.copiedCSVsDisabled[cluster]
+            ? [
+                {
+                  kind: referenceForModel(ClusterServiceVersionModel),
+                  namespace: GLOBAL_COPIED_CSV_NAMESPACE,
+                  prop: 'globalClusterServiceVersions',
+                },
+              ]
+            : []),
           {
             kind: referenceForModel(ClusterServiceVersionModel),
             namespace: props.namespace,
@@ -1195,10 +1205,13 @@ export const CSVSubscription: React.FC<CSVSubscriptionProps> = ({
   );
 };
 
-export const ClusterServiceVersionsDetailsPage: React.FC<ClusterServiceVersionsDetailsPageProps> = (
+export const ClusterServiceVersionDetailsPage: React.FC<ClusterServiceVersionsDetailsPageProps> = (
   props,
 ) => {
   const { t } = useTranslation();
+  const { name, ns } = useParams();
+  const [data, loaded, loadError] = useClusterServiceVersion(name, ns);
+
   const menuActions = (
     model,
     obj: ClusterServiceVersionKind,
@@ -1212,7 +1225,7 @@ export const ClusterServiceVersionsDetailsPage: React.FC<ClusterServiceVersionsD
     ];
   };
 
-  const canListSubscriptions = useAccessReview({
+  const [canListSubscriptions, canListSubscriptionsPending] = useAccessReview({
     group: SubscriptionModel.apiGroup,
     resource: SubscriptionModel.plural,
     verb: 'list',
@@ -1254,7 +1267,6 @@ export const ClusterServiceVersionsDetailsPage: React.FC<ClusterServiceVersionsD
           pageData: {
             csv: obj,
             kind: referenceForProvidedAPI(api),
-            namespace: obj.metadata.namespace,
           },
         })),
       ];
@@ -1262,9 +1274,10 @@ export const ClusterServiceVersionsDetailsPage: React.FC<ClusterServiceVersionsD
     [canListSubscriptions],
   );
 
-  return (
+  return canListSubscriptionsPending ? null : (
     <DetailsPage
       {...props}
+      obj={{ data, loaded, loadError }}
       breadcrumbsFor={() => [
         {
           name: t('olm~Installed Operators'),
@@ -1280,10 +1293,10 @@ export const ClusterServiceVersionsDetailsPage: React.FC<ClusterServiceVersionsD
       ]}
       icon={({ obj }) => (
         <ClusterServiceVersionLogo
-          displayName={_.get(obj.spec, 'displayName')}
-          icon={_.get(obj.spec, 'icon[0]')}
-          provider={_.get(obj.spec, 'provider')}
-          version={_.get(obj.spec, 'version')}
+          displayName={obj?.spec?.displayName}
+          icon={obj?.spec?.icon?.[0]}
+          provider={obj?.spec?.provider}
+          version={obj?.spec?.version}
         />
       )}
       namespace={props.match.params.ns}
@@ -1405,6 +1418,6 @@ ClusterServiceVersionList.displayName = 'ClusterServiceVersionList';
 ClusterServiceVersionsPage.displayName = 'ClusterServiceVersionsPage';
 ClusterServiceVersionTableRow.displayName = 'ClusterServiceVersionTableRow';
 CRDCard.displayName = 'CRDCard';
-ClusterServiceVersionsDetailsPage.displayName = 'ClusterServiceVersionsDetailsPage';
+ClusterServiceVersionDetailsPage.displayName = 'ClusterServiceVersionsDetailsPage';
 ClusterServiceVersionDetails.displayName = 'ClusterServiceVersionDetails';
 CSVSubscription.displayName = 'CSVSubscription';

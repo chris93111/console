@@ -1,15 +1,16 @@
 import * as React from 'react';
-import { Button } from '@patternfly/react-core';
 import { Trans, useTranslation } from 'react-i18next';
 import { RouteComponentProps } from 'react-router-dom';
 import NamespacedPage, {
   NamespacedPageVariants,
 } from '@console/dev-console/src/components/NamespacedPage';
-import CreateProjectListPage from '@console/dev-console/src/components/projects/CreateProjectListPage';
+import CreateProjectListPage, {
+  CreateAProjectButton,
+} from '@console/dev-console/src/components/projects/CreateProjectListPage';
 import { useAccessReview } from '@console/dynamic-plugin-sdk/src';
 import { withStartGuide } from '@console/internal/components/start-guide';
 import { LoadingBox, Page } from '@console/internal/components/utils';
-import { MenuActions, MultiTabListPage } from '@console/shared';
+import { MenuActions, MultiTabListPage, useFlag } from '@console/shared';
 import { HelmChartRepositoryModel, ProjectHelmChartRepositoryModel } from '../../models';
 import HelmReleaseList from './HelmReleaseList';
 import HelmReleaseListPage from './HelmReleaseListPage';
@@ -24,6 +25,7 @@ export const PageContents: React.FC<HelmTabbedPageProps> = (props) => {
       params: { ns: namespace },
     },
   } = props;
+  const isHelmVisible = useFlag('HELM_CHARTS_CATALOG_TYPE');
   const [showTitle, canCreate] = [false, false];
   const [projectHelmChartCreateAccess, loadingCreatePHCR] = useAccessReview({
     group: ProjectHelmChartRepositoryModel.apiGroup,
@@ -62,7 +64,7 @@ export const PageContents: React.FC<HelmTabbedPageProps> = (props) => {
 
   const menuActions: MenuActions = {
     helmRelease: {
-      label: t('helm-plugin~Helm Release'),
+      label: isHelmVisible ? t('helm-plugin~Helm Release') : null,
       onSelection: () => `/catalog/ns/${namespace}?catalogType=HelmChart`,
     },
     projectHelmChartRepository: {
@@ -116,11 +118,8 @@ export const PageContents: React.FC<HelmTabbedPageProps> = (props) => {
     <CreateProjectListPage title={t('helm-plugin~Helm')}>
       {(openProjectModal) => (
         <Trans t={t} ns="helm-plugin">
-          Select a Project to view its details or{' '}
-          <Button isInline variant="link" onClick={openProjectModal}>
-            create a Project
-          </Button>
-          .
+          Select a Project to view its details
+          <CreateAProjectButton openProjectModal={openProjectModal} />.
         </Trans>
       )}
     </CreateProjectListPage>

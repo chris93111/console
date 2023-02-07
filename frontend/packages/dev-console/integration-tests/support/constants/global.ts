@@ -14,10 +14,12 @@ export enum devNavigationMenu {
   Environments = 'Environments',
   Routes = 'Routes',
   Deployments = 'Deployments',
+  Consoles = 'Consoles',
 }
 
 export enum adminNavigationBar {
   Home = 'Home',
+  Workloads = 'Workloads',
 }
 
 export enum switchPerspective {
@@ -45,6 +47,7 @@ export enum operators {
   RedisOperator = 'Redis Operator',
   AMQStreams = 'AMQ Streams',
   RHOAS = 'RHOAS',
+  Jaeger = 'Red Hat OpenShift distributed tracing platform',
 }
 
 export enum authenticationType {

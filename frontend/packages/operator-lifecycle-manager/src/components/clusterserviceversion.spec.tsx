@@ -2,7 +2,9 @@ import * as React from 'react';
 import { CardTitle, CardBody, CardFooter } from '@patternfly/react-core';
 import { shallow, ShallowWrapper, mount, ReactWrapper } from 'enzyme';
 import * as _ from 'lodash';
-import { Link } from 'react-router-dom';
+import { Provider } from 'react-redux';
+import { Link, Router } from 'react-router-dom';
+import * as utils from '@console/dynamic-plugin-sdk';
 import {
   DetailsPage,
   Table,
@@ -16,9 +18,11 @@ import {
   SectionHeading,
   resourceObjPath,
   StatusBox,
+  history,
 } from '@console/internal/components/utils';
 import * as operatorLogo from '@console/internal/imgs/operator.svg';
 import { referenceForModel } from '@console/internal/module/k8s';
+import store from '@console/internal/redux';
 import { ErrorBoundary } from '@console/shared/src/components/error';
 import { useActiveNamespace } from '@console/shared/src/hooks/redux-selectors';
 import {
@@ -33,7 +37,7 @@ import {
 import { ClusterServiceVersionModel } from '../models';
 import { ClusterServiceVersionKind, ClusterServiceVersionPhase } from '../types';
 import {
-  ClusterServiceVersionsDetailsPage,
+  ClusterServiceVersionDetailsPage,
   ClusterServiceVersionsDetailsPageProps,
   ClusterServiceVersionDetails,
   ClusterServiceVersionDetailsProps,
@@ -66,9 +70,14 @@ jest.mock('@console/shared/src/hooks/redux-selectors', () => {
   };
 });
 
+jest.mock('@console/shared/src/hooks/useActiveCluster', () => ({
+  useActiveCluster: () => ['local-cluster', () => {}],
+}));
+
 describe(ClusterServiceVersionTableRow.displayName, () => {
   let wrapper: ShallowWrapper<ClusterServiceVersionTableRowProps>;
   beforeEach(() => {
+    window.SERVER_FLAGS.copiedCSVsDisabled = { 'local-cluster': false };
     wrapper = shallow(
       <ClusterServiceVersionTableRow
         catalogSourceMissing={false}
@@ -538,16 +547,29 @@ describe(CSVSubscription.displayName, () => {
   });
 });
 
-describe(ClusterServiceVersionsDetailsPage.displayName, () => {
-  let wrapper: ShallowWrapper<ClusterServiceVersionsDetailsPageProps>;
+describe(ClusterServiceVersionDetailsPage.displayName, () => {
+  let wrapper: ReactWrapper<ClusterServiceVersionsDetailsPageProps>;
+  let spyUseAccessReview;
+
   const name = 'example';
   const ns = 'default';
 
   beforeEach(() => {
-    wrapper = shallow(
-      <ClusterServiceVersionsDetailsPage
+    spyUseAccessReview = jest.spyOn(utils, 'useAccessReview');
+    spyUseAccessReview.mockReturnValue([true, false]);
+
+    window.SERVER_FLAGS.copiedCSVsDisabled = { 'local-cluster': false };
+    wrapper = mount(
+      <ClusterServiceVersionDetailsPage
         match={{ params: { ns, name }, isExact: true, url: '', path: '' }}
       />,
+      {
+        wrappingComponent: (props) => (
+          <Router history={history}>
+            <Provider store={store} {...props} />
+          </Router>
+        ),
+      },
     );
   });
 

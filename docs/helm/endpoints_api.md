@@ -13,6 +13,7 @@
 *  **URL Params**
 
    `ns=[string]` - Namespace
+   `limitInfo=[boolean]` - limitInfo
 
 * **Success Response:**
 
@@ -394,5 +395,127 @@ _Verifies if a Helm chart is compliant with a certain set of independent checks 
   * **Code:** 404 NOT FOUND <br />
     **Content:** `{ error : "error message" }`
 
+**Install Helm Release Asynchronously**
+----
+  _Install Helm release asynchronously_
 
+* **URL**
+
+    `/api/helm/release/async`
+
+* **Method:**
+
+  `POST`
+
+*  **Post Data Params**
+
+```
+ {
+   name: [string],
+   namespace: [string]
+   chart_url: [string]
+   values: map[string]interface{}
+  }
+```
+
+*  **Example Request**
+```
+    {
+    	"name": "test-helm-release",
+    	"namespace": "default",
+    	"chart_url": "https://github.com/akashshinde/console/raw/helm_endpoints/pkg/helm/testdata/influxdb-3.0.2.tgz"
+        "values": { "service": {"type": "ClusterIP"} }
+    }
+```
+
+* **Success Response:**
+
+  * **Code:** 201 <br />
+  * JSON encoded [Secret structure](https://github.com/openshift/console/blob/master/vendor/k8s.io/api/core/v1/types.go#L6110)
+
+* **Error Response:**
+
+  * **Code:** 400 BAD REQUEST <br />
+    **Content:** `{ error : "error message" }`
+
+
+
+
+
+
+**Upgrade Helm Release Asynchronously**
+----
+  _Upgrade Helm release asynchronously_
+
+* **URL**
+
+    `/api/helm/release/async`
+
+* **Method:**
+
+  `PUT`
+
+*  **Post Data Params**
+
+```
+ {
+   name: [string],
+   namespace: [string]
+   chart_url: [string]
+   values: map[string]interface{}
+  }
+```
+
+*  **Example Request**
+```
+    {
+    	"name": "test-helm-release",
+    	"namespace": "default",
+    	"chart_url": "https://github.com/akashshinde/console/raw/helm_endpoints/pkg/helm/testdata/influxdb-3.0.2.tgz"
+        "values": { "service": {"type": "ClusterIP"} }
+    }
+```
+
+* **Success Response:**
+
+  * **Code:** 201 <br />
+  * JSON encoded [Secret structure](https://github.com/openshift/console/blob/master/vendor/k8s.io/api/core/v1/types.go#L6110)
+
+* **Error Response:**
+
+  * **Code:** 400 BAD REQUEST <br />
+    **Content:** `{ error : "error message" }`
+
+
+**Uninstall Helm Release Asynchronously**
+----
+  _Uninstall Helm release asynchronously_
+
+* **URL**
+
+    `/api/helm/release/async`
+
+* **Method:**
+
+  `DELETE`
+
+*  **URL Params**
+
+   `ns=[string]` - Namespace
+
+   `name=[string]` - Helm Release Name
+
+   `version=[string]` - Helm Release Version
+
+* **Success Response:**
+
+  * **Code:** 204 <br />
+
+  * **Code:** 404 NOT FOUND <br />
+    **Content:** `{ error : "error message" }`
+
+* **Error Response:**
+
+  * **Code:** 502 BAD GATEWAY <br />
+    **Content:** `{ error : "error message" }`
 

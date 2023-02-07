@@ -7,21 +7,24 @@ import { ProjectHelmChartRepositoryModel } from '../models';
 import { HelmActionsScope } from './types';
 
 export const getHelmDeleteAction = (
-  { release: { name: releaseName, namespace }, redirect }: HelmActionsScope,
+  {
+    release: { name: releaseName, namespace, version: releaseVersion },
+    redirect,
+  }: HelmActionsScope,
   t: TFunction,
 ): Action => ({
   id: 'delete-helm',
-  label: t('helm-plugin~Uninstall Helm Release'),
+  label: t('helm-plugin~Delete Helm Release'),
   cta: () => {
     deleteResourceModal({
       blocking: true,
       resourceName: releaseName,
       resourceType: 'Helm Release',
-      actionLabel: t('helm-plugin~Uninstall'),
+      actionLabel: t('helm-plugin~Delete'),
       redirect,
       onSubmit: () => {
         return coFetchJSON.delete(
-          `/api/helm/release?name=${releaseName}&ns=${namespace}`,
+          `/api/helm/release/async?name=${releaseName}&ns=${namespace}&version=${releaseVersion}`,
           null,
           null,
           -1,

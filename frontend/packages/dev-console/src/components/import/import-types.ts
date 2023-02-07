@@ -5,6 +5,7 @@ import { DetectedStrategy } from '@console/git-service/src/utils/import-strategy
 import { DeploymentModel, DeploymentConfigModel } from '@console/internal/models';
 import { K8sResourceKind, ContainerPort } from '@console/internal/module/k8s';
 import { PipelineData } from '@console/pipelines-plugin/src/components/import/import-types';
+import { RepositoryFormValues } from '@console/pipelines-plugin/src/components/repository/types';
 import { LazyLoader } from '@console/plugin-sdk';
 import { NameValuePair, NameValueFromPair, LimitsData } from '@console/shared';
 import { NormalizedBuilderImages } from '../../utils/imagestream-utils';
@@ -82,6 +83,7 @@ export interface DeployImageFormData {
   resources: Resources;
   resourceTypesNotValid?: Resources[];
   serverless?: ServerlessData;
+  pac?: PacData;
   pipeline?: PipelineData;
   labels: { [name: string]: string };
   annotations?: { [name: string]: string };
@@ -129,6 +131,7 @@ export interface GitImportFormData extends BaseFormData {
   git: GitData;
   docker: DockerData;
   devfile?: DevfileData;
+  pac?: PacData;
   import?: ImportStrategyData;
 }
 
@@ -190,12 +193,17 @@ export type DevfileData = {
   devfileSuggestedResources?: DevfileSuggestedResources;
 };
 
+export type PacData = {
+  pacHasError: boolean;
+  repository: RepositoryFormValues;
+};
+
 export type DevfileSuggestedResources = {
   imageStream: K8sResourceKind;
   buildResource: K8sResourceKind;
   deployResource: K8sResourceKind;
-  service: K8sResourceKind;
-  route: K8sResourceKind;
+  service?: K8sResourceKind | null;
+  route?: K8sResourceKind | null;
 };
 
 export interface RouteData {
@@ -290,6 +298,15 @@ export enum Resources {
   Kubernetes = 'kubernetes',
   KnativeService = 'knative',
 }
+
+export enum SupportedRuntime {
+  Node = 'node',
+  NodeJS = 'nodejs',
+  TypeScript = 'typescript',
+  Quarkus = 'quarkus',
+}
+
+export const notSupportedRuntime = ['go', 'rust', 'springboot', 'python'];
 
 export const ReadableResourcesNames: Record<Resources, string> = {
   [Resources.OpenShift]: DeploymentConfigModel.labelKey,

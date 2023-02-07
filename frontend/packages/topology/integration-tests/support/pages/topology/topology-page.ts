@@ -226,6 +226,12 @@ export const topologyPage = {
   componentNode: (nodeName: string) => {
     return cy.get('g.pf-topology__node__label > text').contains(nodeName);
   },
+  componentNodeClick: (nodeName: string, options?: { timeout: number }) => {
+    topologyHelper.search(nodeName);
+    cy.get('[data-type="workload"] .is-filtered [data-test-id="base-node-handler"]', options)
+      .first()
+      .click({ force: true });
+  },
   knativeNode: (nodeName: string) => {
     return cy.get('g.odc-knative-service__label > text').contains(nodeName);
   },
@@ -287,6 +293,9 @@ export const topologyPage = {
   },
   rightClickOnNode: (nodeName: string) => {
     topologyPage.getNode(nodeName).trigger('contextmenu', { force: true });
+  },
+  rightClickOnKnativeNode: (nodeName: string) => {
+    topologyPage.getKnativeNode(nodeName).trigger('contextmenu', { force: true });
   },
   rightClickOnGroup: (releaseName: string) => {
     topologyPage.getGroup(releaseName).trigger('contextmenu', { force: true });

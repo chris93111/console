@@ -150,7 +150,7 @@ export const HorizontalPodAutoscalerModel: K8sKind = {
   // t('public~HorizontalPodAutoscaler')
   labelKey: 'public~HorizontalPodAutoscaler',
   plural: 'horizontalpodautoscalers',
-  apiVersion: 'v2beta2',
+  apiVersion: 'v2',
   apiGroup: 'autoscaling',
   abbr: 'HPA',
   namespaced: true,
@@ -1248,7 +1248,7 @@ export const ConsolePluginModel: K8sKind = {
   label: 'ConsolePlugin',
   // t('public~ConsolePlugin')
   labelKey: 'public~ConsolePlugin',
-  apiVersion: 'v1alpha1',
+  apiVersion: 'v1',
   apiGroup: 'console.openshift.io',
   plural: 'consoleplugins',
   abbr: 'CP',

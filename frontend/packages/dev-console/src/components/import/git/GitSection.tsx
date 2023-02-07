@@ -4,15 +4,23 @@ import { useFormikContext, FormikErrors, FormikTouched } from 'formik';
 import { isEmpty } from 'lodash';
 import * as _ from 'lodash';
 import { useTranslation } from 'react-i18next';
+import { useAccessReview } from '@console/dynamic-plugin-sdk/src';
 import { RepoStatus, ImportStrategy, getGitService, GitProvider } from '@console/git-service';
 import { DetectedBuildType } from '@console/git-service/src/utils/build-tool-type-detector';
 import { detectImportStrategies } from '@console/git-service/src/utils/import-strategy-detector';
+import { getActiveNamespace } from '@console/internal/actions/ui';
 import { BuildStrategyType } from '@console/internal/components/build';
+import {
+  FLAG_KNATIVE_SERVING_SERVICE,
+  ServerlessBuildStrategyType,
+  ServiceModel as ksvcModel,
+} from '@console/knative-plugin';
 import {
   InputField,
   DropdownField,
   useFormikValidationFix,
   useDebounceCallback,
+  useFlag,
 } from '@console/shared';
 import { UNASSIGNED_KEY, CREATE_APPLICATION_KEY } from '@console/topology/src/const';
 import {
@@ -97,6 +105,15 @@ const GitSection: React.FC<GitSectionProps> = ({
     setFieldValue: formikSetFieldValue,
     setFieldTouched: formikSetFieldTouched,
   } = useFormikContext<GitSectionFormData>();
+
+  const [knativeServiceAccess] = useAccessReview({
+    group: ksvcModel.apiGroup,
+    resource: ksvcModel.plural,
+    namespace: getActiveNamespace(),
+    verb: 'create',
+  });
+
+  const canIncludeKnative = useFlag(FLAG_KNATIVE_SERVING_SERVICE) && knativeServiceAccess;
 
   const fieldPrefix = formContextField ? `${formContextField}.` : '';
   const setFieldValue = React.useCallback(
@@ -263,7 +280,7 @@ const GitSection: React.FC<GitSectionProps> = ({
         values.docker?.dockerfilePath,
       );
 
-      const importStrategyData = await detectImportStrategies(url, gitService);
+      const importStrategyData = await detectImportStrategies(url, gitService, canIncludeKnative);
 
       const {
         loaded,
@@ -357,6 +374,10 @@ const GitSection: React.FC<GitSectionProps> = ({
             setFieldValue('docker.dockerfileHasError', false);
             break;
           }
+          case ImportStrategy.SERVERLESS_FUNCTION: {
+            setFieldValue('build.strategy', ServerlessBuildStrategyType.ServerlessFunction);
+            break;
+          }
           default:
         }
       }
@@ -370,9 +391,10 @@ const GitSection: React.FC<GitSectionProps> = ({
       status,
       setFieldValue,
       gitUrlError,
+      formType,
+      values.git.detectedType,
       values.git.showGitType,
       values.git.type,
-      values.git.detectedType,
       values.git.secretResource,
       values.devfile,
       values.docker,
@@ -381,7 +403,7 @@ const GitSection: React.FC<GitSectionProps> = ({
       values.application.name,
       values.application.selectedKey,
       values.build.strategy,
-      formType,
+      canIncludeKnative,
       nameTouched,
       importType,
       imageStreamName,
@@ -431,12 +453,32 @@ const GitSection: React.FC<GitSectionProps> = ({
       return t('devconsole~Validated');
     }
     if (validated === ValidatedOptions.warning) {
-      if (repoStatus === RepoStatus.RateLimitExceeded) {
-        return t('devconsole~Rate limit exceeded');
+      switch (repoStatus) {
+        case RepoStatus.RateLimitExceeded: {
+          return t('devconsole~Rate limit exceeded');
+        }
+        case RepoStatus.GitTypeNotDetected: {
+          return t(
+            'devconsole~URL is valid but a git type could not be identified. Please select a git type from the git type dropdown below',
+          );
+        }
+        case RepoStatus.PrivateRepo: {
+          return t(
+            'devconsole~If this is a private repository, enter a source Secret in advanced Git options',
+          );
+        }
+        case RepoStatus.ResourceNotFound: {
+          return t('devconsole~Requested repository does not exist');
+        }
+        case RepoStatus.InvalidGitTypeSelected: {
+          return t(
+            'devconsole~The selected git type might not be valid or the repository is private. Please try selecting another git type or enter a source Secret in advanced Git options',
+          );
+        }
+        default: {
+          return t('devconsole~URL is valid but cannot be reached');
+        }
       }
-      return t(
-        'devconsole~URL is valid but cannot be reached. If this is a private repository, enter a source Secret in advanced Git options',
-      );
     }
     return t('devconsole~Repository URL to build and deploy your code from');
   }, [t, values.git.isUrlValidating, validated, repoStatus]);
@@ -516,7 +558,7 @@ const GitSection: React.FC<GitSectionProps> = ({
             fullWidth
             required
           />
-          {values.git.detectedType === GitProvider.UNSURE && (
+          {values.git.type === GitProvider.UNSURE && (
             <Alert isInline variant="info" title={t('devconsole~Defaulting Git type to other')}>
               {t('devconsole~We failed to detect the Git type.')}
             </Alert>

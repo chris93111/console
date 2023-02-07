@@ -25,6 +25,28 @@
     "type": "console.flag/model",
     "properties": {
       "model": {
+        "group": "operator.knative.dev",
+        "version": "v1beta1",
+        "kind": "KnativeServing"
+      },
+      "flag": "KNATIVE_SERVING"
+    }
+  },
+  {
+    "type": "console.flag/model",
+    "properties": {
+      "model": {
+        "group": "operator.knative.dev",
+        "version": "v1beta1",
+        "kind": "KnativeEventing"
+      },
+      "flag": "KNATIVE_EVENTING"
+    }
+  },
+  {
+    "type": "console.flag/model",
+    "properties": {
+      "model": {
         "group": "serving.knative.dev",
         "version": "v1",
         "kind": "Configuration"
@@ -129,6 +151,17 @@
         "kind": "KafkaSink"
       },
       "flag": "FLAG_KAFKA_SINK"
+    }
+  },
+  {
+    "type": "console.flag/model",
+    "properties": {
+      "model": {
+        "group": "sources.knative.dev",
+        "version": "v1",
+        "kind": "PingSource"
+      },
+      "flag": "FLAG_EVENT_SOURCE_PING"
     }
   },
   {
@@ -429,6 +462,12 @@
     }
   },
   {
+    "type": "console.flag/hookProvider",
+    "properties": {
+      "handler": { "$codeRef": "catalog.useKnativeEventingProvider" }
+    }
+  },
+  {
     "type": "dev-console.add/action-group",
     "properties": {
       "id": "eventing",
@@ -437,13 +476,24 @@
       "insertAfter": "container-images"
     },
     "flags": {
-      "required": ["KNATIVE_EVENTING"]
+      "required": ["KNATIVE_EVENTING", "FLAG_KNATIVE_EVENTING_ENABLED"]
+    }
+  },
+  {
+    "type": "console.flag/hookProvider",
+    "properties": {
+      "handler": { "$codeRef": "catalog.knativeEventingTypeProvider" }
     }
   },
   {
     "type": "dev-console.add/action",
     "flags": {
-      "required": ["KNATIVE_EVENTING"]
+      "required": [
+        "KNATIVE_EVENTING",
+        "DEVELOPER_CATALOG",
+        "KNATIVE_EVENT_SOURCE_CATALOG_TYPE",
+        "FLAG_KNATIVE_EVENTING_ENABLED"
+      ]
     },
     "properties": {
       "id": "knative-event-source",
@@ -452,6 +502,35 @@
       "label": "%knative-plugin~Event Source%",
       "description": "%knative-plugin~Create an Event source to register interest in a class of events from a particular system%",
       "icon": { "$codeRef": "icons.eventSourceIconSVG" }
+    }
+  },
+  {
+    "type": "dev-console.add/action-group",
+    "properties": {
+      "id": "serverless-function",
+      "name": "%knative-plugin~Create Serverless function%",
+      "insertBefore": "eventing"
+    }
+  },
+  {
+    "type": "dev-console.add/action",
+    "flags": {
+      "required": ["KNATIVE_SERVING", "KNATIVE_SERVING_SERVICE"]
+    },
+    "properties": {
+      "id": "create-serverless-function",
+      "groupId": "serverless-function",
+      "href": "/serverless-function/ns/:namespace",
+      "label": "%knative-plugin~Create Serverless function%",
+      "description": "%knative-plugin~Create and deploy stateless, Serverless functions%",
+      "icon": { "$codeRef": "icons.serverlessFunctionSVG" },
+      "accessReview": [
+        {
+          "group": "serving.knative.dev",
+          "resource": "services",
+          "verb": "create"
+        }
+      ]
     }
   },
   {
@@ -489,7 +568,12 @@
   {
     "type": "dev-console.add/action",
     "flags": {
-      "required": ["KNATIVE_EVENTING"]
+      "required": [
+        "KNATIVE_EVENTING",
+        "DEVELOPER_CATALOG",
+        "KNATIVE_EVENT_SINK_CATALOG_TYPE",
+        "FLAG_KNATIVE_EVENTING_ENABLED"
+      ]
     },
     "properties": {
       "id": "knative-event-sink",
@@ -524,7 +608,7 @@
       "catalogId": "dev-catalog",
       "type": "EventSource",
       "title": "%knative-plugin~Event Sources%",
-      "provider": { "$codeRef": "catalog.eventSourceProvider" }
+      "provider": { "$codeRef": "catalog.useEventSourceProvider" }
     },
     "flags": {
       "required": ["KNATIVE_EVENTING"]

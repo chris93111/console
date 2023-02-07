@@ -10,6 +10,7 @@ import {
 } from '@patternfly/react-icons';
 import i18next from 'i18next';
 import { Action } from '@console/dynamic-plugin-sdk/src';
+import { eventIconStyle, ServerlessFunctionIcon } from '@console/knative-plugin/src/utils/icons';
 import { UNASSIGNED_KEY } from '@console/topology/src/const';
 import {
   INCONTEXT_ACTIONS_CONNECTS_TO,
@@ -111,7 +112,7 @@ export const AddActions: { [name: string]: ActionFactory } = {
     disabled: accessReviewDisabled,
   }),
   Samples: (namespace, application, contextSource, path, accessReviewDisabled) => ({
-    id: 'import-form-samples',
+    id: 'import-from-samples',
     label: i18next.t('devconsole~Samples'),
     icon: <LaptopCodeIcon />,
     cta: {
@@ -150,6 +151,27 @@ export const AddActions: { [name: string]: ActionFactory } = {
     cta: {
       href: resolvedURLWithParams(
         '/upload-jar/ns/:namespace',
+        namespace,
+        application,
+        contextSource,
+      ),
+    },
+    path,
+    disabled: accessReviewDisabled,
+  }),
+  CreateServerlessFunction: (
+    namespace,
+    application,
+    contextSource,
+    path,
+    accessReviewDisabled,
+  ) => ({
+    id: 'create-serverless-function',
+    label: i18next.t('devconsole~Create Serverless function'),
+    icon: <ServerlessFunctionIcon style={eventIconStyle} />,
+    cta: {
+      href: resolvedURLWithParams(
+        '/serverless-function/ns/:namespace',
         namespace,
         application,
         contextSource,

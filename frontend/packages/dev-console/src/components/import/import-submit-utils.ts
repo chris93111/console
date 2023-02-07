@@ -29,6 +29,7 @@ import {
   getDomainMappingRequests,
   getKnativeServiceDepResource,
 } from '@console/knative-plugin/src/utils/create-knative-utils';
+import { PipelineType } from '@console/pipelines-plugin/src/components/import/import-types';
 import {
   createPipelineForImportFlow,
   createPipelineRunForImportFlow,
@@ -37,6 +38,7 @@ import {
 import { PIPELINE_SERVICE_ACCOUNT } from '@console/pipelines-plugin/src/components/pipelines/const';
 import { createTrigger } from '@console/pipelines-plugin/src/components/pipelines/modals/triggers/submit-utils';
 import { setPipelineNotStarted } from '@console/pipelines-plugin/src/components/pipelines/pipeline-overview/pipeline-overview-utils';
+import { createRepositoryResources } from '@console/pipelines-plugin/src/components/repository/repository-form-utils';
 import { PipelineKind } from '@console/pipelines-plugin/src/types';
 import {
   updateServiceAccount,
@@ -562,6 +564,9 @@ export const createDevfileResources = async (
     devfileSuggestedResources,
   ).reduce((acc: DevfileSuggestedResources, resourceType: string) => {
     const resource: K8sResourceKind = devfileSuggestedResources[resourceType];
+    if (!resource) {
+      return acc;
+    }
     return {
       ...acc,
       [resourceType]: {
@@ -615,26 +620,33 @@ export const createDevfileResources = async (
     verb,
   );
 
-  const serviceModelResponse = await k8sCreate(
-    ServiceModel,
-    createService(formData, devfileResourceObjects.imageStream, devfileResourceObjects.service),
-    dryRun ? dryRunOpt : {},
-  );
+  const serviceModelResponse =
+    devfileResourceObjects.service &&
+    (await k8sCreate(
+      ServiceModel,
+      createService(formData, devfileResourceObjects.imageStream, devfileResourceObjects.service),
+      dryRun ? dryRunOpt : {},
+    ));
 
-  const routeResponse = await k8sCreate(
-    RouteModel,
-    createRoute(formData, devfileResourceObjects.imageStream, devfileResourceObjects.route),
-    dryRun ? dryRunOpt : {},
-  );
+  const routeResponse =
+    devfileResourceObjects.route &&
+    (await k8sCreate(
+      RouteModel,
+      createRoute(formData, devfileResourceObjects.imageStream, devfileResourceObjects.route),
+      dryRun ? dryRunOpt : {},
+    ));
 
-  return [
+  const devfileResources = [
     imageStreamResponse,
     buildConfigResponse,
     webhookSecretResponse,
     deploymentResponse,
-    serviceModelResponse,
-    routeResponse,
   ];
+
+  serviceModelResponse && devfileResources.push(serviceModelResponse);
+  routeResponse && devfileResources.push(routeResponse);
+
+  return devfileResources;
 };
 
 export const createOrUpdateResources = async (
@@ -686,6 +698,12 @@ export const createOrUpdateResources = async (
     return createDevfileResources(formData, dryRun, appResources, generatedImageStreamName);
   }
 
+  if (pipeline.type === PipelineType.PAC) {
+    const pacRepository = formData?.pac?.repository;
+    const repo = await createRepositoryResources(pacRepository, namespace, dryRun);
+    responses.push(repo);
+  }
+
   const imageStreamResponse = await createOrUpdateImageStream(
     formData,
     imageStream,
@@ -696,7 +714,7 @@ export const createOrUpdateResources = async (
   );
   responses.push(imageStreamResponse);
 
-  if (pipeline.enabled) {
+  if (pipeline.enabled && pipeline.type !== PipelineType.PAC) {
     if (!dryRun) {
       const pipelineResources = await managePipelineResources(
         formData,

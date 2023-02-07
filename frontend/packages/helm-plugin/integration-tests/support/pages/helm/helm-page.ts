@@ -7,7 +7,7 @@ export const helmPage = {
   verifyInstallHelmLink: () =>
     cy
       .get('a')
-      .contains('Install a Helm Chart from the developer catalog')
+      .contains('Browse the catalog to discover and install Helm Charts')
       .should('be.visible'),
   search: (name: string) => {
     cy.get(helmPO.search)
@@ -69,6 +69,10 @@ export const helmPage = {
       .get('table')
       .its('length')
       .should('be.greaterThan', 0);
+  },
+  verifyHelmChartStatus: () => {
+    cy.byTestID('success-icon').should('be.visible');
+    cy.byTestID('status-text').should('exist');
   },
   verifySearchMessage: (message: string) =>
     cy.get(helmPO.noHelmSearchMessage).should('contain.text', message),
@@ -173,9 +177,9 @@ export const helmPage = {
       case helmActions.rollback:
         cy.get(helmPO.helmActions.rollBack).click();
         break;
-      case 'Uninstall Helm Release':
-      case helmActions.uninstallHelmRelease:
-        cy.get(helmPO.helmActions.uninstallHelmRelease).click();
+      case 'Delete Helm Release':
+      case helmActions.deleteHelmRelease:
+        cy.get(helmPO.helmActions.deleteHelmRelease).click();
         break;
       default:
         cy.log(`${actionName} is not available in dropdown menu`);
@@ -187,4 +191,16 @@ export const helmPage = {
       .get('a')
       .contains(installLink)
       .should('be.visible'),
+  verifyDropdownItem: (item1: string, item2: string, item3: string) => {
+    cy.get(helmPO.filterDropdown).click();
+    cy.get(helmPO.filter.pendingInstall).within(() => {
+      cy.get(helmPO.filterDropdownItem).should('contain.text', item1);
+    });
+    cy.get(helmPO.filter.pendingUpgrade).within(() => {
+      cy.get(helmPO.filterDropdownItem).should('contain.text', item2);
+    });
+    cy.get(helmPO.filter.pendingRollback).within(() => {
+      cy.get(helmPO.filterDropdownItem).should('contain.text', item3);
+    });
+  },
 };

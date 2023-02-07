@@ -2,8 +2,7 @@ export const cardTitle = '[data-test="title"]';
 
 export const addPagePO = {
   gettingStarted: '[data-test="getting-started"]',
-  detailsOnOffText: '[data-test="label"]',
-  detailsOnOffSwitch: '.pf-c-switch__toggle',
+  detailsOnOffSwitch: '[data-test="details-switch"]',
   cardDetails: 'p.odc-add-card-item__description',
   restoreGettingStarted: '[data-test="restore-getting-started"]',
   kebabMenuGettingStarted: '[data-test="actions"]',
@@ -175,7 +174,7 @@ export const catalogPO = {
   },
   installHelmChart: {
     logo: 'h1.co-clusterserviceversion-logo__name__clusterserviceversion',
-    install: '[data-test-id="submit-button"]',
+    create: '[data-test-id="submit-button"]',
     releaseName: '#form-input-releaseName-field',
     yamlView: '#form-radiobutton-editorType-yaml-field',
     formView: '#form-radiobutton-editorType-form-field',
@@ -213,6 +212,14 @@ export const catalogPO = {
       pipelineCheckBox: '#form-checkbox-pipeline-enabled-field',
     },
     createRoute: '#form-checkbox-route-create-field',
+  },
+};
+
+export const samplesPO = {
+  search: 'input[placeholder="Filter by keyword..."]',
+  cards: {
+    httpdTemplate: 'a[data-test="Sample-Httpd"] .catalog-tile-pf-title',
+    basicgoTemplate: 'a[data-test="Sample-Basic Go"] .catalog-tile-pf-title',
   },
 };
 

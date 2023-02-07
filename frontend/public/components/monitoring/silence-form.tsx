@@ -1,4 +1,5 @@
 import * as _ from 'lodash-es';
+import { getUser, Silence, SilenceStates } from '@console/dynamic-plugin-sdk';
 import {
   formatPrometheusDuration,
   parsePrometheusDuration,
@@ -21,10 +22,9 @@ import { Trans, useTranslation } from 'react-i18next';
 // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
 // @ts-ignore
 import { useSelector } from 'react-redux';
-import { getUser, Silence, SilenceStates } from '@console/dynamic-plugin-sdk';
 
+import { consoleFetchJSON } from '@console/dynamic-plugin-sdk/src/utils/fetch';
 import { withFallback } from '@console/shared/src/components/error';
-import { coFetchJSON } from '../../co-fetch';
 import { RootState } from '../../redux';
 import { refreshNotificationPollers } from '../notification-drawer';
 import { ButtonBar } from '../utils/button-bar';
@@ -62,13 +62,30 @@ const DatetimeTextInput = (props) => {
         <TextInput
           {...props}
           aria-label={t('public~Datetime')}
-          data-test-id="datetime"
+          data-test-id="silence-datetime"
           validated={isValid || !!props.isDisabled ? 'default' : 'error'}
           pattern={pattern}
           placeholder="YYYY/MM/DD hh:mm:ss"
         />
       </Tooltip>
     </div>
+  );
+};
+
+const NegativeMatcherHelp = () => {
+  const { t } = useTranslation();
+
+  return (
+    <dl>
+      <dd>
+        {t('Select the negative matcher option to update the label value to a not equals matcher.')}
+      </dd>
+      <dd>
+        {t(
+          'If both the RegEx and negative matcher options are selected, the label value must not match the regular expression.',
+        )}
+      </dd>
+    </dl>
   );
 };
 
@@ -189,7 +206,7 @@ const SilenceForm_: React.FC<SilenceFormProps> = ({ defaults, Info, title }) => 
       startsAt: saveStartsAt.toISOString(),
     };
 
-    coFetchJSON
+    consoleFetchJSON
       .post(`${alertManagerBaseURL}/api/v2/silences`, body)
       .then(({ silenceID }) => {
         setError(undefined);
@@ -203,7 +220,9 @@ const SilenceForm_: React.FC<SilenceFormProps> = ({ defaults, Info, title }) => 
   };
 
   const dropdownItems = _.map(durations, (displayText, key) => (
-    <DropdownItem onClick={() => setDuration(key)}>{displayText}</DropdownItem>
+    <DropdownItem key={key} onClick={() => setDuration(key)}>
+      {displayText}
+    </DropdownItem>
   ));
 
   return (
@@ -229,10 +248,10 @@ const SilenceForm_: React.FC<SilenceFormProps> = ({ defaults, Info, title }) => 
               <div className="form-group col-sm-4 col-md-5">
                 <label>{t('public~Silence alert from...')}</label>
                 {isStartNow ? (
-                  <DatetimeTextInput isDisabled data-test="from" value={t('public~Now')} />
+                  <DatetimeTextInput isDisabled data-test="silence-from" value={t('public~Now')} />
                 ) : (
                   <DatetimeTextInput
-                    data-test="from"
+                    data-test="silence-from"
                     isRequired
                     onChange={(v: string) => setStartsAt(v)}
                     value={startsAt}
@@ -243,25 +262,29 @@ const SilenceForm_: React.FC<SilenceFormProps> = ({ defaults, Info, title }) => 
                 <label>{t('public~For...')}</label>
                 <Dropdown
                   className="dropdown--full-width"
-                  data-test="for"
+                  data-test="silence-for"
                   dropdownItems={dropdownItems}
                   isOpen={isOpen}
                   onSelect={setClosed}
-                  toggle={<DropdownToggle onToggle={setIsOpen}>{duration}</DropdownToggle>}
+                  toggle={
+                    <DropdownToggle data-test="silence-for-toggle" onToggle={setIsOpen}>
+                      {duration}
+                    </DropdownToggle>
+                  }
                 />
               </div>
               <div className="form-group col-sm-4 col-md-5">
                 <label>{t('public~Until...')}</label>
                 {duration === durationOff ? (
                   <DatetimeTextInput
-                    data-test="until"
+                    data-test="silence-until"
                     isRequired
                     onChange={(v: string) => setEndsAt(v)}
                     value={endsAt}
                   />
                 ) : (
                   <DatetimeTextInput
-                    data-test="until"
+                    data-test="silence-until"
                     isDisabled
                     value={
                       isStartNow
@@ -275,7 +298,7 @@ const SilenceForm_: React.FC<SilenceFormProps> = ({ defaults, Info, title }) => 
             <div className="form-group">
               <label>
                 <input
-                  data-test="start-immediately"
+                  data-test="silence-start-immediately"
                   checked={isStartNow}
                   onChange={(e) => setIsStartNow(e.currentTarget.checked)}
                   type="checkbox"
@@ -324,12 +347,22 @@ const SilenceForm_: React.FC<SilenceFormProps> = ({ defaults, Info, title }) => 
                   <div className="monitoring-silence-alert__label-options">
                     <label>
                       <input
-                        type="checkbox"
-                        onChange={(e) => setMatcherField(i, 'isRegex', e.currentTarget.checked)}
                         checked={matcher.isRegex}
+                        onChange={(e) => setMatcherField(i, 'isRegex', e.currentTarget.checked)}
+                        type="checkbox"
                       />
-                      &nbsp; {t('public~Use RegEx')}
+                      &nbsp; {t('public~RegEx')}
                     </label>
+                    <Tooltip content={<NegativeMatcherHelp />}>
+                      <label>
+                        <input
+                          checked={matcher.isEqual === false}
+                          onChange={(e) => setMatcherField(i, 'isEqual', !e.currentTarget.checked)}
+                          type="checkbox"
+                        />
+                        &nbsp; {t('public~Negative matcher')}
+                      </label>
+                    </Tooltip>
                     <Tooltip content={t('public~Remove')}>
                       <Button
                         type="button"

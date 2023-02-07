@@ -1,4 +1,5 @@
 import { GitProvider } from '@console/git-service/src';
+import { PipelineType } from '@console/pipelines-plugin/src/components/import/import-types';
 import { PipelineKind } from '@console/pipelines-plugin/src/types';
 import { UNASSIGNED_KEY } from '@console/topology/src/const';
 import { healthChecksProbeInitialData } from '../../health-checks/health-checks-probe-utils';
@@ -170,11 +171,30 @@ export const defaultData: GitImportFormData = {
     secret: '',
     isUrlValidating: false,
   },
+  pac: {
+    pacHasError: false,
+    repository: {
+      gitUrl: '',
+      githubAppAvailable: false,
+      gitProvider: GitProvider.INVALID,
+      name: '',
+      method: 'github',
+      showOverviewPage: false,
+      yamlData: ``,
+      webhook: {
+        token: '',
+        method: 'token',
+        secret: '',
+        url: '',
+      },
+    },
+  },
   docker: {
     dockerfilePath: 'Dockerfile',
   },
   pipeline: {
     enabled: false,
+    type: PipelineType.PIPELINE,
     template: mockPipelineTemplate,
   },
   healthChecks: healthChecksProbeInitialData,

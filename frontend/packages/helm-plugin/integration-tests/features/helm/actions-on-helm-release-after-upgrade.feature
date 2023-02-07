@@ -7,7 +7,7 @@ Feature: Verify the Actions on Helm Release after upgrade
 
 
         @pre-condition
-        Scenario: Perform Upgrade action on Helm Release through Context Menu: HR-01-TC04
+        Scenario: Perform Upgrade action on Helm Release through Context Menu: HR-08-TC04
             Given user has installed helm chart "Nodejs" with helm release name "nodejs-release-1"
               And user is at the Topology page
              When user right clicks on the helm release "nodejs-release-1" to open the context menu
@@ -19,7 +19,7 @@ Feature: Verify the Actions on Helm Release after upgrade
         Scenario: Actions menu on Helm page after helm chart upgrade: HR-08-TC01
             Given user is on the Helm page with helm release "nodejs-release-1"
              When user clicks on the Kebab menu
-             Then user is able to see kebab menu with actions Upgrade, Rollback and Uninstall Helm Release
+             Then user is able to see kebab menu with actions Upgrade, Rollback and Delete Helm Release
 
 
         Scenario: Perform the helm chart upgrade for already upgraded helm chart : HR-08-TC02

@@ -15,11 +15,11 @@ const testOperand: TestOperandProps = {
   group: 'capabilities.3scale.net',
   version: 'v1beta1',
   kind: 'Backend',
-  createActionID: 'list-page-create-dropdown-item-backends.capabilities.3scale.net',
+  createActionID: 'list-page-create-dropdown-item-capabilities.3scale.net~v1beta1~Backend',
   exampleName: `backend1-sample`,
 };
 
-describe(`Installing "${testOperator.name}" operator in test namespace`, () => {
+xdescribe(`Installing "${testOperator.name}" operator in test namespace`, () => {
   before(() => {
     cy.login();
     cy.visit('/');

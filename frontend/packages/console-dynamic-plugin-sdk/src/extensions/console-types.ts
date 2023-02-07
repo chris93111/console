@@ -438,6 +438,9 @@ export type ListPageFilterProps<D = any> = {
   data: D;
   loaded: boolean;
   rowFilters?: RowFilter[];
+  labelFilter?: string;
+  labelPath?: string;
+  nameFilterTitle?: string;
   nameFilterPlaceholder?: string;
   labelFilterPlaceholder?: string;
   hideNameLabelFilters?: boolean;
@@ -468,6 +471,7 @@ export type ResourceLinkProps = {
   dataTest?: string;
   onClick?: () => void;
   truncate?: boolean;
+  children?: React.ReactNode;
 };
 
 export type ResourceIconProps = {
@@ -653,4 +657,11 @@ export type NamespaceBarProps = {
   onNamespaceChange?: (namespace: string) => void;
   isDisabled?: boolean;
   children?: React.ReactNode;
+};
+
+export type ErrorBoundaryFallbackProps = {
+  errorMessage: string;
+  componentStack: string;
+  stack: string;
+  title: string;
 };

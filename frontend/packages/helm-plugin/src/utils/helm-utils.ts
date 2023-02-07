@@ -5,8 +5,8 @@ import * as _ from 'lodash';
 import { coFetchJSON } from '@console/internal/co-fetch';
 import { Flatten } from '@console/internal/components/factory/list-page';
 import { RowFilter } from '@console/internal/components/filter-toolbar';
-import { K8sResourceKind } from '@console/internal/module/k8s';
-import { toTitleCase } from '@console/shared';
+import { K8sResourceKind, modelFor, referenceFor } from '@console/internal/module/k8s';
+import { toTitleCase, WORKLOAD_TYPES } from '@console/shared';
 import {
   HelmRelease,
   HelmChart,
@@ -21,24 +21,28 @@ import {
 export const HelmReleaseStatusLabels = {
   [HelmReleaseStatus.Deployed]: 'Deployed',
   [HelmReleaseStatus.Failed]: 'Failed',
+  [HelmReleaseStatus.PendingInstall]: 'PendingInstall',
+  [HelmReleaseStatus.PendingUpgrade]: 'PendingUpgrade',
+  [HelmReleaseStatus.PendingRollback]: 'PendingRollback',
   [HelmReleaseStatus.Other]: 'Other',
 };
 
 export const SelectedReleaseStatuses = [
   HelmReleaseStatus.Deployed,
   HelmReleaseStatus.Failed,
+  HelmReleaseStatus.PendingInstall,
+  HelmReleaseStatus.PendingUpgrade,
+  HelmReleaseStatus.PendingRollback,
   HelmReleaseStatus.Other,
 ];
 
-export const OtherReleaseStatuses = [
-  'unknown',
-  'uninstalled',
-  'superseded',
-  'uninstalling',
-  'pending-install',
-  'pending-upgrade',
-  'pending-rollback',
-];
+export const OtherReleaseStatuses = ['unknown', 'uninstalled', 'superseded', 'uninstalling'];
+
+export const releaseStatus = (status: string) =>
+  status
+    .split('-')
+    .map((s) => toTitleCase(s))
+    .join('');
 
 export const releaseStatusReducer = (release: HelmRelease) => {
   if (OtherReleaseStatuses.includes(release.info.status)) {
@@ -75,11 +79,17 @@ export const filterHelmReleasesByName = (releases: HelmRelease[], filter: string
 
 export const fetchHelmReleases = (
   namespace: string,
-  helmReleaseName?: string,
+  limitInfo?: boolean,
 ): Promise<HelmRelease[]> => {
-  const fetchString = `/api/helm/releases?ns=${namespace}${
-    helmReleaseName ? `&name=${helmReleaseName}` : ''
-  }`;
+  const fetchString = `/api/helm/releases?ns=${namespace}&limitInfo=${limitInfo || false}`;
+  return coFetchJSON(fetchString);
+};
+
+export const fetchHelmRelease = (
+  namespace: string,
+  helmReleaseName: string,
+): Promise<HelmRelease> => {
+  const fetchString = `/api/helm/release?ns=${namespace}&name=${helmReleaseName}`;
   return coFetchJSON(fetchString);
 };
 
@@ -218,16 +228,16 @@ export const getHelmActionConfig = (
   chartIndexEntry?: string,
 ): HelmActionConfigType | undefined => {
   switch (helmAction) {
-    case HelmActionType.Install:
+    case HelmActionType.Create:
       return {
-        type: HelmActionType.Install,
-        title: t('helm-plugin~Install Helm Chart'),
+        type: HelmActionType.Create,
+        title: t('helm-plugin~Create Helm Release'),
         subTitle: {
           form: t(
-            'helm-plugin~The Helm Chart can be installed by completing the form. Default values may be provided by the Helm chart authors.',
+            'helm-plugin~The Helm Release can be created by completing the form. Default values may be provided by the Helm chart authors.',
           ),
           yaml: t(
-            'helm-plugin~The Helm Chart can be installed by manually entering YAML or JSON definitions.',
+            'helm-plugin~The Helm Release can be created by manually entering YAML or JSON definitions.',
           ),
         },
         helmReleaseApi: `/api/helm/chart?url=${encodeURIComponent(
@@ -298,7 +308,7 @@ export const getChartReadme = (chart: HelmChart): string => {
 };
 
 export const helmActionString = (t: TFunction) => ({
-  Install: t('helm-plugin~Install'),
+  Create: t('helm-plugin~Create'),
   Upgrade: t('helm-plugin~Upgrade'),
   Rollback: t('helm-plugin~Rollback'),
 });
@@ -310,3 +320,8 @@ export const fetchHelmReleaseHistory = (
   const helmReleaseApi: string = `/api/helm/release/history?ns=${namespace}&name=${releaseName}`;
   return coFetchJSON(helmReleaseApi);
 };
+
+export const isGoingToTopology = (resources: K8sResourceKind[]) =>
+  !!resources.find((resource) =>
+    WORKLOAD_TYPES.includes(_.lowerFirst(_.get(modelFor(referenceFor(resource)), 'labelPlural'))),
+  );

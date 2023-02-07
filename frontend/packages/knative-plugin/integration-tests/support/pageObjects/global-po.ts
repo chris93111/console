@@ -254,3 +254,19 @@ export const servingPO = {
     inmemorychannel: '[data-test-row-filter="inmemorychannel"]',
   },
 };
+
+export const hpaPO = {
+  addHPA: '[data-test-action="Add HorizontalPodAutoscaler"]',
+  minhpaPod: '[id="form-number-spinner-formData-spec-minReplicas-field"]',
+  maxhpaPod: '[id="form-number-spinner-formData-spec-maxReplicas-field"]',
+  cpu: '[id="cpu"]',
+  memory: '[id="memory"]',
+};
+
+export const domainPO = {
+  domainMapping: '[aria-label="Domain mapping"]',
+  chipGroup: '[aria-label="Chip group category"]',
+  contentScroll: '[id="content-scrollable"]',
+  removeLabel: '[aria-label="Remove"]',
+  chipText: '[class="pf-c-chip__text"]',
+};

@@ -44,14 +44,13 @@ export const ExploreType: React.FC<ExploreTypeProps> = (props) => {
     ? currentSelection.path
     : [kindObj ? getDefinitionKey(kindObj, allDefinitions) : 'custom-schema'];
   const currentDefinition: SwaggerDefinition = _.get(allDefinitions, currentPath);
-  const currentProperties =
-    _.get(currentDefinition, 'properties') || _.get(currentDefinition, 'items.properties');
+  const currentProperties = currentDefinition?.properties || currentDefinition?.items?.properties;
 
   // Prefer the description saved in `currentSelection`. It won't always be defined in the definition itself.
   const description = currentSelection
-    ? currentSelection.description
-    : currentDefinition.description;
-  const required = new Set(currentDefinition.required || []);
+    ? currentSelection?.description
+    : currentDefinition?.description;
+  const required = new Set(currentDefinition?.required || []);
   const kindLabel = kindObj?.labelKey ? t(kindObj.labelKey) : kindObj?.kind;
   const breadcrumbs = drilldownHistory.length
     ? [kindObj ? kindLabel : t('public~Schema'), ..._.map(drilldownHistory, 'name')]

@@ -22,12 +22,173 @@
       "usePerspectiveDetection": { "$codeRef": "perspective.usePerspectiveDetection" }
     }
   },
+
+  {
+    "type": "console.cluster-configuration/item",
+    "properties": {
+      "id": "dev-console.project-access.ProjectAccessRolesConfiguration",
+      "groupId": "projects",
+      "label": "%devconsole~Project access Cluster Roles%",
+      "description": "%devconsole~Define a list of ClusterRole names that are assignable to users on the project access page.%",
+      "field": {
+        "type": "custom",
+        "component": { "$codeRef": "projectAccess.ProjectAccessRolesConfiguration" }
+      },
+      "readAccessReview": [
+        {
+          "group": "operator.openshift.io/v1",
+          "resource": "consoles",
+          "verb": "get",
+          "name": "cluster"
+        },
+        {
+          "resource": "clusterroles",
+          "verb": "list"
+        }
+      ],
+      "writeAccessReview": [
+        {
+          "group": "operator.openshift.io/v1",
+          "resource": "consoles",
+          "verb": "patch",
+          "name": "cluster"
+        }
+      ]
+    }
+  },
+  {
+    "type": "console.cluster-configuration/item",
+    "properties": {
+      "id": "dev-console.PinnedResourcesConfiguration",
+      "groupId": "developer",
+      "label": "%devconsole~Pre-pinned navigation items%",
+      "description": "%devconsole~Resource links that are shown below the standard navigation items. These pinned resources can still be changed by the user.%",
+      "field": {
+        "type": "custom",
+        "component": { "$codeRef": "catalog.PinnedResourcesConfiguration" }
+      },
+      "readAccessReview": [
+        {
+          "group": "operator.openshift.io/v1",
+          "resource": "consoles",
+          "verb": "get",
+          "name": "cluster"
+        }
+      ],
+      "writeAccessReview": [
+        {
+          "group": "operator.openshift.io/v1",
+          "resource": "consoles",
+          "verb": "patch",
+          "name": "cluster"
+        }
+      ]
+    }
+  },
+  {
+    "type": "console.cluster-configuration/item",
+    "properties": {
+      "id": "dev-console.AddPageConfiguration",
+      "groupId": "developer",
+      "label": "%devconsole~Add page actions%",
+      "description": "%devconsole~A list of actions that are not shown to users on the add page.%",
+      "field": {
+        "type": "custom",
+        "component": { "$codeRef": "add.AddPageConfiguration" }
+      },
+      "readAccessReview": [
+        {
+          "group": "operator.openshift.io/v1",
+          "resource": "consoles",
+          "verb": "get",
+          "name": "cluster"
+        }
+      ],
+      "writeAccessReview": [
+        {
+          "group": "operator.openshift.io/v1",
+          "resource": "consoles",
+          "verb": "patch",
+          "name": "cluster"
+        }
+      ]
+    }
+  },
+  /*
+  {
+    "type": "console.cluster-configuration/item",
+    "properties": {
+      "id": "dev-console.CatalogCategoriesConfiguration",
+      "groupId": "developer",
+      "label": "%devconsole~Developer Catalog Types%",
+      "description": "%devconsole~Categories which are shown in the developer catalog.%",
+      "field": {
+        "type": "custom",
+        "component": { "$codeRef": "catalog.CatalogCategoriesConfiguration" }
+      },
+      "readAccessReview": [
+        {
+          "group": "operator.openshift.io/v1",
+          "resource": "consoles",
+          "verb": "get",
+          "name": "cluster"
+        }
+      ],
+      "writeAccessReview": [
+        {
+          "group": "operator.openshift.io/v1",
+          "resource": "consoles",
+          "verb": "patch",
+          "name": "cluster"
+        }
+      ]
+    }
+  },
+  */
+  {
+    "type": "console.cluster-configuration/item",
+    "properties": {
+      "id": "dev-console.CatalogTypesConfiguration",
+      "groupId": "developer",
+      "label": "%devconsole~Developer Catalog Types%",
+      "description": "%devconsole~A list of developer catalog types that are not shown to users.%",
+      "field": {
+        "type": "custom",
+        "component": { "$codeRef": "catalog.CatalogTypesConfiguration" }
+      },
+      "readAccessReview": [
+        {
+          "group": "operator.openshift.io/v1",
+          "resource": "consoles",
+          "verb": "get",
+          "name": "cluster"
+        }
+      ],
+      "writeAccessReview": [
+        {
+          "group": "operator.openshift.io/v1",
+          "resource": "consoles",
+          "verb": "patch",
+          "name": "cluster"
+        }
+      ]
+    }
+  },
+  {
+    "type": "console.flag/hookProvider",
+    "properties": {
+      "handler": { "$codeRef": "actions.useDeveloperCatalogProvider" }
+    }
+  },
   {
     "type": "dev-console.add/action-group",
     "properties": {
       "id": "developer-catalog",
       "name": "%devconsole~Developer Catalog%",
       "insertBefore": "git-repository"
+    },
+    "flags": {
+      "required": ["DEVELOPER_CATALOG"]
     }
   },
   {
@@ -90,6 +251,9 @@
         { "group": "route.openshift.io", "resource": "routes", "verb": "create" },
         { "group": "", "resource": "services", "verb": "create" }
       ]
+    },
+    "flags": {
+      "required": ["DEVELOPER_CATALOG", "SAMPLE_CATALOG_TYPE"]
     }
   },
   {
@@ -151,6 +315,9 @@
       "label": "%devconsole~All services%",
       "description": "%devconsole~Browse the catalog to discover, deploy and connect to services%",
       "icon": { "$codeRef": "icons.devCatalogIconElement" }
+    },
+    "flags": {
+      "required": ["DEVELOPER_CATALOG"]
     }
   },
   {
@@ -162,6 +329,9 @@
       "label": "%devconsole~Database%",
       "description": "%devconsole~Browse the catalog to discover database services to add to your application%",
       "icon": { "$codeRef": "icons.databaseCatalogIconElement" }
+    },
+    "flags": {
+      "required": ["DEVELOPER_CATALOG"]
     }
   },
   {
@@ -173,6 +343,9 @@
       "label": "%devconsole~Operator Backed%",
       "description": "%devconsole~Browse the catalog to discover and deploy operator managed services%",
       "icon": { "$codeRef": "icons.operatorCatalogIconElement" }
+    },
+    "flags": {
+      "required": ["DEVELOPER_CATALOG", "OPERATOR_BACKED_SERVICE_CATALOG_TYPE"]
     }
   },
   {
@@ -711,7 +884,7 @@
         "options": [
           {
             "value": "latest",
-            "label": "Last used",
+            "label": "%devconsole~Last used%",
             "description": "%devconsole~The last resource type used when adding a resource.%"
           },
           {
@@ -747,7 +920,7 @@
         "options": [
           {
             "value": "latest",
-            "label": "Last used",
+            "label": "%devconsole~Last used%",
             "description": "%devconsole~The last resource type used when adding a resource.%"
           },
           {
@@ -789,6 +962,19 @@
       "exact": true,
       "path": ["/project-access/ns/:ns", "/project-access/all-namespaces"],
       "component": { "$codeRef": "projectAccess.ProjectAccessPage" }
+    }
+  },
+  {
+    "type": "console.page/route",
+    "properties": {
+      "exact": true,
+      "path": ["/serverless-function/all-namespaces", "/serverless-function/ns/:ns"],
+      "component": {
+        "$codeRef": "serverlessFunction.ServerlessFunctionPage"
+      }
+    },
+    "flags": {
+      "required": ["KNATIVE_SERVING", "KNATIVE_SERVING_SERVICE"]
     }
   }
 ]
