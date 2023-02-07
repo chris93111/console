@@ -21,6 +21,7 @@ type oidcAuth struct {
 
 	cookiePath    string
 	secureCookies bool
+        clusterName   string
 }
 
 type oidcConfig struct {
@@ -29,6 +30,7 @@ type oidcConfig struct {
 	clientID      string
 	cookiePath    string
 	secureCookies bool
+        clusterName   string
 }
 
 func newOIDCAuth(ctx context.Context, c *oidcConfig) (oauth2.Endpoint, *oidcAuth, error) {
@@ -45,6 +47,7 @@ func newOIDCAuth(ctx context.Context, c *oidcConfig) (oauth2.Endpoint, *oidcAuth
 		sessions:      NewSessionStore(32768),
 		cookiePath:    c.cookiePath,
 		secureCookies: c.secureCookies,
+                clusterName: c.clusterName,  
 	}, nil
 }
 
@@ -71,12 +74,13 @@ func (o *oidcAuth) login(w http.ResponseWriter, token *oauth2.Token) (*loginStat
 	}
 
 	cookie := http.Cookie{
-		Name:     openshiftAccessTokenCookieName,
+		Name:     GetCookieName(o.clusterName),
 		Value:    ls.sessionToken,
 		MaxAge:   maxAge(ls.exp, time.Now()),
 		HttpOnly: true,
 		Path:     o.cookiePath,
 		Secure:   o.secureCookies,
+                SameSite: http.SameSiteLaxMode,
 	}
 	http.SetCookie(w, &cookie)
 
@@ -91,7 +95,7 @@ func (o *oidcAuth) logout(w http.ResponseWriter, r *http.Request) {
 	}
 	// Delete session cookie
 	cookie := http.Cookie{
-		Name:     openshiftAccessTokenCookieName,
+		Name:     GetCookieName(o.clusterName),
 		Value:    "",
 		MaxAge:   0,
 		HttpOnly: true,
@@ -103,12 +107,13 @@ func (o *oidcAuth) logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o *oidcAuth) getLoginState(r *http.Request) (*loginState, error) {
-	sessionCookie, err := r.Cookie(openshiftAccessTokenCookieName)
+	sessionCookie, err := r.Cookie(GetCookieName(o.clusterName))
 	if err != nil {
 		return nil, err
 	}
 	sessionToken := sessionCookie.Value
-	ls := o.sessions.getSession(sessionToken)
+	fmt.Errorf(sessionCookie.Value)
+        ls := o.sessions.getSession(sessionToken)
 	if ls == nil {
 		return nil, fmt.Errorf("No session found on server")
 	}

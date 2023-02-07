@@ -510,8 +510,7 @@
       "id": "builds",
       "name": "%console-app~Builds%",
       "dataAttributes": { "data-quickstart-id": "qs-nav-builds" }
-    },
-    "flags": { "required": ["OPENSHIFT"] }
+    }
   },
   {
     "type": "console.navigation/section",
@@ -566,7 +565,7 @@
       "href": "/dashboards"
     },
     "flags": {
-      "required": ["CAN_GET_NS", "OPENSHIFT", "PROMETHEUS", "MONITORING"]
+      "required": ["CAN_GET_NS", "PROMETHEUS", "MONITORING"]
     }
   },
   {
@@ -977,8 +976,8 @@
       "insertAfter": "buildconfigs",
       "name": "%console-app~Builds%",
       "model": {
-        "group": "build.openshift.io",
-        "version": "v1",
+        "group": "shipwright.io",
+        "version": "v1alpha1",
         "kind": "Build"
       }
     }
@@ -1020,7 +1019,7 @@
       "id": "machines",
       "insertAfter": "nodes",
       "name": "%console-app~Machines%",
-      "href": "/k8s/ns/openshift-machine-api/machine.openshift.io~v1beta1~Machine"
+      "href": "/k8s/ns/system/cluster.x-k8s.io~v1alpha4~Machine"
     },
     "flags": { "required": ["CLUSTER_API"] }
   },
@@ -1032,7 +1031,7 @@
       "id": "machinesets",
       "insertAfter": "machines",
       "name": "%console-app~MachineSets%",
-      "href": "/k8s/ns/openshift-machine-api/machine.openshift.io~v1beta1~MachineSet"
+      "href": "/k8s/ns/system/cluster.x-k8s.io~v1alpha4~MachineSet"
     },
     "flags": { "required": ["CLUSTER_API"] }
   },

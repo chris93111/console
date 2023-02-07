@@ -248,8 +248,8 @@ export const BuildModel: K8sKind = {
   label: 'Build',
   // t('public~Build')
   labelKey: 'public~Build',
-  apiVersion: 'v1',
-  apiGroup: 'build.openshift.io',
+  apiVersion: 'v1alpha1',
+  apiGroup: 'shipwright.io',
   plural: 'builds',
   abbr: 'B',
   namespaced: true,
@@ -866,8 +866,8 @@ export const MachineModel: K8sKind = {
   labelPlural: 'Machines',
   // t('public~Machines')
   labelPluralKey: 'public~Machines',
-  apiVersion: 'v1beta1',
-  apiGroup: 'machine.openshift.io',
+  apiVersion: 'v1alpha4',
+  apiGroup: 'cluster.x-k8s.io',
   plural: 'machines',
   abbr: 'M',
   namespaced: true,
@@ -883,8 +883,8 @@ export const MachineSetModel: K8sKind = {
   labelPlural: 'MachineSets',
   // t('public~MachineSet')
   labelPluralKey: 'public~MachineSet',
-  apiVersion: 'v1beta1',
-  apiGroup: 'machine.openshift.io',
+  apiVersion: 'v1alpha4',
+  apiGroup: 'cluster.x-k8s.io',
   plural: 'machinesets',
   abbr: 'MS',
   namespaced: true,
@@ -900,8 +900,8 @@ export const MachineDeploymentModel: K8sKind = {
   labelPlural: 'MachineDeployments',
   // t('public~MachineDeployments')
   labelPluralKey: 'public~MachineDeployments',
-  apiVersion: 'v1beta1',
-  apiGroup: 'machine.openshift.io',
+  apiVersion: 'v1alpha4',
+  apiGroup: 'cluster.x-k8s.io',
   plural: 'machinedeployments',
   abbr: 'MD',
   namespaced: true,

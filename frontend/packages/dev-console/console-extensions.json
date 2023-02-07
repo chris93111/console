@@ -592,9 +592,6 @@
         "data-quickstart-id": "qs-nav-topology",
         "data-test-id": "topology-header"
       }
-    },
-    "flags": {
-      "required": ["OPENSHIFT"]
     }
   },
   {
@@ -613,7 +610,7 @@
       }
     },
     "flags": {
-      "required": ["OPENSHIFT", "MONITORING"]
+      "required": ["MONITORING"]
     }
   },
   {
@@ -667,9 +664,6 @@
         "data-quickstart-id": "qs-nav-builds",
         "data-test-id": "build-header"
       }
-    },
-    "flags": {
-      "required": ["OPENSHIFT"]
     }
   },
   {
@@ -678,9 +672,6 @@
       "exact": true,
       "path": ["/builds"],
       "component": { "$codeRef": "builds.NamespaceRedirect" }
-    },
-    "flags": {
-      "required": ["OPENSHIFT"]
     }
   },
   {
@@ -689,9 +680,6 @@
       "exact": false,
       "path": ["/builds/all-namespaces", "/builds/ns/:ns"],
       "component": { "$codeRef": "builds.BuildsTabListPage" }
-    },
-    "flags": {
-      "required": ["OPENSHIFT"]
     }
   },
   {
@@ -795,7 +783,7 @@
       "insertAfter": "topology-side-bar-tab-resource"
     },
     "flags": {
-      "required": ["OPENSHIFT", "MONITORING"]
+      "required": ["MONITORING"]
     }
   },
   {
