@@ -1,64 +1,85 @@
+import * as classNames from 'classnames';
+import * as Modal from 'react-modal';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { Provider } from 'react-redux';
-import * as Modal from 'react-modal';
 import { Router } from 'react-router-dom';
-import * as classNames from 'classnames';
-import * as _ from 'lodash-es';
-import { ActionGroup, Button, Text, TextContent, TextVariants } from '@patternfly/react-core';
+import { CompatRouter } from 'react-router-dom-v5-compat';
 import { useTranslation } from 'react-i18next';
-import i18next from 'i18next';
+import { ActionGroup, Button, Text, TextContent, TextVariants } from '@patternfly/react-core';
 import CloseButton from '@console/shared/src/components/close-button';
-
 import store from '../../redux';
 import { ButtonBar } from '../utils/button-bar';
 import { history } from '../utils/router';
 
-export const createModal: CreateModal = (getModalContainer) => {
-  const modalContainer = document.getElementById('modal-container');
+export const createModal: CreateModal = (getModalElement) => {
+  const containerElement = document.getElementById('modal-container');
   const result = new Promise<void>((resolve) => {
     const closeModal = (e?: React.SyntheticEvent) => {
       if (e && e.stopPropagation) {
         e.stopPropagation();
       }
-      ReactDOM.unmountComponentAtNode(modalContainer);
+      ReactDOM.unmountComponentAtNode(containerElement);
       resolve();
     };
     Modal.setAppElement(document.getElementById('app-content'));
-    modalContainer && ReactDOM.render(getModalContainer(closeModal), modalContainer);
+    containerElement && ReactDOM.render(getModalElement(closeModal), containerElement);
   });
   return { result };
 };
 
-export const createModalLauncher: CreateModalLauncher = (Component) => (props) => {
+export const ModalWrapper: React.FC<ModalWrapperProps> = ({
+  blocking,
+  className,
+  children,
+  onClose,
+}) => {
+  const { t } = useTranslation();
+  const parentSelector = React.useCallback(() => document.querySelector('#modal-container'), []);
+  return (
+    <Modal
+      className={classNames('modal-dialog', className)}
+      contentLabel={t('public~Modal')}
+      isOpen
+      onRequestClose={onClose}
+      overlayClassName="co-overlay"
+      parentSelector={parentSelector}
+      shouldCloseOnOverlayClick={!blocking}
+    >
+      {children}
+    </Modal>
+  );
+};
+
+export const createModalLauncher: CreateModalLauncher = (Component, modalWrapper = true) => ({
+  blocking,
+  modalClassName,
+  close,
+  cancel,
+  ...props
+}) => {
   const getModalContainer: GetModalContainer = (onClose) => {
-    const _handleClose = (e: React.SyntheticEvent) => {
-      onClose && onClose(e);
-      props.close && props.close();
+    const handleClose = (e: React.SyntheticEvent) => {
+      onClose?.(e);
+      close?.();
     };
-    const _handleCancel = (e: React.SyntheticEvent) => {
-      props.cancel && props.cancel();
-      _handleClose(e);
+    const handleCancel = (e: React.SyntheticEvent) => {
+      cancel?.();
+      handleClose(e);
     };
 
     return (
       <Provider store={store}>
         <Router {...{ history, basename: window.SERVER_FLAGS.basePath }}>
-          <Modal
-            isOpen={true}
-            contentLabel={i18next.t('public~Modal')}
-            onRequestClose={_handleClose}
-            className={classNames('modal-dialog', props.modalClassName)}
-            overlayClassName="co-overlay"
-            shouldCloseOnOverlayClick={!props.blocking}
-            parentSelector={() => document.getElementById('modal-container')}
-          >
-            <Component
-              {...(_.omit(props, 'blocking', 'modalClassName') as any)}
-              cancel={_handleCancel}
-              close={_handleClose}
-            />
-          </Modal>
+          <CompatRouter>
+            {modalWrapper ? (
+              <ModalWrapper blocking={blocking} className={modalClassName} onClose={handleClose}>
+                <Component {...(props as any)} cancel={handleCancel} close={handleClose} />
+              </ModalWrapper>
+            ) : (
+              <Component {...(props as any)} cancel={handleCancel} close={handleClose} />
+            )}
+          </CompatRouter>
         </Router>
       </Provider>
     );
@@ -66,7 +87,7 @@ export const createModalLauncher: CreateModalLauncher = (Component) => (props) =
   return createModal(getModalContainer);
 };
 
-export const ModalTitle: React.SFC<ModalTitleProps> = ({
+export const ModalTitle: React.FC<ModalTitleProps> = ({
   children,
   className = 'modal-header',
   close,
@@ -89,13 +110,13 @@ export const ModalTitle: React.SFC<ModalTitleProps> = ({
   </div>
 );
 
-export const ModalBody: React.SFC<ModalBodyProps> = ({ children }) => (
+export const ModalBody: React.FC<ModalBodyProps> = ({ children }) => (
   <div className="modal-body">
     <div className="modal-body-content">{children}</div>
   </div>
 );
 
-export const ModalFooter: React.SFC<ModalFooterProps> = ({
+export const ModalFooter: React.FC<ModalFooterProps> = ({
   message,
   errorMessage,
   inProgress,
@@ -113,16 +134,18 @@ export const ModalFooter: React.SFC<ModalFooterProps> = ({
   );
 };
 
-export const ModalSubmitFooter: React.SFC<ModalSubmitFooterProps> = ({
+export const ModalSubmitFooter: React.FC<ModalSubmitFooterProps> = ({
   message,
   errorMessage,
   inProgress,
   cancel,
   submitText,
   cancelText,
+  className,
   submitDisabled,
   submitDanger,
-  resetText = i18next.t('public~Reset'),
+  buttonAlignment = 'right',
+  resetText,
   reset,
 }) => {
   const { t } = useTranslation();
@@ -136,47 +159,71 @@ export const ModalSubmitFooter: React.SFC<ModalSubmitFooterProps> = ({
     reset(e);
   };
 
+  const cancelButton = (
+    <Button
+      type="button"
+      variant="secondary"
+      data-test-id="modal-cancel-action"
+      onClick={onCancelClick}
+      aria-label={t('public~Cancel')}
+    >
+      {cancelText || t('public~Cancel')}
+    </Button>
+  );
+
+  const submitButton = (
+    <Button
+      data-test="confirm-action"
+      id="confirm-action"
+      isDisabled={submitDisabled}
+      type="submit"
+      variant={submitDanger ? 'danger' : 'primary'}
+    >
+      {submitText || t('public~Submit')}
+    </Button>
+  );
+
+  const resetButton = (
+    <Button variant="link" isInline onClick={onResetClick} id="reset-action">
+      {resetText || t('public~Reset')}
+    </Button>
+  );
+
   return (
-    <ModalFooter inProgress={inProgress} errorMessage={errorMessage} message={message}>
-      <ActionGroup className="pf-c-form pf-c-form__actions--right pf-c-form__group--no-top-margin">
-        {reset && (
-          <Button variant="link" isInline onClick={onResetClick} id="reset-action">
-            {resetText}
-          </Button>
+    <ModalFooter
+      inProgress={inProgress}
+      errorMessage={errorMessage}
+      message={message}
+      className={className}
+    >
+      <ActionGroup
+        className={classNames(
+          { 'pf-c-form__actions--right': buttonAlignment === 'right' },
+          'pf-c-form  pf-c-form__group--no-top-margin',
         )}
-        <Button
-          type="button"
-          variant="secondary"
-          data-test-id="modal-cancel-action"
-          onClick={onCancelClick}
-          aria-label={t('public~Cancel')}
-        >
-          {cancelText || t('public~Cancel')}
-        </Button>
-        {submitDanger ? (
-          <Button
-            type="submit"
-            variant="danger"
-            isDisabled={submitDisabled}
-            data-test="confirm-action"
-            id="confirm-action"
-          >
-            {submitText}
-          </Button>
+      >
+        {buttonAlignment === 'left' ? (
+          <>
+            {submitButton}
+            {reset && resetButton}
+            {cancelButton}
+          </>
         ) : (
-          <Button
-            type="submit"
-            variant="primary"
-            isDisabled={submitDisabled}
-            data-test="confirm-action"
-            id="confirm-action"
-          >
-            {submitText}
-          </Button>
+          <>
+            {reset && resetButton}
+            {cancelButton}
+            {submitButton}
+          </>
         )}
       </ActionGroup>
     </ModalFooter>
   );
+};
+
+export type ModalWrapperProps = {
+  blocking?: boolean;
+  className?: string;
+  onClose?: (event?: React.SyntheticEvent) => void;
 };
 
 export type GetModalContainer = (onClose: (e?: React.SyntheticEvent) => void) => React.ReactElement;
@@ -206,6 +253,7 @@ export type ModalFooterProps = {
   message?: string;
   errorMessage?: React.ReactNode;
   inProgress: boolean;
+  className?: string;
 };
 
 export type ModalSubmitFooterProps = {
@@ -214,13 +262,16 @@ export type ModalSubmitFooterProps = {
   inProgress: boolean;
   cancel: (e: React.SyntheticEvent<any, Event>) => void;
   cancelText?: React.ReactNode;
+  className?: string;
   resetText?: React.ReactNode;
   reset?: (e: React.SyntheticEvent<any, Event>) => void;
   submitText: React.ReactNode;
   submitDisabled?: boolean;
   submitDanger?: boolean;
+  buttonAlignment?: 'left' | 'right';
 };
 
 export type CreateModalLauncher = <P extends ModalComponentProps>(
   C: React.ComponentType<P>,
+  modalWrapper?: boolean,
 ) => (props: P & CreateModalLauncherProps) => { result: Promise<{}> };

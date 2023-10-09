@@ -24,6 +24,7 @@ import (
 	"github.com/openshift/console/pkg/serverutils"
 	oscrypto "github.com/openshift/library-go/pkg/crypto"
 
+	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 )
 
@@ -49,9 +50,6 @@ const (
 
 	// Default location of the tenant aware Alert Manager service for OpenShift. This is only accessible in-cluster.
 	openshiftAlertManagerTenancyHost = "alertmanager-main.openshift-monitoring.svc:9092"
-
-	// Well-known location of metering service for OpenShift. This is only accessible in-cluster.
-	openshiftMeteringHost = "reporting-operator.openshift-metering.svc:8080"
 
 	// Well-known location of the GitOps service. This is only accessible in-cluster
 	openshiftGitOpsHost = "cluster.openshift-gitops.svc:8080"
@@ -93,7 +91,6 @@ func main() {
 	fK8sModeOffClusterSkipVerifyTLS := fs.Bool("k8s-mode-off-cluster-skip-verify-tls", false, "DEV ONLY. When true, skip verification of certs presented by k8s API server.")
 	fK8sModeOffClusterThanos := fs.String("k8s-mode-off-cluster-thanos", "", "DEV ONLY. URL of the cluster's Thanos server.")
 	fK8sModeOffClusterAlertmanager := fs.String("k8s-mode-off-cluster-alertmanager", "", "DEV ONLY. URL of the cluster's AlertManager server.")
-	fK8sModeOffClusterMetering := fs.String("k8s-mode-off-cluster-metering", "", "DEV ONLY. URL of the cluster's metering server.")
 	fK8sModeOffClusterManagedClusterProxy := fs.String("k8s-mode-off-cluster-managed-cluster-proxy", "", "DEV ONLY. Public URL of the ACM/MCE cluster proxy.")
 
 	fK8sAuth := fs.String("k8s-auth", "service-account", "service-account | bearer-token | oidc | openshift")
@@ -113,7 +110,7 @@ func main() {
 	fKubectlClientSecretFile := fs.String("kubectl-client-secret-file", "", "File containing the OAuth2 client_secret of kubectl.")
 	fK8sPublicEndpoint := fs.String("k8s-public-endpoint", "", "Endpoint to use when rendering kubeconfigs for clients. Useful for when bridge uses an internal endpoint clients can't access for communicating with the API server.")
 
-	fBranding := fs.String("branding", "okd", "Console branding for the masthead logo and title. One of okd, openshift, ocp, online, dedicated, or azure. Defaults to okd.")
+	fBranding := fs.String("branding", "okd", "Console branding for the masthead logo and title. One of okd, openshift, ocp, online, dedicated, azure, or rosa. Defaults to okd.")
 	fCustomProductName := fs.String("custom-product-name", "", "Custom product name for console branding.")
 	fCustomLogoFile := fs.String("custom-logo-file", "", "Custom product image for console branding.")
 	fStatuspageID := fs.String("statuspage-id", "", "Unique ID assigned by statuspage.io page that provides status info.")
@@ -143,12 +140,17 @@ func main() {
 	fAddPage := fs.String("add-page", "", "DEV ONLY. Allow add page customization. (JSON as string)")
 	fProjectAccessClusterRoles := fs.String("project-access-cluster-roles", "", "The list of Cluster Roles assignable for the project access page. (JSON as string)")
 	fPerspectives := fs.String("perspectives", "", "Allow enabling/disabling of perspectives in the console. (JSON as string)")
-	fManagedClusterConfigs := fs.String("managed-clusters", "", "List of managed cluster configurations. (JSON as string)")
 	fControlPlaneTopology := fs.String("control-plane-topology-mode", "", "Defines the topology mode of the control/infra nodes (External | HighlyAvailable | SingleReplica)")
 	fReleaseVersion := fs.String("release-version", "", "Defines the release version of the cluster")
 	fNodeArchitectures := fs.String("node-architectures", "", "List of node architectures. Example --node-architecture=amd64,arm64")
+	fNodeOperatingSystems := fs.String("node-operating-systems", "", "List of node operating systems. Example --node-operating-system=linux,windows")
 	fCopiedCSVsDisabled := fs.Bool("copied-csvs-disabled", false, "Flag to indicate if OLM copied CSVs are disabled.")
+
+	// TODO Remove multicluster
+	fManagedClusterConfigs := fs.String("managed-clusters", "", "List of managed cluster configurations. (JSON as string)")
 	fHubConsoleURL := fs.String("hub-console-url", "", "URL of the hub cluster's console in a multi cluster environment.")
+	// TODO Remove multicluster
+
 	if err := serverconfig.Parse(fs, os.Args[1:], "BRIDGE"); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		os.Exit(1)
@@ -214,8 +216,9 @@ func main() {
 	case "online":
 	case "dedicated":
 	case "azure":
+	case "rosa":
 	default:
-		bridge.FlagFatalf("branding", "value must be one of okd, openshift, ocp, online, dedicated, or azure")
+		bridge.FlagFatalf("branding", "value must be one of okd, openshift, ocp, online, dedicated, azure, or rosa")
 	}
 
 	if *fCustomLogoFile != "" {
@@ -263,13 +266,21 @@ func main() {
 		}
 	}
 
+	nodeOperatingSystems := []string{}
+	if *fNodeOperatingSystems != "" {
+		for _, str := range strings.Split(*fNodeOperatingSystems, ",") {
+			str = strings.TrimSpace(str)
+			if str == "" {
+				bridge.FlagFatalf("node-operating-systems", "list must contain name of node architectures separated by comma")
+			}
+			nodeOperatingSystems = append(nodeOperatingSystems, str)
+		}
+	}
+
+	// TODO remove multicluster
 	hubConsoleURL := &url.URL{}
 	if *fHubConsoleURL != "" {
 		hubConsoleURL = bridge.ValidateFlagIsURL("hub-console-url", *fHubConsoleURL)
-	}
-
-	clusterCopiedCSVsDisabled := map[string]bool{
-		serverutils.LocalClusterName: *fCopiedCSVsDisabled,
 	}
 
 	srv := &server.Server{
@@ -303,9 +314,14 @@ func main() {
 		Telemetry:                    telemetryFlags,
 		ReleaseVersion:               *fReleaseVersion,
 		NodeArchitectures:            nodeArchitectures,
-		HubConsoleURL:                hubConsoleURL,
+		NodeOperatingSystems:         nodeOperatingSystems,
+		HubConsoleURL:                hubConsoleURL, // TODO remove multicluster
+		AuthMetrics:                  auth.NewMetrics(),
+		K8sMode:                      *fK8sMode,
+		CopiedCSVsDisabled:           *fCopiedCSVsDisabled,
 	}
 
+	// TODO remove multicluster
 	managedClusterConfigs := []serverconfig.ManagedClusterConfig{}
 	if *fManagedClusterConfigs != "" {
 		unvalidatedManagedClusters := []serverconfig.ManagedClusterConfig{}
@@ -323,6 +339,7 @@ func main() {
 	}
 
 	// if !in-cluster (dev) we should not pass these values to the frontend
+	// is used by catalog-utils.ts
 	if *fK8sMode == "in-cluster" {
 		srv.GOARCH = runtime.GOARCH
 		srv.GOOS = runtime.GOOS
@@ -383,7 +400,7 @@ func main() {
 			klog.Fatalf("failed to read bearer token: %v", err)
 		}
 
-		srv.LocalK8sProxyConfig = &proxy.Config{
+		srv.K8sProxyConfig = &proxy.Config{
 			TLSClientConfig: tlsConfig,
 			HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
 			Endpoint:        k8sEndpoint,
@@ -405,23 +422,26 @@ func main() {
 				RootCAs: serviceProxyRootCAs,
 			})
 
-			// Disable metrics in multicluster env.
-			if len(managedClusterConfigs) == 0 {
-				srv.ThanosProxyConfig = &proxy.Config{
+			srv.ServiceClient = &http.Client{
+				Transport: &http.Transport{
 					TLSClientConfig: serviceProxyTLSConfig,
-					HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
-					Endpoint:        &url.URL{Scheme: "https", Host: openshiftThanosHost, Path: "/api"},
-				}
-				srv.ThanosTenancyProxyConfig = &proxy.Config{
-					TLSClientConfig: serviceProxyTLSConfig,
-					HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
-					Endpoint:        &url.URL{Scheme: "https", Host: openshiftThanosTenancyHost, Path: "/api"},
-				}
-				srv.ThanosTenancyProxyForRulesConfig = &proxy.Config{
-					TLSClientConfig: serviceProxyTLSConfig,
-					HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
-					Endpoint:        &url.URL{Scheme: "https", Host: openshiftThanosTenancyForRulesHost, Path: "/api"},
-				}
+				},
+			}
+
+			srv.ThanosProxyConfig = &proxy.Config{
+				TLSClientConfig: serviceProxyTLSConfig,
+				HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
+				Endpoint:        &url.URL{Scheme: "https", Host: openshiftThanosHost, Path: "/api"},
+			}
+			srv.ThanosTenancyProxyConfig = &proxy.Config{
+				TLSClientConfig: serviceProxyTLSConfig,
+				HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
+				Endpoint:        &url.URL{Scheme: "https", Host: openshiftThanosTenancyHost, Path: "/api"},
+			}
+			srv.ThanosTenancyProxyForRulesConfig = &proxy.Config{
+				TLSClientConfig: serviceProxyTLSConfig,
+				HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
+				Endpoint:        &url.URL{Scheme: "https", Host: openshiftThanosTenancyForRulesHost, Path: "/api"},
 			}
 
 			srv.AlertManagerProxyConfig = &proxy.Config{
@@ -439,11 +459,6 @@ func main() {
 				HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
 				Endpoint:        &url.URL{Scheme: "https", Host: *fAlertmanagerTenancyHost, Path: "/api"},
 			}
-			srv.MeteringProxyConfig = &proxy.Config{
-				TLSClientConfig: serviceProxyTLSConfig,
-				HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
-				Endpoint:        &url.URL{Scheme: "https", Host: openshiftMeteringHost, Path: "/api"},
-			}
 			srv.TerminalProxyTLSConfig = serviceProxyTLSConfig
 			srv.PluginsProxyTLSConfig = serviceProxyTLSConfig
 
@@ -452,6 +467,7 @@ func main() {
 				HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
 				Endpoint:        &url.URL{Scheme: "https", Host: openshiftGitOpsHost},
 			}
+			// TODO remove multicluster
 			srv.ManagedClusterProxyConfig = &proxy.Config{
 				TLSClientConfig: serviceProxyTLSConfig,
 				HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
@@ -465,14 +481,20 @@ func main() {
 			InsecureSkipVerify: *fK8sModeOffClusterSkipVerifyTLS,
 		})
 
-		srv.LocalK8sProxyConfig = &proxy.Config{
-			TLSClientConfig: serviceProxyTLSConfig,
-			HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
-			Endpoint:        k8sEndpoint,
+		srv.ServiceClient = &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: serviceProxyTLSConfig,
+			},
 		}
 
-		// Disable metrics in off-cluster multicluster env
-		if len(managedClusterConfigs) == 0 && *fK8sModeOffClusterThanos != "" {
+		srv.K8sProxyConfig = &proxy.Config{
+			TLSClientConfig:         serviceProxyTLSConfig,
+			HeaderBlacklist:         []string{"Cookie", "X-CSRFToken"},
+			Endpoint:                k8sEndpoint,
+			UseProxyFromEnvironment: true,
+		}
+
+		if *fK8sModeOffClusterThanos != "" {
 			offClusterThanosURL := bridge.ValidateFlagIsURL("k8s-mode-off-cluster-thanos", *fK8sModeOffClusterThanos)
 			offClusterThanosURL.Path += "/api"
 			srv.ThanosTenancyProxyConfig = &proxy.Config{
@@ -512,16 +534,6 @@ func main() {
 			}
 		}
 
-		if *fK8sModeOffClusterMetering != "" {
-			offClusterMeteringURL := bridge.ValidateFlagIsURL("k8s-mode-off-cluster-metering", *fK8sModeOffClusterMetering)
-			offClusterMeteringURL.Path += "/api"
-			srv.MeteringProxyConfig = &proxy.Config{
-				TLSClientConfig: serviceProxyTLSConfig,
-				HeaderBlacklist: []string{"Cookie", "X-CSRFToken"},
-				Endpoint:        offClusterMeteringURL,
-			}
-		}
-
 		srv.TerminalProxyTLSConfig = serviceProxyTLSConfig
 		srv.PluginsProxyTLSConfig = serviceProxyTLSConfig
 
@@ -534,6 +546,7 @@ func main() {
 			}
 		}
 
+		// TODO remove multicluster
 		// Must have off-cluster cluster proxy endpoint if we have managed clusters
 		if len(managedClusterConfigs) > 0 {
 			offClusterManagedClusterProxyURL := bridge.ValidateFlagIsURL("k8s-mode-off-cluster-managed-cluster-proxy", *fK8sModeOffClusterManagedClusterProxy)
@@ -550,12 +563,12 @@ func main() {
 
 	apiServerEndpoint := *fK8sPublicEndpoint
 	if apiServerEndpoint == "" {
-		apiServerEndpoint = srv.LocalK8sProxyConfig.Endpoint.String()
+		apiServerEndpoint = srv.K8sProxyConfig.Endpoint.String()
 	}
 	srv.KubeAPIServerURL = apiServerEndpoint
-	srv.LocalK8sClient = &http.Client{
+	srv.K8sClient = &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: srv.LocalK8sProxyConfig.TLSClientConfig,
+			TLSClientConfig: srv.K8sProxyConfig.TLSClientConfig,
 		},
 	}
 
@@ -642,6 +655,12 @@ func main() {
 			RefererPath:   refererPath,
 			SecureCookies: secureCookies,
 			ClusterName:   serverutils.LocalClusterName,
+
+			K8sConfig: &rest.Config{
+				Host:      apiServerEndpoint,
+				Transport: srv.K8sClient.Transport,
+			},
+			Metrics: srv.AuthMetrics,
 		}
 
 		// NOTE: This won't work when using the OpenShift auth mode.
@@ -658,12 +677,14 @@ func main() {
 			)
 
 		}
-
+		// TODO remove multicluster
+		// Revert to *auth.Authenticator property
 		srv.Authers = make(map[string]*auth.Authenticator)
 		if srv.Authers[serverutils.LocalClusterName], err = auth.NewAuthenticator(context.Background(), oidcClientConfig); err != nil {
 			klog.Fatalf("Error initializing authenticator: %v", err)
 		}
 
+		// TODO remove multicluster
 		if len(managedClusterConfigs) > 0 {
 			for _, managedCluster := range managedClusterConfigs {
 				managedClusterOIDCClientConfig := &auth.Config{
@@ -686,13 +707,17 @@ func main() {
 					RefererPath:   refererPath,
 					SecureCookies: secureCookies,
 					ClusterName:   managedCluster.Name,
+
+					K8sConfig: &rest.Config{
+						Host:      apiServerEndpoint,
+						Transport: srv.K8sClient.Transport,
+					},
+					Metrics: srv.AuthMetrics,
 				}
 
 				if srv.Authers[managedCluster.Name], err = auth.NewAuthenticator(context.Background(), managedClusterOIDCClientConfig); err != nil {
 					klog.Fatalf("Error initializing managed cluster authenticator: %v", err)
 				}
-
-				clusterCopiedCSVsDisabled[managedCluster.Name] = managedCluster.CopiedCSVsDisabled
 			}
 		}
 	case "disabled":
@@ -721,8 +746,12 @@ func main() {
 		bridge.FlagFatalf("k8s-mode", "must be one of: service-account, bearer-token, oidc, openshift")
 	}
 
-	srv.CopiedCSVsDisabled = clusterCopiedCSVsDisabled
-
+	monitoringDashboardHttpClientTransport := &http.Transport{
+		TLSClientConfig: srv.K8sProxyConfig.TLSClientConfig,
+	}
+	if *fK8sMode == "off-cluster" {
+		monitoringDashboardHttpClientTransport.Proxy = http.ProxyFromEnvironment
+	}
 	srv.MonitoringDashboardConfigMapLister = server.NewResourceLister(
 		srv.ServiceAccountToken,
 		&url.URL{
@@ -734,9 +763,7 @@ func main() {
 			}.Encode(),
 		},
 		&http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: srv.LocalK8sProxyConfig.TLSClientConfig,
-			},
+			Transport: monitoringDashboardHttpClientTransport,
 		},
 		nil,
 	)
@@ -753,7 +780,7 @@ func main() {
 		},
 		&http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: srv.LocalK8sProxyConfig.TLSClientConfig,
+				TLSClientConfig: srv.K8sProxyConfig.TLSClientConfig,
 			},
 		},
 		knative.EventSourceFilter,
@@ -771,7 +798,7 @@ func main() {
 		},
 		&http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: srv.LocalK8sProxyConfig.TLSClientConfig,
+				TLSClientConfig: srv.K8sProxyConfig.TLSClientConfig,
 			},
 		},
 		knative.ChannelFilter,

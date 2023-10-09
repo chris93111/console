@@ -65,7 +65,7 @@ const checkAccessInternal = _.memoize(
     };
     return k8sCreate(SelfSubjectAccessReviewModel, ssar);
   },
-  (...args) => [...args, getActiveCluster(storeHandler.getStore().getState())].join('~'),
+  (...args) => [...args, getActiveCluster(storeHandler.getStore().getState())].join('~'), // TODO remove multicluster
 );
 
 /**
@@ -102,7 +102,7 @@ export const checkAccess = (
  * Hook that provides information about user access to a given resource.
  * @param resourceAttributes resource attributes for access review
  * @param impersonate impersonation details
- * @returns Array with isAllowed and loading values.
+ * @returns Array with `isAllowed` and `loading` values.
  */
 export const useAccessReview = (
   resourceAttributes: AccessReviewResourceAttributes,

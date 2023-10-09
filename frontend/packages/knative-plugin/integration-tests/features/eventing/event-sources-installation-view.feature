@@ -1,11 +1,11 @@
-@knative-camelk
+@knative-camelk @knative
 Feature: Event Sources Installation View
               As a user, I should be able switch between YAML and Form view to install Event Sources
 
 
         Background:
             Given user has created or selected namespace "aut-eventsources"
-            
+
         @regression @manual
         Scenario: Install Event Source from Developer Catalog Page using YAML View: KF-01-TC01
             Given user is at Add page

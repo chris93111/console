@@ -131,9 +131,11 @@ const LazyRoute = (props) => (
   />
 );
 
-const LazyDynamicRoute: React.FC<Omit<React.ComponentProps<typeof Route>, 'component'> & {
-  component: LoadedExtension<DynamicRoutePage>['properties']['component'];
-}> = ({ component, ...props }) => {
+const LazyDynamicRoute: React.FC<
+  Omit<React.ComponentProps<typeof Route>, 'component'> & {
+    component: LoadedExtension<DynamicRoutePage>['properties']['component'];
+  }
+> = ({ component, ...props }) => {
   const LazyComponent = React.useMemo(
     () =>
       React.lazy(async () => {
@@ -174,9 +176,7 @@ const getPluginPageRoutes = (
   const inactiveRoutes = [...routePages, ...dynamicRoutePages]
     .filter((r) => r.properties.perspective && r.properties.perspective !== activePerspective)
     .map((r) => {
-      const key = Array.from(r.properties.path)
-        .concat([r.properties.perspective])
-        .join(',');
+      const key = Array.from(r.properties.path).concat([r.properties.perspective]).join(',');
 
       return (
         <Route
@@ -353,18 +353,6 @@ const AppContents: React.FC<{}> = () => {
           )
         }
       />
-
-      {
-        // These pages are temporarily disabled. We need to update the safe resources list.
-        // <LazyRoute path="/k8s/cluster/clusterroles/:name/add-rule" exact loader={() => import('./RBAC' /* webpackChunkName: "rbac" */).then(m => m.EditRulePage)} />
-        // <LazyRoute path="/k8s/cluster/clusterroles/:name/:rule/edit" exact loader={() => import('./RBAC' /* webpackChunkName: "rbac" */).then(m => m.EditRulePage)} />
-      }
-
-      {
-        // <LazyRoute path="/k8s/ns/:ns/roles/:name/add-rule" exact loader={() => import('./RBAC' /* webpackChunkName: "rbac" */).then(m => m.EditRulePage)} />
-        // <LazyRoute path="/k8s/ns/:ns/roles/:name/:rule/edit" exact loader={() => import('./RBAC' /* webpackChunkName: "rbac" */).then(m => m.EditRulePage)} />
-      }
-
       <LazyRoute
         path="/k8s/ns/:ns/secrets/~new/:type"
         exact
@@ -533,33 +521,6 @@ const AppContents: React.FC<{}> = () => {
       />
 
       <LazyRoute
-        path="/monitoring/alerts"
-        exact
-        loader={() =>
-          import('./monitoring/alerting' /* webpackChunkName: "alerting" */).then(
-            (m) => m.MonitoringUI,
-          )
-        }
-      />
-      <LazyRoute
-        path="/monitoring/alertrules"
-        exact
-        loader={() =>
-          import('./monitoring/alerting' /* webpackChunkName: "alerting" */).then(
-            (m) => m.MonitoringUI,
-          )
-        }
-      />
-      <LazyRoute
-        path="/monitoring/silences"
-        exact
-        loader={() =>
-          import('./monitoring/alerting' /* webpackChunkName: "alerting" */).then(
-            (m) => m.MonitoringUI,
-          )
-        }
-      />
-      <LazyRoute
         path="/monitoring/alertmanageryaml"
         exact
         loader={() =>
@@ -593,14 +554,6 @@ const AppContents: React.FC<{}> = () => {
           import(
             './monitoring/receiver-forms/alert-manager-receiver-forms' /* webpackChunkName: "receiver-forms" */
           ).then((m) => m.EditReceiver)
-        }
-      />
-      <LazyRoute
-        path="/monitoring"
-        loader={() =>
-          import('./monitoring/alerting' /* webpackChunkName: "alerting" */).then(
-            (m) => m.MonitoringUI,
-          )
         }
       />
 
@@ -736,12 +689,6 @@ const AppContents: React.FC<{}> = () => {
       <Route path="/k8s/all-namespaces/:plural/:name" component={ResourceDetailsPage} />
 
       {inactivePluginPageRoutes}
-
-      <LazyRoute
-        path="/error"
-        exact
-        loader={() => import('./error' /* webpackChunkName: "error" */).then((m) => m.ErrorPage)}
-      />
       <Route path="/" exact component={DefaultPage} />
 
       {allPluginsProcessed ? (

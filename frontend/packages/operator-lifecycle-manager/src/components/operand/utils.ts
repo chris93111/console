@@ -33,13 +33,14 @@ export const hideAllExistingProperties = (schema: JSONSchema7) => {
 };
 
 const k8sResourceCapabilityToUISchema = (capability: SpecCapability): UiSchema => {
-  const [, suffix] = capability.match(REGEXP_K8S_RESOURCE_SUFFIX) ?? [];
-  const groupVersionKind = suffix?.replace(/:/g, '~');
+  const [, groupVersionKindToken, selector] = capability.match(REGEXP_K8S_RESOURCE_SUFFIX) ?? [];
+  const groupVersionKind = groupVersionKindToken?.replace(/:/g, '~');
+
   const model = groupVersionKind && modelFor(groupVersionKind);
   if (model) {
     return {
       'ui:widget': 'K8sResourceWidget',
-      'ui:options': { model, groupVersionKind },
+      'ui:options': { model, groupVersionKind, ...(selector ? { selector } : {}) },
     };
   }
   return {};

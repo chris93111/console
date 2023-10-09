@@ -5,22 +5,38 @@ type ConsoleRequestHeaders = {
   'Impersonate-Group'?: string;
   'Impersonate-User'?: string;
   'X-Cluster'?: string;
+  'X-CSRFToken'?: string;
+};
+
+export const getCSRFToken = () => {
+  const cookiePrefix = 'csrf-token=';
+  return (
+    document &&
+    document.cookie &&
+    document.cookie
+      .split(';')
+      .map((c) => c.trim())
+      .filter((c) => c.startsWith(cookiePrefix))
+      .map((c) => c.slice(cookiePrefix.length))
+      .pop()
+  );
 };
 
 /**
- * A function that creates impersonation and multicluster related headers for API requests using current redux state.
+ * A function that creates impersonation- and multicluster-related headers for API requests using current redux state.
  * @param targetCluster override the current active cluster with the provided targetCluster
- * @returns an object containing the appropriate impersonation and clustr requst headers, based on redux state
+ * @returns An object containing the appropriate impersonation and clustr requst headers, based on redux state.
  */
 export const getConsoleRequestHeaders = (targetCluster?: string): ConsoleRequestHeaders => {
   const store = storeHandler.getStore();
   if (!store) return undefined;
   const state = store.getState();
 
-  // Set X-Cluster header
+  // TODO remove multicluster
   const cluster = getActiveCluster(state);
   const headers: ConsoleRequestHeaders = {
     'X-Cluster': targetCluster ?? cluster,
+    'X-CSRFToken': getCSRFToken(),
   };
 
   // Set impersonation headers

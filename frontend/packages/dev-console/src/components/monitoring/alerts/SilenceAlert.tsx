@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Switch } from '@patternfly/react-core';
 import * as _ from 'lodash';
 // FIXME upgrading redux types is causing many errors at this time
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { useDispatch } from 'react-redux';
 import { Rule, RuleStates } from '@console/dynamic-plugin-sdk';
@@ -24,16 +24,11 @@ type SilenceAlertProps = {
   namespace: string;
 };
 
-const SilenceUntil = ({ rule }) => {
-  if (!_.isEmpty(rule.silencedBy)) {
-    return (
-      <div onClick={(e) => e.preventDefault()} role="presentation">
-        <StateTimestamp text="Until" timestamp={_.max(_.map(rule.silencedBy, 'endsAt'))} />
-      </div>
-    );
-  }
-  return null;
-};
+const SilenceUntil = ({ rule }) => (
+  <div onClick={(e) => e.preventDefault()} role="presentation">
+    <StateTimestamp text="Until" timestamp={_.max(_.map(rule.silencedBy, 'endsAt'))} />
+  </div>
+);
 
 const SilenceAlert: React.FC<SilenceAlertProps> = ({ rule, namespace }) => {
   const [isChecked, setIsChecked] = React.useState(true);
@@ -41,10 +36,8 @@ const SilenceAlert: React.FC<SilenceAlertProps> = ({ rule, namespace }) => {
   const dispatch = useDispatch();
 
   React.useEffect(() => {
-    if (rule.state === RuleStates.Silenced) {
-      setIsChecked(false);
-    }
-  }, [rule]);
+    setIsChecked(rule.state !== RuleStates.Silenced);
+  }, [rule.state]);
 
   const handleChange = (checked: boolean) => {
     setIsChecked(checked);

@@ -1,6 +1,10 @@
 import classNames from 'classnames';
 import * as _ from 'lodash-es';
-import { PrometheusEndpoint, RedExclamationCircleIcon } from '@console/dynamic-plugin-sdk';
+import {
+  PrometheusEndpoint,
+  RedExclamationCircleIcon,
+  useResolvedExtensions,
+} from '@console/dynamic-plugin-sdk';
 import {
   Button,
   Label,
@@ -17,7 +21,7 @@ import { AngleDownIcon, AngleRightIcon } from '@patternfly/react-icons';
 import * as React from 'react';
 import { Helmet } from 'react-helmet';
 import { useTranslation } from 'react-i18next';
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { useDispatch, useSelector } from 'react-redux';
 import { Map as ImmutableMap } from 'immutable';
@@ -70,7 +74,6 @@ import {
   getAllVariables,
 } from './monitoring-dashboard-utils';
 
-import { useExtensions } from '@console/plugin-sdk/src';
 import {
   isDataSource,
   DataSource as DataSourceExtension,
@@ -207,6 +210,7 @@ const VariableOption = ({ itemKey }) =>
 
 const VariableDropdown: React.FC<VariableDropdownProps> = ({ id, name, namespace }) => {
   const { t } = useTranslation();
+
   const activePerspective = getActivePerspective(namespace);
 
   const timespan = useSelector(({ observe }: RootState) =>
@@ -221,12 +225,13 @@ const VariableDropdown: React.FC<VariableDropdownProps> = ({ id, name, namespace
 
   const dispatch = useDispatch();
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const safeFetch = React.useCallback(useSafeFetch(), []);
 
   const [isError, setIsError] = React.useState(false);
 
   const customDataSourceName = variable?.datasource?.name;
-  const extensions = useExtensions<DataSourceExtension>(isDataSource);
+  const [extensions] = useResolvedExtensions<DataSourceExtension>(isDataSource);
   const hasExtensions = !_.isEmpty(extensions);
 
   const getURL = React.useCallback(
@@ -238,7 +243,7 @@ const VariableDropdown: React.FC<VariableDropdownProps> = ({ id, name, namespace
           const extension = extensions.find(
             (ext) => ext?.properties?.contextId === 'monitoring-dashboards',
           );
-          const getDataSource = await extension?.properties?.getDataSource();
+          const getDataSource = extension?.properties?.getDataSource;
           const dataSource = await getDataSource(customDataSourceName);
           return getPrometheusURL(prometheusProps, dataSource?.basePath);
         }
@@ -417,6 +422,7 @@ const DashboardDropdown: React.FC<DashboardDropdownProps> = React.memo(
 
 export const PollIntervalDropdown: React.FC<TimeDropdownsProps> = ({ namespace }) => {
   const { t } = useTranslation();
+
   const refreshIntervalFromParams = getQueryArgument('refreshInterval');
   const activePerspective = getActivePerspective(namespace);
   const interval = useSelector(({ observe }: RootState) =>
@@ -475,6 +481,7 @@ const HeaderTop: React.FC<{}> = React.memo(() => {
 
 const QueryBrowserLink = ({ queries }) => {
   const { t } = useTranslation();
+
   const params = new URLSearchParams();
   queries.forEach((q, i) => params.set(`query${i}`, q));
   const namespace = React.useContext(NamespaceContext);
@@ -546,7 +553,7 @@ const Card: React.FC<CardProps> = React.memo(({ panel }) => {
   const [dataSourceInfoLoading, setDataSourceInfoLoading] = React.useState<boolean>(true);
   const [customDataSource, setCustomDataSource] = React.useState<CustomDataSource>(undefined);
   const customDataSourceName = panel.datasource?.name;
-  const extensions = useExtensions<DataSourceExtension>(isDataSource);
+  const [extensions] = useResolvedExtensions<DataSourceExtension>(isDataSource);
   const hasExtensions = !_.isEmpty(extensions);
 
   React.useEffect(() => {
@@ -559,7 +566,7 @@ const Card: React.FC<CardProps> = React.memo(({ panel }) => {
         const extension = extensions.find(
           (ext) => ext?.properties?.contextId === 'monitoring-dashboards',
         );
-        const getDataSource = await extension?.properties?.getDataSource();
+        const getDataSource = extension?.properties?.getDataSource;
         const dataSource = await getDataSource(customDataSourceName);
         setCustomDataSource(dataSource);
         setDataSourceInfoLoading(false);
@@ -590,6 +597,13 @@ const Card: React.FC<CardProps> = React.memo(({ panel }) => {
     [panel],
   );
 
+  const handleZoom = React.useCallback((timeRange: number, endTime: number) => {
+    setQueryArguments({
+      endTime: endTime.toString(),
+      timeRange: timeRange.toString(),
+    });
+  }, []);
+
   if (panel.type === 'row') {
     return (
       <>
@@ -614,47 +628,28 @@ const Card: React.FC<CardProps> = React.memo(({ panel }) => {
 
   const panelClassModifier = getPanelClassModifier(panel);
 
-  const handleZoom = React.useCallback((timeRange: number, endTime: number) => {
-    setQueryArguments({
-      endTime: endTime.toString(),
-      timeRange: timeRange.toString(),
-    });
-  }, []);
-
   return (
     <div
       className={`monitoring-dashboards__panel monitoring-dashboards__panel--${panelClassModifier}`}
     >
-      {isError ? (
-        <PFCard
-          className={classNames('monitoring-dashboards__card', {
-            'co-overview-card--gradient': panel.type === 'grafana-piechart-panel',
-          })}
-          data-test={`${panel.title.toLowerCase().replace(/\s+/g, '-')}-chart`}
-        >
-          <CardHeader className="monitoring-dashboards__card-header">
-            <CardTitle>{panel.title}</CardTitle>
-          </CardHeader>
-          <CardBody className="co-dashboard-card__body--dashboard">
+      <PFCard
+        className={classNames('monitoring-dashboards__card', {
+          'co-overview-card--gradient': panel.type === 'grafana-piechart-panel',
+        })}
+        data-test={`${panel.title.toLowerCase().replace(/\s+/g, '-')}-chart`}
+      >
+        <CardHeader className="monitoring-dashboards__card-header">
+          <CardTitle>{panel.title}</CardTitle>
+          <CardActions className="co-overview-card__actions">
+            {!isLoading && <QueryBrowserLink queries={queries} />}
+          </CardActions>
+        </CardHeader>
+        <CardBody className="co-dashboard-card__body--dashboard">
+          {isError ? (
             <>
               <RedExclamationCircleIcon /> {t('public~Error loading card')}
             </>
-          </CardBody>
-        </PFCard>
-      ) : (
-        <PFCard
-          className={classNames('monitoring-dashboards__card', {
-            'co-overview-card--gradient': panel.type === 'grafana-piechart-panel',
-          })}
-          data-test={`${panel.title.toLowerCase().replace(/\s+/g, '-')}-chart`}
-        >
-          <CardHeader className="monitoring-dashboards__card-header">
-            <CardTitle>{panel.title}</CardTitle>
-            <CardActions className="co-overview-card__actions">
-              {!isLoading && <QueryBrowserLink queries={queries} />}
-            </CardActions>
-          </CardHeader>
-          <CardBody className="co-dashboard-card__body--dashboard">
+          ) : (
             <div className="monitoring-dashboards__card-body-content" ref={ref}>
               {isLoading || !wasEverVisible ? (
                 <div className={panel.type === 'graph' ? 'query-browser__wrapper' : ''}>
@@ -704,9 +699,9 @@ const Card: React.FC<CardProps> = React.memo(({ panel }) => {
                 </>
               )}
             </div>
-          </CardBody>
-        </PFCard>
-      )}
+          )}
+        </CardBody>
+      </PFCard>
     </div>
   );
 });

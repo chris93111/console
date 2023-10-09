@@ -324,6 +324,25 @@ export type DeploymentKind = {
   };
 } & K8sResourceCommon;
 
+export type DeploymentConfigKind = {
+  spec: {
+    paused?: boolean;
+    replicas?: number;
+    selector: Selector;
+    strategy?: {
+      rollingUpdate?: {
+        maxSurge: number | string;
+        maxUnavailable: number | string;
+      };
+      type?: string;
+    };
+    template: PodTemplate;
+  };
+  status?: {
+    latestVersion?: number;
+  };
+} & K8sResourceCommon;
+
 export type ResourceQuotaKind = {
   spec?: {
     hard?: { [key: string]: string };
@@ -622,6 +641,26 @@ export type RouteKind = {
   };
   status?: {
     ingress: RouteIngress[];
+    url?: string;
+    conditions?: K8sResourceCondition[];
+  };
+} & K8sResourceCommon;
+
+export type CloudCredentialKind = {
+  spec: {
+    credentialsMode: string;
+  };
+} & K8sResourceCommon;
+
+export type InfrastructureKind = {
+  status: {
+    platform: string;
+  };
+} & K8sResourceCommon;
+
+export type AuthenticationKind = {
+  spec: {
+    serviceAccountIssuer: string;
   };
 } & K8sResourceCommon;
 
@@ -1209,7 +1248,7 @@ export type ReplicationControllerKind = {
     availableReplicas?: number;
     conditions?: DeploymentCondition[];
     fullyLabeledReplicas?: number;
-    observedGeneratio?: number;
+    observedGeneration?: number;
     readyReplicas?: number;
     replicas: number;
   };

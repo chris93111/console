@@ -7,33 +7,19 @@ import { IDPNameInput } from '../../../public/components/cluster-settings/idp-na
 import { IDPCAFileInput } from '../../../public/components/cluster-settings/idp-cafile-input';
 import {
   AddBasicAuthPage,
-  AddBasicAuthPageState,
   DroppableFileInput as BasicDroppableInput,
 } from '../../../public/components/cluster-settings/basicauth-idp-form';
 
 export const controlButtonTest = (wrapper: ShallowWrapper) => {
   expect(wrapper.find(ButtonBar).exists()).toBe(true);
-  expect(
-    wrapper
-      .find(Button)
-      .at(0)
-      .childAt(0)
-      .text(),
-  ).toEqual('Add');
-  expect(
-    wrapper
-      .find(Button)
-      .at(1)
-      .childAt(0)
-      .text(),
-  ).toEqual('Cancel');
+  expect(wrapper.find(Button).at(0).childAt(0).text()).toEqual('Add');
+  expect(wrapper.find(Button).at(1).childAt(0).text()).toEqual('Cancel');
 };
 
 describe('Add Identity Provider: BasicAuthentication', () => {
-  let wrapper: ShallowWrapper<{}, AddBasicAuthPageState>;
-
+  let wrapper: ShallowWrapper<any>;
   beforeEach(() => {
-    wrapper = shallow(<AddBasicAuthPage />).dive();
+    wrapper = shallow(<AddBasicAuthPage />);
   });
 
   it('should render AddBasicAuthPage component', () => {
@@ -56,6 +42,6 @@ describe('Add Identity Provider: BasicAuthentication', () => {
   });
 
   it('should prefill basic-auth in name field by default', () => {
-    expect(wrapper.find(IDPNameInput).props().value).toEqual(wrapper.state().name);
+    expect(wrapper.find(IDPNameInput).props().value).toEqual('basic-auth');
   });
 });

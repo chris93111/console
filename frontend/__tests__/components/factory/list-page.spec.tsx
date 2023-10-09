@@ -72,8 +72,8 @@ describe(FireMan.displayName, () => {
   let wrapper: ShallowWrapper<any>;
 
   beforeEach(() => {
-    const resources = [{ kind: 'Node' }];
-    wrapper = shallow(<FireMan.WrappedComponent resources={resources} />);
+    const resources = [{ kind: 'Node', prop: 'obj' }];
+    wrapper = shallow(<FireMan resources={resources} />);
   });
 
   it('renders `title` if given `title`', () => {
@@ -98,12 +98,7 @@ describe(FireMan.displayName, () => {
       })
       .find('#yaml-create');
 
-    expect(
-      wrapper
-        .find('#yaml-create')
-        .childAt(0)
-        .text(),
-    ).toEqual('Create Me!');
+    expect(wrapper.find('#yaml-create').childAt(0).text()).toEqual('Create Me!');
 
     Object.keys(createProps).forEach((key) => {
       expect(createProps[key] === button.props()[key]).toBe(true);

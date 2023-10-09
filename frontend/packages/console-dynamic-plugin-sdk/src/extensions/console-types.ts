@@ -1,12 +1,13 @@
 import * as React from 'react';
 import { ButtonProps } from '@patternfly/react-core';
 import { ICell, OnSelect, SortByDirection, TableGridBreakpoint } from '@patternfly/react-table';
+import { LocationDescriptor } from 'history';
 import MonacoEditor from 'react-monaco-editor/lib/editor';
 import { RouteComponentProps } from 'react-router';
-import { CustomDataSource } from '@console/dynamic-plugin-sdk/src/extensions/dashboard-data-source';
 import {
   ExtensionK8sGroupKindModel,
   K8sModel,
+  MatchLabels,
   PrometheusEndpoint,
   PrometheusLabels,
   PrometheusValue,
@@ -14,6 +15,7 @@ import {
   Selector,
 } from '../api/common-types';
 import { Extension, ExtensionTypeGuard } from '../types';
+import { CustomDataSource } from './dashboard-data-source';
 
 export type OwnerReference = {
   name: string;
@@ -59,6 +61,15 @@ export type K8sResourceCommon = {
   metadata?: ObjectMetadata;
 };
 
+export type K8sResourceKind = K8sResourceCommon & {
+  spec?: {
+    selector?: Selector | MatchLabels;
+    [key: string]: any;
+  };
+  status?: { [key: string]: any };
+  data?: { [key: string]: any };
+};
+
 export type K8sVerb =
   | 'create'
   | 'get'
@@ -91,7 +102,7 @@ export type GroupVersionKind = string;
  * The canonical, unique identifier for a Kubernetes resource type.
  * Maintains backwards-compatibility with references using the `kind` string field.
  */
-export type K8sResourceKindReference = GroupVersionKind | string;
+export type K8sResourceKindReference = string;
 
 export type K8sGroupVersionKind = { group?: string; version: string; kind: string };
 
@@ -185,7 +196,7 @@ export type WatchK8sResource = {
   fieldSelector?: string;
   optional?: boolean;
   partialMetadata?: boolean;
-  cluster?: string;
+  cluster?: string; // TODO remove multicluster
 };
 
 export type ResourcesObject = { [key: string]: K8sResourceCommon | K8sResourceCommon[] };
@@ -256,7 +267,7 @@ export type ConsoleFetch = (
   url: string,
   options?: RequestInit,
   timeout?: number,
-  cluster?: string,
+  cluster?: string, // TODO remove multicluster
 ) => Promise<Response>;
 
 export type ConsoleFetchJSON<T = any> = {
@@ -265,35 +276,35 @@ export type ConsoleFetchJSON<T = any> = {
     method?: string,
     options?: RequestInit,
     timeout?: number,
-    cluster?: string,
+    cluster?: string, // TODO remove multicluster
   ): Promise<T>;
   delete(
     url: string,
     json?: any,
     options?: RequestInit,
     timeout?: number,
-    cluster?: string,
+    cluster?: string, // TODO remove multicluster
   ): Promise<T>;
   post(
     url: string,
     json: any,
     options?: RequestInit,
     timeout?: number,
-    cluster?: string,
+    cluster?: string, // TODO remove multicluster
   ): Promise<T>;
   put(
     url: string,
     json: any,
     options?: RequestInit,
     timeout?: number,
-    cluster?: string,
+    cluster?: string, // TODO remove multicluster
   ): Promise<T>;
   patch(
     url: string,
     json: any,
     options?: RequestInit,
     timeout?: number,
-    cluster?: string,
+    cluster?: string, // TODO remove multicluster
   ): Promise<T>;
 };
 
@@ -340,6 +351,7 @@ type VirtualizedTableProps<D, R extends any = {}> = {
   'aria-label'?: string;
   gridBreakPoint?: TableGridBreakpoint;
   rowData?: R;
+  mock?: boolean;
 };
 
 export type VirtualizedTableFC = <D, R extends any = {}>(
@@ -370,13 +382,13 @@ export type ListPageHeaderProps = {
 
 export type CreateWithPermissionsProps = {
   createAccessReview?: {
-    groupVersionKind: GroupVersionKind;
+    groupVersionKind: K8sResourceKindReference | K8sGroupVersionKind;
     namespace?: string;
   };
 };
 
 export type ListPageCreateProps = CreateWithPermissionsProps & {
-  groupVersionKind: GroupVersionKind;
+  groupVersionKind: K8sResourceKindReference | K8sGroupVersionKind;
 };
 
 export type ListPageCreateLinkProps = CreateWithPermissionsProps & {
@@ -451,6 +463,7 @@ export type ListPageFilterProps<D = any> = {
   columnLayout?: ColumnLayout;
   onFilterChange: OnFilterChange;
   hideColumnManagement?: boolean;
+  nameFilter?: string;
 };
 
 export type UseListPageFilter = <D, R>(
@@ -625,17 +638,19 @@ export type SelfSubjectAccessReviewKind = {
   };
 };
 
-export type YAMLEditorProps = {
+export type CodeEditorProps = {
   value?: string;
+  language?: string;
   options?: object;
   minHeight?: string | number;
   showShortcuts?: boolean;
+  showMiniMap?: boolean;
   toolbarLinks?: React.ReactNodeArray;
   onChange?: (newValue, event) => void;
   onSave?: () => void;
 };
 
-export type YAMLEditorRef = {
+export type CodeEditorRef = {
   editor?: MonacoEditor['editor'];
 };
 
@@ -668,3 +683,55 @@ export type ErrorBoundaryFallbackProps = {
   stack: string;
   title: string;
 };
+
+export type FormatSeriesTitle = (labels: PrometheusLabels, i?: number) => string;
+
+export type QueryBrowserProps = {
+  customDataSource?: CustomDataSource;
+  defaultSamples?: number;
+  defaultTimespan?: number;
+  disabledSeries?: PrometheusLabels[][];
+  disableZoom?: boolean;
+  filterLabels?: PrometheusLabels;
+  fixedEndTime?: number;
+  formatSeriesTitle?: FormatSeriesTitle;
+  GraphLink?: React.ComponentType<{}>;
+  hideControls?: boolean;
+  isStack?: boolean;
+  namespace?: string;
+  onZoom?: (from: number, to: number) => void;
+  pollInterval?: number;
+  queries: string[];
+  showLegend?: boolean;
+  showStackedControl?: boolean;
+  timespan?: number;
+  units?: string;
+};
+
+export type StorageClass = K8sResourceCommon & {
+  provisioner: string;
+  parameters: object;
+  reclaimPolicy?: string;
+  volumeBindingMode?: string;
+  allowVolumeExpansion?: boolean;
+};
+
+export type UseAnnotationsModal = (resource: K8sResourceCommon) => () => void;
+
+export type UseDeleteModal = (
+  resource: K8sResourceCommon,
+  redirectTo?: LocationDescriptor,
+  message?: JSX.Element,
+  btnText?: React.ReactNode,
+  deleteAllResources?: () => Promise<K8sResourceKind[]>,
+) => () => void;
+
+export type UseLabelsModal = (resource: K8sResourceCommon) => () => void;
+
+export type UseValuesForNamespaceContext = () => {
+  namespace: string;
+  setNamespace: (ns: string) => void;
+  loaded: boolean;
+};
+
+export type UseActiveNamespace = () => [string, (ns: string) => void];

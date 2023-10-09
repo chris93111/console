@@ -9,10 +9,13 @@ export enum TektonTaskAnnotation {
   tags = 'tekton.dev/tags',
   categories = 'tekton.dev/categories',
   installedFrom = 'openshift.io/installed-from',
+  semVersion = 'openshift.io/sem-version',
 }
-export enum TektonTaskProviders {
+export enum TaskProviders {
   redhat = 'Red Hat',
   community = 'Community',
+  tektonHub = 'TektonHub',
+  artifactHub = 'ArtifactHub',
 }
 export enum TektonTaskLabel {
   providerType = 'operator.tekton.dev/provider-type',
@@ -76,3 +79,5 @@ export enum PipelineMetricsLevel {
   UNSUPPORTED_LEVEL = 'unsupported',
   UNSIMPLIFIED_METRICS_LEVEL = 'unsimplified',
 }
+
+export const FLAG_TEKTON_V1_ENABLED = 'FLAG_TEKTON_V1_ENABLED';

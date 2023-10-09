@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import * as React from 'react';
 // FIXME upgrading redux types is causing many errors at this time
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
@@ -615,7 +616,7 @@ const PodMetrics: React.FC<PodMetricsProps> = ({ obj }) => {
                 ariaChartLinkLabel={t('public~View in query browser')}
                 humanize={humanizeDecimalBytesPerSec}
                 namespace={obj.metadata.namespace}
-                query={`(sum(irate(container_network_receive_bytes_total{pod='${obj.metadata.name}', namespace='${obj.metadata.namespace}'}[5m])) by (pod, namespace, interface)) + on(namespace,pod,interface) group_left(network_name) ( pod_network_name_info )`}
+                query={`(sum(irate(container_network_receive_bytes_total{pod='${obj.metadata.name}', namespace='${obj.metadata.namespace}'}[5m])) by (pod, namespace, interface)) + on(namespace,pod,interface) group_left(network_name) (pod_network_name_info)`}
                 description={getNetworkName}
               />
             </CardBody>
@@ -631,7 +632,7 @@ const PodMetrics: React.FC<PodMetricsProps> = ({ obj }) => {
                 ariaChartLinkLabel={t('public~View in query browser')}
                 humanize={humanizeDecimalBytesPerSec}
                 namespace={obj.metadata.namespace}
-                query={`(sum(irate(container_network_transmit_bytes_total{pod='${obj.metadata.name}', namespace='${obj.metadata.namespace}'}[5m])) by (pod, namespace, interface)) + on(namespace,pod,interface) group_left(network_name) ( pod_network_name_info )`}
+                query={`(sum(irate(container_network_transmit_bytes_total{pod='${obj.metadata.name}', namespace='${obj.metadata.namespace}'}[5m])) by (pod, namespace, interface)) + on(namespace,pod,interface) group_left(network_name) (pod_network_name_info)`}
                 description={getNetworkName}
               />
             </CardBody>
@@ -999,6 +1000,7 @@ export const PodsPage: React.FC<PodPageProps> = ({
   hideColumnManagement,
   nameFilter,
   showNamespaceOverride,
+  mock = false,
 }) => {
   const { t } = useTranslation();
   const dispatch = useDispatch();
@@ -1089,6 +1091,7 @@ export const PodsPage: React.FC<PodPageProps> = ({
             showNamespaceOverride={showNamespaceOverride}
             showNodes={showNodes}
             namespace={namespace}
+            mock={mock}
           />
         </ListPageBody>
       </>
@@ -1158,6 +1161,7 @@ type PodListProps = {
   showNodes?: boolean;
   showNamespaceOverride?: boolean;
   namespace?: string;
+  mock?: boolean;
 };
 
 type PodPageProps = {
@@ -1172,6 +1176,7 @@ type PodPageProps = {
   hideColumnManagement?: boolean;
   nameFilter?: string;
   showNamespaceOverride?: boolean;
+  mock?: boolean;
 };
 
 type PodDetailsPageProps = {

@@ -4,17 +4,14 @@ import { shallow, ShallowWrapper } from 'enzyme';
 import { ListInput } from '../../../public/components/utils';
 import { IDPNameInput } from '../../../public/components/cluster-settings/idp-name-input';
 import { IDPCAFileInput } from '../../../public/components/cluster-settings/idp-cafile-input';
-import {
-  AddLDAPPage,
-  AddLDAPPageState,
-} from '../../../public/components/cluster-settings/ldap-idp-form';
+import { AddLDAPPage } from '../../../public/components/cluster-settings/ldap-idp-form';
 import { controlButtonTest } from './basicauth-idp-form.spec';
 
 describe('Add Identity Provider: LDAP', () => {
-  let wrapper: ShallowWrapper<{}, AddLDAPPageState>;
+  let wrapper: ShallowWrapper<any>;
 
   beforeEach(() => {
-    wrapper = shallow(<AddLDAPPage />).dive();
+    wrapper = shallow(<AddLDAPPage />);
   });
 
   it('should render AddLDAPPage component', () => {
@@ -39,33 +36,13 @@ describe('Add Identity Provider: LDAP', () => {
   });
 
   it('should prefill ldap in name field by default', () => {
-    expect(wrapper.find(IDPNameInput).props().value).toEqual(wrapper.state().name);
+    expect(wrapper.find(IDPNameInput).props().value).toEqual('ldap');
   });
 
   it('should prefill ldap attribute list input default values', () => {
-    expect(
-      wrapper
-        .find(ListInput)
-        .at(0)
-        .props().initialValues,
-    ).toEqual(['dn']);
-    expect(
-      wrapper
-        .find(ListInput)
-        .at(1)
-        .props().initialValues,
-    ).toEqual(['uid']);
-    expect(
-      wrapper
-        .find(ListInput)
-        .at(2)
-        .props().initialValues,
-    ).toEqual(['cn']);
-    expect(
-      wrapper
-        .find(ListInput)
-        .at(3)
-        .props().initialValues,
-    ).toEqual(undefined);
+    expect(wrapper.find(ListInput).at(0).props().initialValues).toEqual(['dn']);
+    expect(wrapper.find(ListInput).at(1).props().initialValues).toEqual(['uid']);
+    expect(wrapper.find(ListInput).at(2).props().initialValues).toEqual(['cn']);
+    expect(wrapper.find(ListInput).at(3).props().initialValues).toEqual(undefined);
   });
 });

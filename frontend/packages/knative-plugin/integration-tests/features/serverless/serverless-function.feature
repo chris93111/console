@@ -1,4 +1,4 @@
-@knative-serverless
+@knative-serverless @knative
 Feature: Creation and Visualisation of serverless fuctions
               As a user, I want to create and verify a serverless function from Add Options and I should be able to differentiate between a plain Knative Service and a Serverless Function when looking at the Details page of the KSVC and the details tab of the side panel in Topology.
 
@@ -23,7 +23,7 @@ Feature: Creation and Visualisation of serverless fuctions
              Then user will see name of the serverless function as KSVC label followed by fx label and name "nodetest"
 
 
-        @regression @to-do
+        @regression @manual
         Scenario: Sidebar of serverless function: SF-01-TC03
             Given user has created serverless function "nodetest"
               And user is at Topology chart page
@@ -32,7 +32,7 @@ Feature: Creation and Visualisation of serverless fuctions
               And user will see Labels as boson.dev/function=true and boson.dev/runtime=node
 
 
-        @regression @to-do
+        @regression @manual
         Scenario: Service details page of serverless function: SF-01-TC04
             Given user has created serverless function "nodetest"
               And user is at Topology chart page
@@ -80,6 +80,7 @@ Feature: Creation and Visualisation of serverless fuctions
         Scenario Outline: Create Serverless Function from the Import from Git Form on Add page with Pipeline: SF-01-TC07
             Given user has installed OpenShift Pipelines Operator
            # Below manual creation of the Piepline and ClusterTasks can be removed when Serverless new version 1.28 is released
+              And user has created or selected namespace "aut-serverless-function"
               And user created Serverless Function node Pipeline
               And user is at Add page
               And user is at Import from Git form
@@ -87,7 +88,6 @@ Feature: Creation and Visualisation of serverless fuctions
               And user enters Name as "<workload_name>"
               And user selects Add Pipeline checkbox in Pipelines section
               And user clicks Create button on Add page
-              And user clicks on List view button
              Then user is able to see workload "<workload_name>" in topology page
               And user clicks on the Knative Service workload "<workload_name>"
               And user switches to the "Details" tab
@@ -121,7 +121,6 @@ Feature: Creation and Visualisation of serverless fuctions
 
         @regression @odc-6360
         Scenario Outline: Pipeline section should not present in Create Serverless function form if Pipeline is not available: SF-01-TC09
-            Given user has installed OpenShift Pipelines Operator
               And user is at Add page
              When user clicks on Create Serverless function card
               And user enters git url "<git_url>"
@@ -131,3 +130,38 @@ Feature: Creation and Visualisation of serverless fuctions
         Examples:
                   | git_url                                          | workload_name      |
                   | https://github.com/vikram-raj/hello-func-quarkus | hello-func-quarkus |
+
+
+        @regression @odc-7275
+        Scenario Outline: Test Serverless Functions: SF-01-TC10
+            Given user is at Add page
+             When user clicks on Create Serverless function card
+              And user enters git url "<git_url>"
+              And user clicks on Create button on Create Serverless function
+              And user sees workload "<workload_name>" along with a revision in topology page
+              And user clicks on the Knative Service workload "<workload_name>"
+              And user selects option "Test Serverless Function" from Actions menu
+              And user sees the Test Serverless Function modal
+              And user selects "<invoke_format>" from the Format drop down field
+              And user clicks on the "Advanced Settings" option
+              And user enters the "demo.fn" in the Type field
+              And user enters the "/demo/fn" in the Source field
+              And user clicks on Add optional headers and enter "Auth" under Name and "true" under Value
+              And user pastes the "request-body" code in "<invoke_format>" in the editor
+              And user clicks the "Test" Button
+             Then user is able to see a Success Alert
+              And user is able to see the Response Body as "response-body" code for the "<invoke_format>" format
+              And user clicks the "Close" Button
+
+        Examples:
+                  | git_url                                                                 | workload_name                  | invoke_format |
+                  | https://github.com/openshift-dev-console/kn-func-typescript-http        | kn-func-typescript-http        | HTTP          |
+                  | https://github.com/openshift-dev-console/kn-func-typescript-cloudevents | kn-func-typescript-cloudevents | CloudEvent    |
+
+
+        @regression @odc-7316
+        Scenario: Create serverless form extensions cards: SF-01-TC11
+            Given user is at Add page
+             When user clicks on Create Serverless function card
+             Then user will be able to see VSCode extension card
+              And user will be able to see IntelliJ extension card

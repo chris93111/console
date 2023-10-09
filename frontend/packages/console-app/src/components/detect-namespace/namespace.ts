@@ -1,5 +1,5 @@
 import * as React from 'react';
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: FIXME missing exports due to out-of-sync @types/react-redux version
 import { useDispatch } from 'react-redux';
 import { useLocation } from 'react-router-dom';
@@ -21,7 +21,13 @@ export const NamespaceContext = React.createContext<NamespaceContextType>({});
 
 const useUrlNamespace = () => getNamespace(useLocation().pathname);
 
-export const useValuesForNamespaceContext = () => {
+type UseValuesForNamespaceContext = () => {
+  namespace: string;
+  setNamespace: (ns: string) => void;
+  loaded: boolean;
+};
+
+export const useValuesForNamespaceContext: UseValuesForNamespaceContext = () => {
   const urlNamespace = useUrlNamespace();
   const [activeNamespace, setActiveNamespace] = React.useState<string>(urlNamespace);
   const [preferredNamespace, , preferredNamespaceLoaded] = usePreferredNamespace();

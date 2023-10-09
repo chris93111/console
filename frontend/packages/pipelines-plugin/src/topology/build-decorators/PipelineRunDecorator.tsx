@@ -11,6 +11,7 @@ import { getLatestPipelineRunStatus } from '@console/pipelines-plugin/src/utils/
 import { Status } from '@console/shared';
 import { BuildDecoratorBubble } from '@console/topology/src/components/graph-view';
 import { startPipelineModal } from '../../components/pipelines/modals';
+import { getTaskRunsOfPipelineRun, useTaskRuns } from '../../components/taskruns/useTaskRuns';
 import { PipelineRunModel } from '../../models';
 import { PipelineKind, PipelineRunKind } from '../../types';
 
@@ -40,7 +41,8 @@ export const ConnectedPipelineRunDecorator: React.FC<PipelineRunDecoratorProps &
 }) => {
   const { t } = useTranslation();
   const { latestPipelineRun, status } = getLatestPipelineRunStatus(pipelineRuns);
-
+  const [taskRuns, taskRunsLoaded] = useTaskRuns(latestPipelineRun?.metadata?.namespace);
+  const PLRTaskRuns = getTaskRunsOfPipelineRun(taskRuns, latestPipelineRun?.metadata?.namespace);
   const statusIcon = <Status status={status} iconOnly noTooltip />;
 
   const defaultAccessReview: AccessReviewResourceAttributes = {
@@ -56,8 +58,12 @@ export const ConnectedPipelineRunDecorator: React.FC<PipelineRunDecoratorProps &
   let decoratorContent;
   if (latestPipelineRun) {
     ariaLabel = t(`pipelines-plugin~Pipeline status is {{status}}. View logs.`, { status });
-    tooltipContent = (
-      <PipelineBuildDecoratorTooltip pipelineRun={latestPipelineRun} status={status} />
+    tooltipContent = taskRunsLoaded && (
+      <PipelineBuildDecoratorTooltip
+        pipelineRun={latestPipelineRun}
+        status={status}
+        taskRuns={PLRTaskRuns}
+      />
     );
     const link = `${resourcePathFromModel(
       PipelineRunModel,

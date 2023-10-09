@@ -26,9 +26,16 @@ export const LAST_RESOURCE_TYPE_STORAGE_KEY = `devconsole.last.resource-type`;
 
 export const NAME_LABEL = 'app.kubernetes.io/name';
 export const INSTANCE_LABEL = 'app.kubernetes.io/instance';
+export const RUNTIME_LABEL = 'app.openshift.io/runtime';
 export const FLAG_DEVELOPER_CATALOG = 'DEVELOPER_CATALOG';
 export const FLAG_OPERATOR_BACKED_SERVICE_CATALOG_TYPE = 'OPERATOR_BACKED_SERVICE_CATALOG_TYPE';
 export const FLAG_SAMPLE_CATALOG_TYPE = 'SAMPLE_CATALOG_TYPE';
 export const OPERATOR_BACKED_SERVICE_CATALOG_TYPE_ID = 'OperatorBackedService';
 export const SAMPLE_CATALOG_TYPE_ID = 'Sample';
 export const ADD_TO_PROJECT = 'add-to-project';
+
+export const FLAG_JAVA_IMAGE_STREAM_ENABLED = 'JAVA_IMAGE_STREAM_ENABLED';
+export const IMAGESTREAM_NAMESPACE = 'openshift';
+export const JAVA_IMAGESTREAM_NAME = 'java';
+
+export const FLAG_OPENSHIFT_DEPLOYMENTCONFIG = 'OPENSHIFT_DEPLOYMENTCONFIG';

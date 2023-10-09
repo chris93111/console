@@ -1,24 +1,26 @@
 import * as React from 'react';
 import { Table, TableHeader, TableBody, SortByDirection } from '@patternfly/react-table';
 import * as _ from 'lodash';
-import Helmet from 'react-helmet';
 import { useTranslation } from 'react-i18next';
 // FIXME upgrading redux types is causing many errors at this time
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { useDispatch, connect } from 'react-redux';
 import { match as RMatch } from 'react-router-dom';
-import { RowFilter as RowFilterExt, Rule } from '@console/dynamic-plugin-sdk';
-import { alertingLoaded, alertingSetRules } from '@console/internal/actions/observe';
+import {
+  RowFilter as RowFilterExt,
+  Rule,
+  useResolvedExtensions,
+  AlertingRulesSourceExtension,
+  isAlertingRulesSource,
+  AlertStates,
+  RuleStates,
+} from '@console/dynamic-plugin-sdk';
 import { sortList } from '@console/internal/actions/ui';
 import { getFilteredRows } from '@console/internal/components/factory/table-data-hook';
 import { FilterToolbar } from '@console/internal/components/filter-toolbar';
-import { usePrometheusRulesPoll } from '@console/internal/components/graphs/prometheus-rules-hook';
-import {
-  alertingRuleStateOrder,
-  getAlertsAndRules,
-} from '@console/internal/components/monitoring/utils';
 import { getURLSearchParams, EmptyBox, LoadingBox } from '@console/internal/components/utils';
+import { NotificationAlerts } from '@console/internal/reducers/observe';
 import { RootState } from '@console/internal/redux';
 import {
   monitoringAlertRows,
@@ -27,8 +29,8 @@ import {
   useAlertManagerSilencesDispatch,
 } from './monitoring-alerts-utils';
 import { MonitoringAlertColumn } from './MonitoringAlertColumn';
-
 import './MonitoringAlerts.scss';
+import { useRulesAlertsPoller } from './useRuleAlertsPoller';
 
 type MonitoringAlertsProps = {
   match: RMatch<{
@@ -38,16 +40,17 @@ type MonitoringAlertsProps = {
 
 type StateProps = {
   rules: Rule[];
+  alerts: NotificationAlerts;
   filters: { [key: string]: any };
   listSorts: { [key: string]: any };
 };
 
-type props = MonitoringAlertsProps & StateProps;
+type Props = MonitoringAlertsProps & StateProps;
 
 const reduxID = 'devMonitoringAlerts';
 const textFilter = 'resource-list-text';
 
-export const MonitoringAlerts: React.FC<props> = ({ match, rules, filters, listSorts }) => {
+export const MonitoringAlerts: React.FC<Props> = ({ match, rules, alerts, filters, listSorts }) => {
   const { t } = useTranslation();
   const [sortBy, setSortBy] = React.useState<{ index: number; direction: SortByDirection }>({
     index: null,
@@ -61,18 +64,22 @@ export const MonitoringAlerts: React.FC<props> = ({ match, rules, filters, listS
   const monitoringAlertColumn = React.useMemo(() => MonitoringAlertColumn(t), [t]);
   const columnIndex = _.findIndex(monitoringAlertColumn, { title: listSortBy });
   const sortOrder = listOrderBy || SortByDirection.asc;
-  const [response, loadError, loading] = usePrometheusRulesPoll({ namespace });
-  const thanosAlertsAndRules = React.useMemo(
-    () => (!loading && !loadError ? getAlertsAndRules(response?.data) : { rules: [], alerts: [] }),
-    [response, loadError, loading],
+  const [customExtensions] = useResolvedExtensions<AlertingRulesSourceExtension>(
+    isAlertingRulesSource,
   );
-  useAlertManagerSilencesDispatch({ namespace });
 
-  React.useEffect(() => {
-    const sortThanosRules = _.sortBy(thanosAlertsAndRules.rules, alertingRuleStateOrder);
-    dispatch(alertingSetRules('devRules', sortThanosRules, 'dev'));
-    dispatch(alertingLoaded('devAlerts', thanosAlertsAndRules.alerts, 'dev'));
-  }, [dispatch, thanosAlertsAndRules]);
+  const alertsSource = React.useMemo(
+    () =>
+      customExtensions
+        // 'dev-observe-alerting' is the id that plugin extensions can use to contribute alerting rules to this component
+        .filter((extension) => extension.properties.contextId === 'dev-observe-alerting')
+        .map((extension) => extension.properties),
+    [customExtensions],
+  );
+
+  useRulesAlertsPoller(namespace, dispatch, alertsSource);
+
+  useAlertManagerSilencesDispatch({ namespace });
 
   const filteredRules = React.useMemo(() => {
     const filtersObj = filters?.toJS();
@@ -90,45 +97,64 @@ export const MonitoringAlerts: React.FC<props> = ({ match, rules, filters, listS
   }, [filters, listSorts, columnIndex, rules, listOrderBy, monitoringAlertColumn, sortOrder]);
 
   React.useEffect(() => {
-    const tableRows = monitoringAlertRows(filteredRules, collapsedRowsIds, namespace);
-    setRows(tableRows);
-  }, [collapsedRowsIds, filteredRules, namespace]);
-
-  const onCollapse = (event: React.MouseEvent, rowKey: number, isOpen: boolean) => {
-    rows[rowKey].isOpen = isOpen;
-    const { id } = rows[rowKey].cells[0];
-    if (!_.includes(collapsedRowsIds, id)) {
-      setCollapsedRowsIds([...collapsedRowsIds, id]);
-    } else if (_.includes(collapsedRowsIds, id)) {
-      setCollapsedRowsIds(_.without(collapsedRowsIds, id));
+    // TODO: This works around a bug where the rule's state is never set to silenced in Redux
+    const newRules = _.cloneDeep(filteredRules);
+    if (newRules) {
+      const alertRules = alerts?.data?.map((alert) => alert.rule) ?? [];
+      const silencedAlertRules = alertRules.filter((rule) => rule.state === RuleStates.Silenced);
+      silencedAlertRules.forEach((alertRule) => {
+        newRules.forEach((rule) => {
+          if (rule.id === alertRule.id) {
+            rule.state = RuleStates.Silenced;
+            rule.alerts.forEach((alert) => {
+              alert.state = AlertStates.Silenced;
+            });
+          }
+        });
+      });
     }
-    setRows([...rows]);
-  };
-  const handleSort = (_event: React.MouseEvent, index: number, direction: SortByDirection) => {
-    dispatch(
-      sortList(
-        reduxID,
-        monitoringAlertColumn[index - 1].fieldName,
-        monitoringAlertColumn[index - 1].sortFunc,
-        direction,
-        monitoringAlertColumn[index - 1].title,
-      ),
-    );
-    setSortBy({ index, direction });
-  };
 
-  if (loading && !loadError) {
-    return <LoadingBox />;
-  }
-  if (_.isEmpty(response?.data?.groups)) {
-    return <EmptyBox label={t('devconsole~Alerts')} />;
-  }
+    const tableRows = monitoringAlertRows(newRules, collapsedRowsIds, namespace);
+    setRows(tableRows);
+  }, [alerts?.data, collapsedRowsIds, filteredRules, namespace]);
 
-  return (
-    <>
-      <Helmet>
-        <title>{t('devconsole~Alerts')}</title>
-      </Helmet>
+  const onCollapse = React.useCallback(
+    (event: React.MouseEvent, rowKey: number, isOpen: boolean) => {
+      rows[rowKey].isOpen = isOpen;
+      const { id } = rows[rowKey].cells[0];
+      if (!_.includes(collapsedRowsIds, id)) {
+        setCollapsedRowsIds([...collapsedRowsIds, id]);
+      } else if (_.includes(collapsedRowsIds, id)) {
+        setCollapsedRowsIds(_.without(collapsedRowsIds, id));
+      }
+      setRows([...rows]);
+    },
+    [collapsedRowsIds, rows],
+  );
+  const handleSort = React.useCallback(
+    (_event: React.MouseEvent, index: number, direction: SortByDirection) => {
+      dispatch(
+        sortList(
+          reduxID,
+          monitoringAlertColumn[index - 1].fieldName,
+          monitoringAlertColumn[index - 1].sortFunc,
+          direction,
+          monitoringAlertColumn[index - 1].title,
+        ),
+      );
+      setSortBy({ index, direction });
+    },
+    [dispatch, monitoringAlertColumn],
+  );
+
+  const Content = React.useMemo(() => {
+    if (!alerts?.loaded && !alerts?.loadError) {
+      return <LoadingBox />;
+    }
+    if (rules?.length === 0) {
+      return <EmptyBox label={t('devconsole~Alerts')} />;
+    }
+    return (
       <div className="odc-monitoring-alerts">
         <FilterToolbar
           rowFilters={alertFilters}
@@ -149,13 +175,16 @@ export const MonitoringAlerts: React.FC<props> = ({ match, rules, filters, listS
           <TableBody />
         </Table>
       </div>
-    </>
-  );
+    );
+  }, [handleSort, alerts, monitoringAlertColumn, onCollapse, rows, rules, sortBy, t]);
+
+  return <>{Content}</>;
 };
 
 const mapStateToProps = (state: RootState): StateProps => {
   return {
     rules: state.observe.getIn(['devRules']),
+    alerts: state.observe.getIn(['devAlerts']),
     filters: state.k8s.getIn([reduxID, 'filters']),
     listSorts: state.UI.getIn(['listSorts', reduxID]),
   };

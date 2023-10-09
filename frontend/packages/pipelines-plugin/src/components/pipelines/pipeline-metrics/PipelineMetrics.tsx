@@ -21,6 +21,7 @@ import PipelineMetricsEmptyState from './PipelineMetricsEmptyState';
 import PipelineMetricsQuickstart from './PipelineMetricsQuickstart';
 import PipelineMetricsRefreshDropdown from './PipelineMetricsRefreshDropdown';
 import PipelineMetricsTimeRangeDropdown from './PipelineMetricsTimeRangeDropdown';
+import PipelineMetricsUnsupported from './PipelineMetricsUnsupported';
 import PipelineRunCount from './PipelineRunCount';
 import PipelineRunDurationGraph from './PipelineRunDurationGraph';
 import PipelineRunTaskRunGraph from './PipelineRunTaskRunGraph';
@@ -41,11 +42,14 @@ const PipelineMetrics: React.FC<PipelineDetailsTabProps> = ({ obj, customData })
   const [loaded, setLoaded] = React.useState(false);
   const totalGraphs = metricsLevel === PipelineMetricsLevel.PIPELINE_TASK_LEVEL ? 2 : 4;
 
-  const graphOnLoad = (graphData: GraphData) => {
-    if (!loadedGraphs.find((g) => g.chartName === graphData.chartName) && graphData.hasData) {
-      setLoadedGraphs([...loadedGraphs, graphData]);
-    }
-  };
+  const graphOnLoad = React.useCallback(
+    (graphData: GraphData) => {
+      if (!loadedGraphs.find((g) => g.chartName === graphData.chartName) && graphData.hasData) {
+        setLoadedGraphs([...loadedGraphs, graphData]);
+      }
+    },
+    [loadedGraphs],
+  );
   React.useEffect(() => {
     if (!loaded && loadedGraphs.length === totalGraphs) {
       setLoaded(true);
@@ -56,8 +60,17 @@ const PipelineMetrics: React.FC<PipelineDetailsTabProps> = ({ obj, customData })
     return <PipelineMetricsEmptyState />;
   }
 
+  if (metricsLevel === PipelineMetricsLevel.UNSUPPORTED_LEVEL) {
+    return (
+      <PipelineMetricsUnsupported
+        updatePermission={hasUpdatePermission}
+        metricsLevel={metricsLevel}
+      />
+    );
+  }
+
   return (
-    <Stack hasGutter key={metricsLevel}>
+    <Stack hasGutter key={metricsLevel} className="pipeline-metrics">
       <StackItem className="pipeline-metrics-dashboard__toolbar">
         {hasUpdatePermission && metricsLevel === PipelineMetricsLevel.PIPELINE_TASK_LEVEL && (
           <Grid hasGutter style={{ marginBottom: 'var(--pf-global--spacer--lg)' }}>
@@ -147,7 +160,7 @@ const PipelineMetrics: React.FC<PipelineDetailsTabProps> = ({ obj, customData })
                   <CardHeader>
                     <CardTitle>{t('pipelines-plugin~TaskRun Duration')}</CardTitle>
                   </CardHeader>
-                  <CardBody>
+                  <CardBody className="pipeline-metrics__pipelinerun-taskrun-card-body">
                     <PipelineRunTaskRunGraph
                       interval={interval}
                       timespan={timespan}

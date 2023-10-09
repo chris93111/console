@@ -1,6 +1,6 @@
 import * as React from 'react';
 // FIXME upgrading redux types is causing many errors at this time
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { useSelector } from 'react-redux';
 import { Base64 } from 'js-base64';
@@ -9,6 +9,7 @@ import {
   AlertActionLink,
   Button,
   Checkbox,
+  Divider,
   Select,
   SelectOption,
   SelectVariant,
@@ -41,7 +42,7 @@ import { usePrevious } from '@console/shared/src/hooks/previous';
 import { Link } from 'react-router-dom';
 import { resourcePath } from './resource-link';
 import { isWindowsPod } from '../../module/k8s/pods';
-import { getActiveCluster } from '@console/dynamic-plugin-sdk';
+import { getActiveCluster, getImpersonate } from '@console/dynamic-plugin-sdk'; // TODO remove multicluster
 
 export const STREAM_EOF = 'eof';
 export const STREAM_LOADING = 'loading';
@@ -83,7 +84,7 @@ const replaceVariables = (template: string, values: any): string => {
 
 // Build a log API url for a given resource
 const getResourceLogURL = (
-  cluster: string,
+  cluster: string, // TODO remove multicluster
   resource: K8sResourceKind,
   containerName?: string,
   tailLines?: number,
@@ -96,7 +97,7 @@ const getResourceLogURL = (
     ns: resource.metadata.namespace,
     path: 'log',
     queryParams: {
-      cluster,
+      cluster, // TODO remove multicluster
       container: containerName || '',
       ...(tailLines && { tailLines: `${tailLines}` }),
       ...(follow && { follow: `${follow}` }),
@@ -133,7 +134,7 @@ const showDebugAction = (pod: PodKind, containerName: string) => {
     return false;
   }
   const containerStatus = pod?.status?.containerStatuses?.find((c) => c.name === containerName);
-  if (pod?.status?.phase === 'Succeeded' || pod?.status?.phase === 'Pending') {
+  if (pod?.status?.phase === 'Succeeded') {
     return false;
   }
   if (pod?.metadata?.annotations?.['openshift.io/build.name']) {
@@ -282,83 +283,96 @@ export const LogControls: React.FC<LogControlsProps> = ({
           </Tooltip>
         )}
       </div>
-      <div className="co-toolbar__group co-toolbar__group--right" data-test="log-links">
-        {!_.isEmpty(podLogLinks) &&
-          _.map(_.sortBy(podLogLinks, 'metadata.name'), (link) => {
-            const namespace = resource.metadata.namespace;
-            const namespaceFilter = link.spec.namespaceFilter;
-            if (namespaceFilter) {
-              try {
-                const namespaceRegExp = new RegExp(namespaceFilter, 'g');
-                if (namespace.search(namespaceRegExp)) {
+      <div
+        className="co-toolbar__group co-toolbar__group--right co-toolbar__group--right"
+        data-test="log-links"
+      >
+        <div className="pf-l-flex">
+          {!_.isEmpty(podLogLinks) &&
+            _.map(_.sortBy(podLogLinks, 'metadata.name'), (link) => {
+              const namespace = resource.metadata.namespace;
+              const namespaceFilter = link.spec.namespaceFilter;
+              if (namespaceFilter) {
+                try {
+                  const namespaceRegExp = new RegExp(namespaceFilter, 'g');
+                  if (namespace.search(namespaceRegExp)) {
+                    return null;
+                  }
+                } catch (e) {
+                  // eslint-disable-next-line no-console
+                  console.warn('invalid log link regex', namespaceFilter, e);
                   return null;
                 }
-              } catch (e) {
-                // eslint-disable-next-line no-console
-                console.warn('invalid log link regex', namespaceFilter, e);
-                return null;
               }
-            }
-            const url = replaceVariables(link.spec.hrefTemplate, {
-              resourceName: resource.metadata.name,
-              resourceUID: resource.metadata.uid,
-              containerName,
-              resourceNamespace: namespace,
-              resourceNamespaceUID: namespaceUID,
-              podLabels: JSON.stringify(resource.metadata.labels),
-            });
-            return (
-              <React.Fragment key={link.metadata.uid}>
-                <ExternalLink href={url} text={link.spec.text} dataTestID={link.metadata.name} />
-                <span aria-hidden="true" className="co-action-divider hidden-xs">
-                  |
-                </span>
-              </React.Fragment>
-            );
-          })}
-        <Checkbox
-          label={t('public~Wrap lines')}
-          id="wrapLogLines"
-          isChecked={isWrapLines}
-          data-checked-state={isWrapLines}
-          onChange={(checked: boolean) => {
-            toggleWrapLines(checked);
-          }}
-        />
-        <span aria-hidden="true" className="co-action-divider hidden-xs">
-          |
-        </span>
-        <a href={currentLogURL} target="_blank" rel="noopener noreferrer">
-          <OutlinedWindowRestoreIcon className="co-icon-space-r" />
-          {t('public~Raw')}
-        </a>
-        <span aria-hidden="true" className="co-action-divider hidden-xs">
-          |
-        </span>
-        <a href={currentLogURL} download={`${resource.metadata.name}-${containerName}.log`}>
-          <DownloadIcon className="co-icon-space-r" />
-          {t('public~Download')}
-        </a>
-        {screenfull.enabled && (
-          <>
-            <span aria-hidden="true" className="co-action-divider hidden-xs">
-              |
-            </span>
-            <Button variant="link" isInline onClick={toggleFullscreen}>
-              {isFullscreen ? (
-                <>
-                  <CompressIcon className="co-icon-space-r" />
-                  {t('public~Collapse')}
-                </>
-              ) : (
-                <>
-                  <ExpandIcon className="co-icon-space-r" />
-                  {t('public~Expand')}
-                </>
-              )}
-            </Button>
-          </>
-        )}
+              const url = replaceVariables(link.spec.hrefTemplate, {
+                resourceName: resource.metadata.name,
+                resourceUID: resource.metadata.uid,
+                containerName,
+                resourceNamespace: namespace,
+                resourceNamespaceUID: namespaceUID,
+                podLabels: JSON.stringify(resource.metadata.labels),
+              });
+              return (
+                <React.Fragment key={link.metadata.uid}>
+                  <ExternalLink href={url} text={link.spec.text} dataTestID={link.metadata.name} />
+                  <Divider
+                    orientation={{
+                      default: 'vertical',
+                    }}
+                  />
+                </React.Fragment>
+              );
+            })}
+          <Checkbox
+            label={t('public~Wrap lines')}
+            id="wrapLogLines"
+            isChecked={isWrapLines}
+            data-checked-state={isWrapLines}
+            onChange={(checked: boolean) => {
+              toggleWrapLines(checked);
+            }}
+          />
+          <Divider
+            orientation={{
+              default: 'vertical',
+            }}
+          />
+          <a href={currentLogURL} target="_blank" rel="noopener noreferrer">
+            <OutlinedWindowRestoreIcon className="co-icon-space-r" />
+            {t('public~Raw')}
+          </a>
+          <Divider
+            orientation={{
+              default: 'vertical',
+            }}
+          />
+          <a href={currentLogURL} download={`${resource.metadata.name}-${containerName}.log`}>
+            <DownloadIcon className="co-icon-space-r" />
+            {t('public~Download')}
+          </a>
+          {screenfull.enabled && (
+            <>
+              <Divider
+                orientation={{
+                  default: 'vertical',
+                }}
+              />
+              <Button variant="link" isInline onClick={toggleFullscreen}>
+                {isFullscreen ? (
+                  <>
+                    <CompressIcon className="co-icon-space-r" />
+                    {t('public~Collapse')}
+                  </>
+                ) : (
+                  <>
+                    <ExpandIcon className="co-icon-space-r" />
+                    {t('public~Expand')}
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -372,7 +386,7 @@ export const ResourceLog: React.FC<ResourceLogProps> = ({
   resourceStatus,
 }) => {
   const { t } = useTranslation();
-  const cluster = useSelector((state: RootState) => getActiveCluster(state));
+  const cluster = useSelector((state: RootState) => getActiveCluster(state)); // TODO remove multicluster
   const buffer = React.useRef(new LineBuffer()); // TODO Make this a hook
   const ws = React.useRef<any>(); // TODO Make this a hook
   const resourceLogRef = React.useRef();
@@ -395,8 +409,11 @@ export const ResourceLog: React.FC<ResourceLogProps> = ({
 
   const previousResourceStatus = usePrevious(resourceStatus);
   const previousTotalLineCount = usePrevious(totalLineCount);
-  const linkURL = getResourceLogURL(cluster, resource, containerName, null, false, logType);
-  const watchURL = getResourceLogURL(cluster, resource, containerName, null, true, logType);
+  const linkURL = getResourceLogURL(cluster, resource, containerName, null, false, logType); // TODO remove multicluster
+  const watchURL = getResourceLogURL(cluster, resource, containerName, null, true, logType); // TODO remove multicluster
+  const imp = getImpersonate(useSelector((state: RootState) => state));
+  const subprotocols = ['base64.binary.k8s.io'];
+  imp?.subprotocols && subprotocols.push(...imp.subprotocols);
   const [wrapLines, setWrapLines] = useUserSettings<boolean>(
     LOG_WRAP_LINES_USERSETTINGS_KEY,
     false,
@@ -507,7 +524,7 @@ export const ResourceLog: React.FC<ResourceLogProps> = ({
     ws.current = new WSFactory(watchURL, {
       host: 'auto',
       path: watchURL,
-      subprotocols: ['base64.binary.k8s.io'],
+      subprotocols,
     })
       .onclose(onClose)
       .onerror(onError)
@@ -677,6 +694,7 @@ export const ResourceLog: React.FC<ResourceLogProps> = ({
             ref={logViewerRef}
             height="100%"
             isTextWrapped={wrapLinesCheckbox}
+            retainWhitespace
             toolbar={logControls}
             footer={
               <FooterButton

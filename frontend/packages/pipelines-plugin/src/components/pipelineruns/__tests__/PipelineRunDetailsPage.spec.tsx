@@ -1,19 +1,23 @@
 import * as React from 'react';
 import { shallow, ShallowWrapper } from 'enzyme';
+import { SemVer } from 'semver';
 import { DetailsPage } from '@console/internal/components/factory';
 import { referenceForModel } from '@console/internal/module/k8s';
 import { PipelineRunModel } from '../../../models';
 import { getPipelineRunKebabActions } from '../../../utils/pipeline-actions';
 import * as hookUtils from '../../pipelines/hooks';
+import * as taskRunUtils from '../../taskruns/useTaskRuns';
 import TaskRuns from '../detail-page-tabs/TaskRuns';
 import PipelineRunEvents from '../events/PipelineRunEvents';
 import PipelineRunDetailsPage from '../PipelineRunDetailsPage';
-import * as utils from '../triggered-by';
+import * as triggerHooksModule from '../triggered-by/hooks';
 
-const menuActions = jest.spyOn(utils, 'useMenuActionsWithUserAnnotation');
-const breadCrumbs = jest.spyOn(hookUtils, 'usePipelinesBreadcrumbsFor');
+const menuActions = jest.spyOn(triggerHooksModule, 'useMenuActionsWithUserAnnotation');
+const breadCrumbs = jest.spyOn(hookUtils, 'useDevPipelinesBreadcrumbsFor');
+const taskRuns = jest.spyOn(taskRunUtils, 'useTaskRuns');
 type PipelineRunDetailsPageProps = React.ComponentProps<typeof PipelineRunDetailsPage>;
 const i18nNS = 'public';
+const i18nPipelineNS = 'pipelines-plugin';
 
 describe('PipelineRunDetailsPage:', () => {
   let pipelineRunDetailsPageProps: PipelineRunDetailsPageProps;
@@ -31,8 +35,9 @@ describe('PipelineRunDetailsPage:', () => {
         },
       },
     };
-    menuActions.mockReturnValue([getPipelineRunKebabActions(true)]);
+    menuActions.mockReturnValue([getPipelineRunKebabActions(new SemVer('1.9.0'), [], true)]);
     breadCrumbs.mockReturnValue([{ label: 'PipelineRuns' }, { label: 'PipelineRuns Details' }]);
+    taskRuns.mockReturnValue([]);
     wrapper = shallow(<PipelineRunDetailsPage {...pipelineRunDetailsPageProps} />);
   });
 
@@ -55,7 +60,7 @@ describe('PipelineRunDetailsPage:', () => {
   it('Should contain task runs page', () => {
     const { pages } = wrapper.props();
 
-    const taskRunsPage = pages.find((page) => page.name === 'TaskRuns');
+    const taskRunsPage = pages.find((page) => page.nameKey.includes('TaskRuns'));
     expect(taskRunsPage).toBeDefined();
     expect(taskRunsPage.component).toBe(TaskRuns);
   });
@@ -63,7 +68,7 @@ describe('PipelineRunDetailsPage:', () => {
   it('Should contain Parameters page', () => {
     const { pages } = wrapper.props();
 
-    const parametersPage = pages.find((page) => page.name === 'Parameters');
+    const parametersPage = pages.find((page) => page.nameKey === `${i18nPipelineNS}~Parameters`);
     expect(parametersPage).toBeDefined();
   });
 });

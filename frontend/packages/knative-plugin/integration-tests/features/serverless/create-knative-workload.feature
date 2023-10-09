@@ -1,4 +1,4 @@
-@knative-serverless
+@knative-serverless @knative
 Feature: Create a workload of 'knative Service' type resource
               As a user, I want to create workload from Add Flow page
 
@@ -57,8 +57,8 @@ Feature: Create a workload of 'knative Service' type resource
               And user is able to see workload "<workload_name>" in topology page
 
         Examples:
-                  | image_name                | workload_name       |
-                  | openshift/hello-openshift | knative-ex-registry |
+                  | image_name                         | workload_name       |
+                  | quay.io/openshift-knative/showcase | knative-ex-registry |
 
 
         @regression

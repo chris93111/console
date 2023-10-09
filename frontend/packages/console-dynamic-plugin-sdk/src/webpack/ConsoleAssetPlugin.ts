@@ -48,10 +48,14 @@ export class ConsoleAssetPlugin {
   constructor(
     private readonly pkg: ConsolePackageJSON,
     private readonly remoteEntryCallback: string,
-    private readonly skipExtensionValidator = false,
+    validateExtensionSchema: boolean,
+    private readonly validateExtensionIntegrity: boolean,
   ) {
     this.ext = parseJSONC<ConsoleExtensionsJSON>(path.resolve(process.cwd(), extensionsFile));
-    validateExtensionsFileSchema(this.ext).report();
+
+    if (validateExtensionSchema) {
+      validateExtensionsFileSchema(this.ext).report();
+    }
   }
 
   apply(compiler: webpack.Compiler) {
@@ -81,11 +85,7 @@ export class ConsoleAssetPlugin {
         () => {
           compilation.updateAsset(remoteEntryFile, (source) => {
             const newSource = new webpack.sources.ReplaceSource(source);
-
-            const fromIndex = source
-              .source()
-              .toString()
-              .indexOf(`${this.remoteEntryCallback}(`);
+            const fromIndex = source.source().toString().indexOf(`${this.remoteEntryCallback}(`);
 
             if (fromIndex < 0) {
               const error = new webpack.WebpackError(`Missing call to ${this.remoteEntryCallback}`);
@@ -104,7 +104,7 @@ export class ConsoleAssetPlugin {
       );
     });
 
-    if (!this.skipExtensionValidator) {
+    if (this.validateExtensionIntegrity) {
       compiler.hooks.emit.tap(ConsoleAssetPlugin.name, (compilation) => {
         const result = new ExtensionValidator(extensionsFile).validate(
           compilation,

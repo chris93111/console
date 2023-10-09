@@ -33,6 +33,39 @@
     }
   },
   {
+    "type": "console.flag/model",
+    "properties": {
+      "flag": "OPENSHIFT_BUILD",
+      "model": {
+        "group": "build.openshift.io",
+        "version": "v1",
+        "kind": "Build"
+      }
+    }
+  },
+  {
+    "type": "console.flag/model",
+    "properties": {
+      "flag": "OPENSHIFT_DEPLOYMENTCONFIG",
+      "model": {
+        "group": "apps.openshift.io",
+        "version": "v1",
+        "kind": "DeploymentConfig"
+      }
+    }
+  },
+  {
+    "type": "console.flag/model",
+    "properties": {
+      "flag": "OPENSHIFT_BUILDCONFIG",
+      "model": {
+        "group": "build.openshift.io",
+        "version": "v1",
+        "kind": "BuildConfig"
+      }
+    }
+  },
+  {
     "type": "console.context-provider",
     "properties": {
       "provider": { "$codeRef": "tourContext.TourContextProvider" },
@@ -51,13 +84,6 @@
     "properties": {
       "provider": { "$codeRef": "fileUploadContext.FileUploadContextProvider" },
       "useValueHook": { "$codeRef": "fileUploadContext.useValuesFileUploadContext" }
-    }
-  },
-  {
-    "type": "console.redux-reducer",
-    "properties": {
-      "scope": "console",
-      "reducer": { "$codeRef": "reduxReducer" }
     }
   },
   {
@@ -141,6 +167,9 @@
         "kind": "DeploymentConfig"
       },
       "provider": { "$codeRef": "actions.useDeploymentConfigActionsProvider" }
+    },
+    "flags": {
+      "required": ["OPENSHIFT_DEPLOYMENTCONFIG"]
     }
   },
   {
@@ -323,7 +352,6 @@
       ]
     }
   },
-
   {
     "type": "console.user-preference/group",
     "properties": {
@@ -423,6 +451,22 @@
         ]
       },
       "insertAfter": "topology.preferredView"
+    }
+  },
+  {
+    "type": "console.user-preference/item",
+    "properties": {
+      "id": "console.enableExactSearch",
+      "label": "%console-app~Search%",
+      "groupId": "general",
+      "description": "%console-app~Enable exact string match filtering on resources.%",
+      "field": {
+        "type": "checkbox",
+        "userSettingsKey": "console.enableExactSearch",
+        "label": "%console-app~Enable exact string match%",
+        "trueValue": true,
+        "falseValue": false,
+        "defaultValue": false      }
     }
   },
   {
@@ -663,7 +707,7 @@
         "kind": "DeploymentConfig"
       }
     },
-    "flags": { "required": ["OPENSHIFT"] }
+    "flags": { "required": ["OPENSHIFT_DEPLOYMENTCONFIG"] }
   },
   {
     "type": "console.navigation/resource-ns",
@@ -966,7 +1010,8 @@
         "version": "v1",
         "kind": "BuildConfig"
       }
-    }
+    },
+    "flags": { "required": ["OPENSHIFT_BUILDCONFIG"] }
   },
   {
     "type": "console.navigation/resource-ns",
@@ -981,7 +1026,8 @@
         "version": "v1",
         "kind": "Build"
       }
-    }
+    },
+    "flags": { "required": ["OPENSHIFT_BUILD"] }
   },
   {
     "type": "console.navigation/resource-ns",
@@ -1247,7 +1293,7 @@
       "perspective": "admin",
       "section": "administration",
       "id": "customresourcedefinitions",
-      "insertAfter": "metering",
+      "insertAfter": "limitranges",
       "name": "%console-app~CustomResourceDefinitions%",
       "model": {
         "group": "apiextensions.k8s.io",
@@ -1256,62 +1302,6 @@
       }
     },
     "flags": { "required": ["CAN_LIST_CRD"] }
-  },
-  {
-    "type": "console.navigation/href",
-    "flags": {
-      "required": ["PROMETHEUS", "MONITORING", "CAN_GET_NS"]
-    },
-    "properties": {
-      "perspective": "admin",
-      "section": "observe",
-      "id": "monitoringalerts",
-      "name": "%console-app~Alerting%",
-      "href": "/monitoring/alerts",
-      "startsWith": ["monitoring/alertrules", "monitoring/silences"]
-    }
-  },
-  {
-    "type": "console.navigation/href",
-    "flags": {
-      "required": ["PROMETHEUS", "MONITORING", "CAN_GET_NS"]
-    },
-    "properties": {
-      "perspective": "admin",
-      "section": "observe",
-      "id": "monitoringmetrics",
-      "insertAfter": "monitoringalerts",
-      "href": "/monitoring/query-browser",
-      "name": "%console-app~Metrics%"
-    }
-  },
-  {
-    "type": "console.navigation/href",
-    "flags": {
-      "required": ["PROMETHEUS", "MONITORING", "CAN_GET_NS"]
-    },
-    "properties": {
-      "perspective": "admin",
-      "section": "observe",
-      "id": "monitoringdashboards",
-      "insertAfter": "monitoringmetrics",
-      "name": "%console-app~Dashboards%",
-      "href": "/monitoring/dashboards"
-    }
-  },
-  {
-    "type": "console.navigation/href",
-    "flags": {
-      "required": ["PROMETHEUS", "MONITORING", "CAN_GET_NS"]
-    },
-    "properties": {
-      "perspective": "admin",
-      "section": "observe",
-      "id": "monitoringtargets",
-      "insertAfter": "monitoringdashboards",
-      "name": "%console-app~Targets%",
-      "href": "/monitoring/targets"
-    }
   },
   {
     "type": "console.dashboards/overview/health/resource",

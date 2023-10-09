@@ -14,7 +14,7 @@ declare module '*.png' {
 
 declare interface Window {
   SERVER_FLAGS: {
-    copiedCSVsDisabled: Record<string, boolean>;
+    copiedCSVsDisabled: boolean;
     alertManagerBaseURL: string;
     alertmanagerUserWorkloadBaseURL: string;
     authDisabled: boolean;
@@ -33,12 +33,10 @@ declare interface Window {
     loginURL: string;
     logoutRedirect: string;
     logoutURL: string;
-    meteringBaseURL: string;
     prometheusBaseURL: string;
     prometheusTenancyBaseURL: string;
     quickStarts: string;
     releaseVersion: string;
-    requestTokenURL: string;
     inactivityTimeout: number;
     statuspageID: string;
     GOARCH: string;
@@ -53,15 +51,17 @@ declare interface Window {
     i18nNamespaces: string[]; // Available i18n namespaces
     quickStarts: string;
     projectAccessClusterRoles: string;
-    clusters: string[];
     controlPlaneTopology: string;
     telemetry: Record<string, string>;
     nodeArchitectures: string[];
+    nodeOperatingSystems: string[];
     hubConsoleURL: string;
+    k8sMode: string;
   };
   windowError?: string;
   __REDUX_DEVTOOLS_EXTENSION_COMPOSE__?: Function;
-  store?: {}; // Redux store
+  i18n?: {}; // i18next instance, only available in development builds for debugging
+  store?: {}; // Redux store, only available in development builds for debugging
   pluginStore?: {}; // Console plugin store
   loadPluginEntry?: Function;
   Cypress?: {};

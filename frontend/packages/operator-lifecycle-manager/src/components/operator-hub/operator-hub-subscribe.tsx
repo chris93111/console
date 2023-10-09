@@ -1,5 +1,12 @@
 import * as React from 'react';
-import { ActionGroup, Alert, Button, Checkbox } from '@patternfly/react-core';
+import {
+  ActionGroup,
+  Alert,
+  AlertActionCloseButton,
+  Button,
+  Checkbox,
+  TextInput,
+} from '@patternfly/react-core';
 import * as _ from 'lodash';
 import { Helmet } from 'react-helmet';
 import { Trans, useTranslation } from 'react-i18next';
@@ -8,17 +15,16 @@ import { Link } from 'react-router-dom';
 import { RadioGroup, RadioInput } from '@console/internal/components/radio';
 import {
   documentationURLs,
-  Dropdown,
   ExternalLink,
   FieldLevelHelp,
   Firehose,
   getDocumentationURL,
+  getURLSearchParams,
   history,
   MsgBox,
   NsDropdown,
   PageHeading,
   ResourceIcon,
-  ResourceName,
   resourcePathFromModel,
   StatusBox,
 } from '@console/internal/components/utils';
@@ -44,6 +50,7 @@ import {
   referenceForModel,
 } from '@console/internal/module/k8s';
 import { fromRequirements } from '@console/internal/module/k8s/selector';
+import { isClusterExternallyManaged } from '@console/shared';
 import { CONSOLE_OPERATOR_CONFIG_NAME } from '@console/shared/src/constants';
 import { parseJSONAnnotation } from '@console/shared/src/utils/annotations';
 import { SubscriptionModel, OperatorGroupModel, PackageManifestModel } from '../../models';
@@ -68,15 +75,34 @@ import {
   supportedInstallModesFor,
 } from '../index';
 import { installedFor, supports, providedAPIsForOperatorGroup, isGlobal } from '../operator-group';
-import { OperatorInstallStatusPage } from '../operator-install-page';
+import { OperatorChannelSelect, OperatorVersionSelect } from './operator-channel-version-select';
 
 export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> = (props) => {
-  const [inProgress, setInProgress] = React.useState(false);
+  const packageManifest = props.packageManifest?.data?.[0];
+  const { name: pkgName } = packageManifest?.metadata ?? {};
+  const { provider, channels = [], packageName, catalogSource, catalogSourceNamespace } =
+    packageManifest?.status ?? {};
+
+  const [roleARNText, setRoleARNText] = React.useState(null);
+  const { catalogNamespace, channel, pkg, tokenizedAuth, version } = getURLSearchParams();
   const [targetNamespace, setTargetNamespace] = React.useState(null);
   const [installMode, setInstallMode] = React.useState(null);
-  const [showInstallStatusPage, setShowInstallStatusPage] = React.useState(false);
-  const [updateChannel, setUpdateChannel] = React.useState(null);
-  const [approval, setApproval] = React.useState(InstallPlanApproval.Automatic);
+
+  const defaultChannel = defaultChannelNameFor(packageManifest);
+  const [updateChannelName, setUpdateChannelName] = React.useState(channel || defaultChannel);
+  const { currentCSVDesc } = channels.find((ch) => ch.name === updateChannelName) ?? {};
+  const { installModes = [], version: currentLatestVersion } = currentCSVDesc ?? {};
+
+  const [updateVersion, setUpdateVersion] = React.useState(version || currentLatestVersion);
+
+  const [showSTSWarn, setShowSTSWarn] = React.useState(true);
+
+  const [approval, setApproval] = React.useState(
+    updateVersion !== currentLatestVersion
+      ? InstallPlanApproval.Manual
+      : InstallPlanApproval.Automatic,
+  );
+
   const [cannotResolve, setCannotResolve] = React.useState(false);
   const [suggestedNamespaceExists, setSuggestedNamespaceExists] = React.useState(false);
   const [suggestedNamespaceExistsInFlight, setSuggestedNamespaceExistsInFlight] = React.useState(
@@ -104,26 +130,15 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     }
   };
 
-  const { name: pkgName } = props.packageManifest.data[0].metadata;
-  const {
-    provider,
-    channels = [],
-    packageName,
-    catalogSource,
-    catalogSourceNamespace,
-  } = props.packageManifest.data[0].status;
-
   const search = new URLSearchParams({
     'details-item': `${new URLSearchParams(window.location.search).get(
       'pkg',
     )}-${new URLSearchParams(window.location.search).get('catalogNamespace')}`,
   });
 
-  const selectedUpdateChannel =
-    updateChannel || defaultChannelNameFor(props.packageManifest.data[0]);
   const selectedInstallMode =
     installMode ||
-    supportedInstallModesFor(props.packageManifest.data[0])(selectedUpdateChannel).reduce(
+    supportedInstallModesFor(props.packageManifest.data[0])(updateChannelName).reduce(
       (preferredInstallMode, mode) =>
         mode.type === InstallModeType.InstallModeTypeAllNamespaces
           ? InstallModeType.InstallModeTypeAllNamespaces
@@ -131,8 +146,6 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
       InstallModeType.InstallModeTypeOwnNamespace,
     );
 
-  const { currentCSVDesc } = channels.find((ch) => ch.name === selectedUpdateChannel);
-  const { installModes = [] } = currentCSVDesc;
   const suggestedNamespace =
     currentCSVDesc.annotations?.['operatorframework.io/suggested-namespace'];
   const suggestedNamespaceTemplate = parseJSONAnnotation(
@@ -168,23 +181,15 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     (props.operatorGroup?.data || ([] as OperatorGroupKind[])).find(
       (og) => og.metadata.name === 'global-operators',
     )?.metadata?.namespace || 'openshift-operators';
-  const items = {
-    [globalNS]: <ResourceName kind="Project" name={globalNS} />,
-  };
 
   let selectedTargetNamespace = targetNamespace || props.targetNamespace;
   const operatorSuggestedNamespace = suggestedNamespaceTemplateName || suggestedNamespace;
+
   if (selectedInstallMode === InstallModeType.InstallModeTypeAllNamespaces) {
     if (operatorSuggestedNamespace) {
-      items[operatorSuggestedNamespace] = (
-        <ResourceName
-          kind="Project"
-          name={`${operatorSuggestedNamespace} (Operator recommended)`}
-        />
-      );
       selectedTargetNamespace = targetNamespace || operatorSuggestedNamespace;
     } else {
-      selectedTargetNamespace = globalNS;
+      selectedTargetNamespace = targetNamespace || globalNS;
     }
   }
   if (
@@ -198,8 +203,6 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     operatorSuggestedNamespace && operatorSuggestedNamespace === selectedTargetNamespace;
   const showSuggestedNamespaceDetails =
     !suggestedNamespaceExistsInFlight && isSuggestedNamespaceSelected;
-  const selectedApproval = approval || InstallPlanApproval.Automatic;
-
   React.useEffect(() => {
     if (!operatorSuggestedNamespace) {
       setSuggestedNamespaceExistsInFlight(false);
@@ -242,6 +245,21 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalogSource, currentCSVDesc?.annotations?.['console.openshift.io/plugins']]);
 
+  const manualSubscriptionsInNamespace = getManualSubscriptionsInNamespace(
+    props.subscription.data,
+    selectedTargetNamespace,
+  );
+
+  React.useEffect(() => {
+    if (
+      version !== currentLatestVersion ||
+      manualSubscriptionsInNamespace?.length > 0 ||
+      tokenizedAuth === 'AWS'
+    ) {
+      setApproval(InstallPlanApproval.Manual);
+    } else setApproval(InstallPlanApproval.Automatic);
+  }, [version, currentLatestVersion, manualSubscriptionsInNamespace?.length, tokenizedAuth]);
+
   const singleInstallMode = installModes.find(
     (m) => m.type === InstallModeType.InstallModeTypeOwnNamespace,
   );
@@ -250,6 +268,15 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     (m) => m.type === InstallModeType.InstallModeTypeAllNamespaces,
   );
   const supportsGlobal = globalInstallMode && globalInstallMode.supported;
+
+  const navigateToInstallPage = React.useCallback(
+    (csvName: string) => {
+      history.push(
+        `/operatorhub/install/${catalogNamespace}/${pkg}/${csvName}/to/${selectedTargetNamespace}`,
+      );
+    },
+    [catalogNamespace, pkg, selectedTargetNamespace],
+  );
 
   if (!supportsSingle && !supportsGlobal) {
     return (
@@ -293,7 +320,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     }
     const existingAPIs = _.flatMap(operatorGroups, providedAPIsForOperatorGroup);
     const providedAPIs = providedAPIsForChannel(props.packageManifest.data[0])(
-      selectedUpdateChannel,
+      updateChannelName,
     ).map((desc) => referenceForProvidedAPI(desc));
 
     return _.intersection(existingAPIs, providedAPIs);
@@ -302,8 +329,6 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
   const submit = async () => {
     // Clear any previous errors.
     setError('');
-    setInProgress(true);
-
     const defaultNS: K8sResourceCommon = {
       metadata: {
         name: selectedTargetNamespace,
@@ -318,6 +343,10 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
 
     const ns = _.defaultsDeep({}, defaultNS, suggestedNamespaceTemplate);
     const rbacName = `${selectedTargetNamespace}-prometheus`;
+    const currentChannel = packageManifest?.status?.channels?.find(
+      (ch) => ch.name === updateChannelName,
+    );
+    const currentCSVName = currentChannel?.entries?.find((e) => e.version === updateVersion)?.name;
     const prometheusRole = {
       kind: RoleModel.kind,
       apiVersion: `${RoleModel.apiGroup}/${RoleModel.apiVersion}`,
@@ -382,11 +411,22 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
         source: catalogSource,
         sourceNamespace: catalogSourceNamespace,
         name: packageName,
-        startingCSV: channels.find((ch) => ch.name === selectedUpdateChannel).currentCSV,
-        channel: selectedUpdateChannel,
-        installPlanApproval: selectedApproval,
+        startingCSV: currentCSVName,
+        channel: updateChannelName,
+        installPlanApproval: approval,
       },
     };
+
+    if (tokenizedAuth === 'AWS') {
+      subscription.spec.config = {
+        env: [
+          {
+            name: 'ROLEARN',
+            value: roleARNText,
+          },
+        ],
+      };
+    }
 
     try {
       if (isSuggestedNamespaceSelected && !suggestedNamespaceExists) {
@@ -421,28 +461,23 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
           },
         ]);
       }
-      setInProgress(false);
-      setShowInstallStatusPage(true);
+      navigateToInstallPage(currentCSVName);
     } catch (err) {
       setError(err.message || t('olm~Could not create Operator Subscription.'));
-      setInProgress(false);
     }
   };
 
   const formValid = () =>
-    inProgress ||
-    [selectedUpdateChannel, selectedInstallMode, selectedTargetNamespace, selectedApproval].some(
+    [updateChannelName, selectedInstallMode, selectedTargetNamespace, approval].some(
       (v) => _.isNil(v) || _.isEmpty(v),
     ) ||
     subscriptionExists(selectedTargetNamespace) ||
     !namespaceSupports(selectedTargetNamespace)(selectedInstallMode) ||
     (selectedTargetNamespace && cannotResolve) ||
-    !_.isEmpty(conflictingProvidedAPIs(selectedTargetNamespace));
+    !_.isEmpty(conflictingProvidedAPIs(selectedTargetNamespace)) ||
+    (tokenizedAuth === 'AWS' && _.isNull(roleARNText));
 
   const formError = () => {
-    if (inProgress) {
-      return null;
-    }
     return (
       (error && (
         <Alert
@@ -599,55 +634,7 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
     </>
   );
 
-  const globalNamespaceInstallMode = (
-    <>
-      <div className="form-group">
-        <Dropdown
-          id="dropdown-selectbox"
-          dataTest="dropdown-selectbox"
-          dropDownClassName="dropdown--full-width"
-          menuClassName="dropdown-menu--text-wrap"
-          items={items}
-          title={
-            <ResourceName
-              kind="Project"
-              name={
-                isSuggestedNamespaceSelected
-                  ? `${selectedTargetNamespace} (Operator recommended)`
-                  : selectedTargetNamespace
-              }
-            />
-          }
-          disabled={_.size(items) === 1}
-          selectedKey={selectedTargetNamespace}
-          onChange={(ns: string) => {
-            setTargetNamespace(ns);
-            setCannotResolve(false);
-          }}
-        />
-      </div>
-      {suggestedNamespaceDetails}
-      {operatorSuggestedNamespace && operatorSuggestedNamespace !== selectedTargetNamespace && (
-        <Alert
-          isInline
-          className="co-alert pf-c-alert--top-margin"
-          variant="warning"
-          title={t(
-            'olm~Not installing the Operator into the recommended namespace can cause unexpected behavior.',
-          )}
-        />
-      )}
-    </>
-  );
-
-  const singleNamespaceInstallMode = !suggestedNamespace ? (
-    <NsDropdown
-      id="dropdown-selectbox"
-      selectedKey={selectedTargetNamespace}
-      onChange={(ns) => setTargetNamespace(ns)}
-      dataTest="dropdown-selectbox"
-    />
-  ) : (
+  const installedNamespaceOptions = (
     <div className="form-group">
       <RadioInput
         onChange={() => {
@@ -662,7 +649,6 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
         <ResourceIcon kind="Project" />
         <b>{operatorSuggestedNamespace}</b>
       </RadioInput>
-      {useSuggestedNSForSingleInstallMode && suggestedNamespaceDetails}
       <RadioInput
         onChange={() => {
           setUseSuggestedNSForSingleInstallMode(false);
@@ -680,37 +666,54 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
             onChange={(ns) => setTargetNamespace(ns)}
             dataTest="dropdown-selectbox"
           />
-
-          {suggestedNamespace !== selectedTargetNamespace && (
-            <Alert
-              isInline
-              className="co-alert pf-c-alert--top-margin"
-              variant="warning"
-              title={t(
-                'olm~Not installing the Operator into the recommended namespace can cause unexpected behavior.',
-              )}
-            />
-          )}
+          <Alert
+            isInline
+            className="co-alert pf-c-alert--top-margin"
+            variant="warning"
+            title={t(
+              'olm~Not installing the Operator into the recommended namespace can cause unexpected behavior.',
+            )}
+          />
         </>
       )}
     </div>
   );
 
-  const providedAPIs = providedAPIsForChannel(props.packageManifest.data[0])(selectedUpdateChannel);
-
-  if (showInstallStatusPage) {
-    return (
-      <OperatorInstallStatusPage
-        targetNamespace={selectedTargetNamespace}
-        pkgNameWithVersion={channels.find((ch) => ch.name === selectedUpdateChannel).currentCSV}
+  const installedNamespaceSelect = (
+    <div className="form-group">
+      <NsDropdown
+        id="dropdown-selectbox"
+        selectedKey={selectedTargetNamespace}
+        onChange={(ns) => setTargetNamespace(ns)}
+        dataTest="dropdown-selectbox"
       />
-    );
-  }
-
-  const manualSubscriptionsInNamespace = getManualSubscriptionsInNamespace(
-    props.subscription.data,
-    selectedTargetNamespace,
+    </div>
   );
+
+  const globalNamespaceInstallMode = (
+    <>
+      {operatorSuggestedNamespace ? (
+        <>{installedNamespaceOptions}</>
+      ) : (
+        <>{installedNamespaceSelect}</>
+      )}
+      {useSuggestedNSForSingleInstallMode && suggestedNamespaceDetails}
+    </>
+  );
+
+  const singleNamespaceInstallMode = !suggestedNamespace ? (
+    <>{installedNamespaceSelect}</>
+  ) : (
+    <>
+      {installedNamespaceOptions}
+      {useSuggestedNSForSingleInstallMode && suggestedNamespaceDetails}
+    </>
+  );
+
+  const providedAPIs = providedAPIsForChannel(props.packageManifest.data[0])(updateChannelName);
+
+  const isApprovalItemDisabled =
+    version !== currentLatestVersion || manualSubscriptionsInNamespace?.length > 0;
 
   return (
     <>
@@ -728,22 +731,69 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
         )}
       />
       <div className="co-m-pane__body">
+        {tokenizedAuth === 'AWS' && !isClusterExternallyManaged() && showSTSWarn && (
+          <Alert
+            isInline
+            variant="warning"
+            title={t('olm~Cluster in STS Mode')}
+            actionClose={<AlertActionCloseButton onClose={() => setShowSTSWarn(false)} />}
+            className="pf-u-mb-lg"
+          >
+            <p>
+              {t(
+                'olm~This cluster is using AWS Security Token Service to reach the cloud API. In order for this operator to take the actions it requires directly with the cloud API, you will need to provide a role ARN (with an attached policy) during installation. Manual subscriptions are highly recommended as steps should be taken prior to upgrade to ensure that the permissions required by the next version are properly accounted for in the role. Please see the operator description for more details.',
+              )}
+            </p>
+          </Alert>
+        )}
         <div className="row">
           <div className="col-xs-6">
             <>
+              {tokenizedAuth === 'AWS' && !isClusterExternallyManaged() && (
+                <div className="form-group">
+                  <fieldset>
+                    <label className="co-required">{t('olm~role ARN')}</label>
+                    <FieldLevelHelp>
+                      {t('olm~The role ARN required for the operator to access the cloud API.')}
+                    </FieldLevelHelp>
+                    <div className="co-toolbar__item">
+                      <TextInput
+                        autoFocus
+                        placeholder={'role ARN'}
+                        aria-label={'role ARN'}
+                        type="text"
+                        value={roleARNText}
+                        onChange={(value) => {
+                          setRoleARNText(value);
+                        }}
+                      />
+                    </div>
+                  </fieldset>
+                </div>
+              )}
               <div className="form-group">
                 <fieldset>
                   <label className="co-required">{t('olm~Update channel')}</label>
                   <FieldLevelHelp>
                     {t('olm~The channel to track and receive the updates from.')}
                   </FieldLevelHelp>
-                  <RadioGroup
-                    currentValue={selectedUpdateChannel}
-                    items={channels.map((ch) => ({ value: ch.name, title: ch.name }))}
-                    onChange={(e) => {
-                      setUpdateChannel(e.currentTarget.value);
-                      setInstallMode(null);
-                    }}
+                  <OperatorChannelSelect
+                    packageManifest={props.packageManifest.data[0]}
+                    selectedUpdateChannel={updateChannelName}
+                    setUpdateChannel={setUpdateChannelName}
+                    setUpdateVersion={setUpdateVersion}
+                  />
+                </fieldset>
+              </div>
+              <div className="form-group form-group--doubled-bottom-margin">
+                <fieldset>
+                  <label className="co-required">{t('olm~Version')}</label>
+                  <OperatorVersionSelect
+                    packageManifest={props.packageManifest.data[0]}
+                    selectedUpdateChannel={updateChannelName}
+                    updateVersion={updateVersion}
+                    setUpdateVersion={setUpdateVersion}
+                    showVersionAlert
                   />
                 </fieldset>
               </div>
@@ -805,12 +855,25 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
                     {t('olm~The strategy to determine either manual or automatic updates.')}
                   </FieldLevelHelp>
                   <RadioGroup
-                    currentValue={selectedApproval}
+                    currentValue={approval}
                     items={[
-                      { value: InstallPlanApproval.Automatic, title: t('olm~Automatic') },
-                      { value: InstallPlanApproval.Manual, title: t('olm~Manual') },
+                      {
+                        value: InstallPlanApproval.Automatic,
+                        title: t('olm~Automatic'),
+                        disabled: isApprovalItemDisabled,
+                      },
+                      {
+                        value: InstallPlanApproval.Manual,
+                        title: t('olm~Manual'),
+                      },
                     ]}
-                    onChange={(e) => setApproval(e.currentTarget.value)}
+                    onChange={(e) => {
+                      const { value } = e.currentTarget;
+                      setApproval(value);
+                      if (value === InstallPlanApproval.Automatic) {
+                        setUpdateVersion(currentLatestVersion);
+                      }
+                    }}
                   />
                   {approval === InstallPlanApproval.Automatic &&
                     manualSubscriptionsInNamespace?.length > 0 && (
@@ -836,8 +899,10 @@ export const OperatorHubSubscribeForm: React.FC<OperatorHubSubscribeFormProps> =
                       <Trans ns="olm">
                         Installing an operator with manual approval causes all operators installed
                         in namespace <strong>{{ selectedTargetNamespace }}</strong> to function as
-                        manual approval strategy. To allow automatic approval, all operators
-                        installed in the namespace must use automatic approval strategy.
+                        manual approval strategy and will be updated altogether. Install operators
+                        into separate namespaces for handling their updates independently. To allow
+                        automatic approval, all operators installed in the namespace must use
+                        automatic approval strategy.
                       </Trans>
                     </Alert>
                   )}

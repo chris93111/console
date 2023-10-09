@@ -24,8 +24,7 @@ import {
   MachineModel,
   PrometheusModel,
 } from '../models';
-import { referenceForGroupVersionKind } from '../module/k8s';
-import { referenceForModel } from '../module/k8s/k8s-ref';
+import { referenceForGroupVersionKind, referenceForModel } from '../module/k8s/k8s-ref';
 import { RootState } from '../redux';
 import { ActionType as K8sActionType } from '@console/dynamic-plugin-sdk/src/app/k8s/actions/k8s';
 import { FeatureState } from '@console/dynamic-plugin-sdk/src/app/features';
@@ -40,7 +39,9 @@ export const defaults = _.mapValues(FLAGS, (flag) => {
     case FLAGS.AUTH_ENABLED:
       return !window.SERVER_FLAGS.authDisabled;
     case FLAGS.MONITORING:
-      return !!window.SERVER_FLAGS.prometheusBaseURL && !!window.SERVER_FLAGS.prometheusTenancyBaseURL;
+      return (
+        !!window.SERVER_FLAGS.prometheusBaseURL && !!window.SERVER_FLAGS.prometheusTenancyBaseURL
+      );
     default:
       return undefined;
   }

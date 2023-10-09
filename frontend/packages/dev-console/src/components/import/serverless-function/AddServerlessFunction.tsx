@@ -13,6 +13,7 @@ import { LoadingBox, history } from '@console/internal/components/utils';
 import { useK8sWatchResources } from '@console/internal/components/utils/k8s-watch-hook';
 import { ImageStreamModel, ProjectModel } from '@console/internal/models';
 import { K8sResourceKind } from '@console/internal/module/k8s';
+import { defaultRepositoryFormValues } from '@console/pipelines-plugin/src/components/repository/consts';
 import {
   ALL_APPLICATIONS_KEY,
   usePerspectives,
@@ -28,7 +29,8 @@ import { validationSchema } from '../import-validation-utils';
 import { useUpdateKnScalingDefaultValues } from '../serverless/useUpdateKnScalingDefaultValues';
 import AddServerlessFunctionForm from './AddServerlessFunctionForm';
 
-type watchResource = {
+// eslint-disable-next-line @typescript-eslint/naming-convention
+type WatchResource = {
   [key: string]: K8sResourceKind[] | K8sResourceKind;
 };
 
@@ -91,6 +93,12 @@ const AddServerlessFunction: React.FC<AddServerlessFunctionProps> = ({
     pipeline: {
       enabled: false,
     },
+    pac: {
+      pacHasError: false,
+      repository: {
+        ...defaultRepositoryFormValues,
+      },
+    },
   };
 
   const initialVals = useUpdateKnScalingDefaultValues(initialValues);
@@ -106,7 +114,7 @@ const AddServerlessFunction: React.FC<AddServerlessFunctionProps> = ({
       isList: true,
     },
   };
-  const resourcesData: WatchK8sResults<watchResource> = useK8sWatchResources<watchResource>(
+  const resourcesData: WatchK8sResults<WatchResource> = useK8sWatchResources<WatchResource>(
     watchedResources,
   );
 

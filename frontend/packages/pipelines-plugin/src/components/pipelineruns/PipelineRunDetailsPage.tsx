@@ -1,11 +1,12 @@
 import * as React from 'react';
-import { useTranslation } from 'react-i18next';
 import { DetailsPage, DetailsPageProps } from '@console/internal/components/factory';
 import { KebabAction, navFactory, viewYamlComponent } from '@console/internal/components/utils';
 import { usePipelineTechPreviewBadge } from '../../utils/hooks';
 import { getPipelineRunKebabActions } from '../../utils/pipeline-actions';
 import { pipelineRunStatus } from '../../utils/pipeline-filter-reducer';
-import { usePipelinesBreadcrumbsFor } from '../pipelines/hooks';
+import { useDevPipelinesBreadcrumbsFor } from '../pipelines/hooks';
+import { usePipelineOperatorVersion } from '../pipelines/utils/pipeline-operator';
+import { useTaskRuns } from '../taskruns/useTaskRuns';
 import { PipelineRunDetails } from './detail-page-tabs/PipelineRunDetails';
 import { PipelineRunLogsWithActiveTask } from './detail-page-tabs/PipelineRunLogs';
 import TaskRuns from './detail-page-tabs/TaskRuns';
@@ -14,12 +15,13 @@ import PipelineRunParametersForm from './PipelineRunParametersForm';
 import { useMenuActionsWithUserAnnotation } from './triggered-by';
 
 const PipelineRunDetailsPage: React.FC<DetailsPageProps> = (props) => {
-  const { t } = useTranslation();
   const { kindObj, match } = props;
+  const operatorVersion = usePipelineOperatorVersion(props.namespace);
+  const [taskRuns] = useTaskRuns(props.namespace);
   const menuActions: KebabAction[] = useMenuActionsWithUserAnnotation(
-    getPipelineRunKebabActions(true),
+    getPipelineRunKebabActions(operatorVersion, taskRuns, true),
   );
-  const breadcrumbsFor = usePipelinesBreadcrumbsFor(kindObj, match);
+  const breadcrumbsFor = useDevPipelinesBreadcrumbsFor(kindObj, match);
   const badge = usePipelineTechPreviewBadge(props.namespace);
 
   return (
@@ -34,12 +36,14 @@ const PipelineRunDetailsPage: React.FC<DetailsPageProps> = (props) => {
         navFactory.editYaml(viewYamlComponent),
         {
           href: 'task-runs',
-          name: t('pipelines-plugin~TaskRuns'),
+          // t('pipelines-plugin~TaskRuns')
+          nameKey: 'pipelines-plugin~TaskRuns',
           component: TaskRuns,
         },
         {
           href: 'parameters',
-          name: t('pipelines-plugin~Parameters'),
+          // t('pipelines-plugin~Parameters')
+          nameKey: 'pipelines-plugin~Parameters',
           component: (pageProps) => (
             <PipelineRunParametersForm obj={pageProps.obj} {...pageProps} />
           ),
@@ -47,7 +51,8 @@ const PipelineRunDetailsPage: React.FC<DetailsPageProps> = (props) => {
         {
           href: 'logs',
           path: 'logs/:name?',
-          name: t('pipelines-plugin~Logs'),
+          // t('pipelines-plugin~Logs')
+          nameKey: 'pipelines-plugin~Logs',
           component: PipelineRunLogsWithActiveTask,
         },
         navFactory.events(PipelineRunEvents),

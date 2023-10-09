@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Alert, ValidatedOptions } from '@patternfly/react-core';
+import { Alert, Flex, FlexItem, ValidatedOptions } from '@patternfly/react-core';
 import { FormikProps, FormikValues } from 'formik';
 import * as _ from 'lodash';
 import { useTranslation } from 'react-i18next';
@@ -12,17 +12,21 @@ import { ServerlessBuildStrategyType } from '@console/knative-plugin/src/types';
 import PipelineSection from '@console/pipelines-plugin/src/components/import/pipeline/PipelineSection';
 import {
   CLUSTER_PIPELINE_NS,
+  FLAG_OPENSHIFT_PIPELINE,
   FUNC_PIPELINE_RUNTIME_LABEL,
 } from '@console/pipelines-plugin/src/const';
 import { PipelineModel } from '@console/pipelines-plugin/src/models';
 import { PipelineKind } from '@console/pipelines-plugin/src/types';
-import { FormBody, FormFooter } from '@console/shared/src/components/form-utils';
+import { useFlag } from '@console/shared/src';
+import { FlexForm, FormBody, FormFooter } from '@console/shared/src/components/form-utils';
 import { NormalizedBuilderImages } from '../../../utils/imagestream-utils';
+import { notSupportedRuntime } from '../../../utils/serverless-functions';
 import AdvancedSection from '../advanced/AdvancedSection';
 import AppSection from '../app/AppSection';
 import GitSection from '../git/GitSection';
-import { notSupportedRuntime } from '../import-types';
+import ExtensionCards from './ExtensionCards';
 import ServerlessFunctionStrategySection from './ServerlessFunctionStrategySection';
+import './AddServerlessFunctionForm.scss';
 
 type AddServerlessFunctionFormProps = {
   builderImages?: NormalizedBuilderImages;
@@ -36,8 +40,9 @@ enum SupportedRuntime {
   quarkus = 'java',
 }
 
-const AddServerlessFunctionForm: React.FC<FormikProps<FormikValues> &
-  AddServerlessFunctionFormProps> = ({
+const AddServerlessFunctionForm: React.FC<
+  FormikProps<FormikValues> & AddServerlessFunctionFormProps
+> = ({
   values,
   errors,
   handleSubmit,
@@ -57,7 +62,7 @@ const AddServerlessFunctionForm: React.FC<FormikProps<FormikValues> &
     build: { strategy },
     image,
   } = values;
-
+  const isPipelineEnabled = useFlag(FLAG_OPENSHIFT_PIPELINE);
   const [showPipelineSection, setShowPipelineSection] = React.useState<boolean>(false);
   const showFullForm =
     strategy === ServerlessBuildStrategyType.ServerlessFunction &&
@@ -98,7 +103,7 @@ const AddServerlessFunctionForm: React.FC<FormikProps<FormikValues> &
   }, [setFieldValue, url, type, ref, dir, secretResource, builderImages, setStatus]);
 
   React.useEffect(() => {
-    if (image.selected) {
+    if (image.selected && isPipelineEnabled) {
       const fetchPipelineTemplate = async () => {
         const fetchedPipelines = (await k8sListResourceItems({
           model: PipelineModel,
@@ -115,48 +120,60 @@ const AddServerlessFunctionForm: React.FC<FormikProps<FormikValues> &
       };
       fetchPipelineTemplate();
     }
-  }, [image]);
+  }, [image, isPipelineEnabled]);
 
   return (
-    <form onSubmit={handleSubmit} data-test="create-serverless-function-form">
-      <FormBody>
-        <GitSection builderImages={builderImages} />
-        {showFullForm && (
-          <>
-            {builderImages && <ServerlessFunctionStrategySection builderImages={builderImages} />}
-            <AppSection
-              project={values.project}
-              noProjectsAvailable={projects.loaded && _.isEmpty(projects.data)}
-            />
-            {showPipelineSection && <PipelineSection builderImages={builderImages} />}
-            <AdvancedSection values={values} />
-          </>
-        )}
-        {validated !== ValidatedOptions.default &&
-          strategy !== ServerlessBuildStrategyType.ServerlessFunction && (
-            <Alert
-              variant="warning"
-              isInline
-              title={t('devconsole~func.yaml is not present or builder strategy is not s2i')}
-            >
-              <p>
-                {t(
-                  'devconsole~func.yaml must be present or builder strategy should be s2i to create a Serverless function',
+    <FlexForm onSubmit={handleSubmit} data-test="create-serverless-function-form">
+      <Flex direction={{ default: 'column', sm: 'row' }}>
+        <FlexItem flex={{ default: 'flex_1' }} alignSelf={{ default: 'alignSelfFlexStart' }}>
+          <FormBody flexLayout>
+            <GitSection builderImages={builderImages} />
+            {showFullForm && (
+              <>
+                {builderImages && (
+                  <ServerlessFunctionStrategySection builderImages={builderImages} />
                 )}
-              </p>
-            </Alert>
-          )}
-      </FormBody>
+                <AppSection
+                  project={values.project}
+                  noProjectsAvailable={projects.loaded && _.isEmpty(projects.data)}
+                />
+                {showPipelineSection && <PipelineSection builderImages={builderImages} />}
+                <AdvancedSection values={values} />
+              </>
+            )}
+            {validated !== ValidatedOptions.default &&
+              strategy !== ServerlessBuildStrategyType.ServerlessFunction && (
+                <Alert
+                  variant="warning"
+                  isInline
+                  title={t('devconsole~func.yaml is not present and builder strategy is not s2i')}
+                >
+                  <p>
+                    {t(
+                      'devconsole~func.yaml must be present and builder strategy should be s2i to create a Serverless function',
+                    )}
+                  </p>
+                </Alert>
+              )}
+          </FormBody>
+        </FlexItem>
+        <FlexItem
+          flex={{ default: 'flex_1' }}
+          className="pf-u-display-none pf-u-display-flex-on-lg"
+        >
+          <ExtensionCards />
+        </FlexItem>
+      </Flex>
       <FormFooter
         handleReset={handleReset}
         errorMessage={status && status.submitError}
         isSubmitting={isSubmitting}
         submitLabel={t('devconsole~Create')}
-        sticky
         disableSubmit={!dirty || !_.isEmpty(status?.errors) || !_.isEmpty(errors) || isSubmitting}
         resetLabel={t('devconsole~Cancel')}
+        sticky
       />
-    </form>
+    </FlexForm>
   );
 };
 

@@ -1,6 +1,7 @@
+// TODO remove multicluster
 import * as React from 'react';
 import { Map as ImmutableMap } from 'immutable';
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: FIXME missing exports due to out-of-sync @types/react-redux version
 import { useSelector, useDispatch } from 'react-redux';
 import { createSelectorCreator, defaultMemoize } from 'reselect';
@@ -22,7 +23,7 @@ import { useModelsLoaded } from './useModelsLoaded';
 import { usePrevious } from './usePrevious';
 
 /**
- * Hook that retrieves the k8s resources along with their respective status for loaded and error.
+ * Hook that retrieves the Kubernetes resources along with their respective status for loaded and error.
  * @param initResources resources need to be watched as key-value pair, wherein key will be unique to resource and value will be options needed to watch for the respective resource.
  * @returns A map where keys are as provided in initResouces and value has three properties data, loaded and error.
  * @example
@@ -38,6 +39,7 @@ import { usePrevious } from './usePrevious';
  * }
  * ```
  */
+// TODO remove multicluster
 export const useK8sWatchResources: UseK8sWatchResources = (initResources) => {
   const cluster = useSelector((state: SDKStoreState) => getActiveCluster(state));
   const resources = useDeepCompareMemoize(initResources, true);
@@ -84,8 +86,9 @@ export const useK8sWatchResources: UseK8sWatchResources = (initResources) => {
             );
 
             const resourceModel =
-              k8sModels.get(modelReference) ||
-              k8sModels.get(getGroupVersionKindForReference(modelReference).kind);
+              modelReference &&
+              (k8sModels.get(modelReference) ||
+                k8sModels.get(getGroupVersionKindForReference(modelReference).kind));
             if (!resourceModel) {
               ids[key] = {
                 noModel: true,

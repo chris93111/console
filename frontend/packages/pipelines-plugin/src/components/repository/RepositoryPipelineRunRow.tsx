@@ -9,7 +9,7 @@ import {
 } from '@console/internal/components/utils';
 import { referenceForModel } from '@console/internal/module/k8s';
 import { PipelineRunModel } from '../../models';
-import { PipelineRunKind } from '../../types';
+import { PipelineRunKind, TaskRunKind } from '../../types';
 import { getPipelineRunKebabActions } from '../../utils/pipeline-actions';
 import {
   pipelineRunFilterReducer,
@@ -19,6 +19,7 @@ import { pipelineRunDuration } from '../../utils/pipeline-utils';
 import LinkedPipelineRunTaskStatus from '../pipelineruns/status/LinkedPipelineRunTaskStatus';
 import PipelineRunStatus from '../pipelineruns/status/PipelineRunStatus';
 import { ResourceKebabWithUserLabel } from '../pipelineruns/triggered-by';
+import { getTaskRunsOfPipelineRun } from '../taskruns/useTaskRuns';
 import {
   RepositoryLabels,
   RepositoryFields,
@@ -32,22 +33,28 @@ const pipelinerunReference = referenceForModel(PipelineRunModel);
 
 type PLRStatusProps = {
   obj: PipelineRunKind;
+  taskRuns: TaskRunKind[];
 };
 
-const PLRStatus: React.FC<PLRStatusProps> = ({ obj }) => {
+const PLRStatus: React.FC<PLRStatusProps> = ({ obj, taskRuns }) => {
   return (
     <PipelineRunStatus
       status={pipelineRunFilterReducer(obj)}
       title={pipelineRunTitleFilterReducer(obj)}
       pipelineRun={obj}
+      taskRuns={taskRuns}
     />
   );
 };
 
-const RepositoryPipelineRunRow: React.FC<RowFunctionArgs<PipelineRunKind>> = ({ obj }) => {
+const RepositoryPipelineRunRow: React.FC<RowFunctionArgs<PipelineRunKind>> = ({
+  obj,
+  customData,
+}) => {
   const plrLabels = obj.metadata.labels;
   const plrAnnotations = obj.metadata.annotations;
-
+  const { operatorVersion, taskRuns } = customData;
+  const PLRTaskRuns = getTaskRunsOfPipelineRun(taskRuns, obj?.metadata?.name);
   return (
     <>
       <TableData className={tableColumnClasses[0]}>
@@ -83,10 +90,10 @@ const RepositoryPipelineRunRow: React.FC<RowFunctionArgs<PipelineRunKind>> = ({ 
         <ResourceLink kind="Namespace" name={obj.metadata.namespace} />
       </TableData>
       <TableData className={tableColumnClasses[3]}>
-        <PLRStatus obj={obj} />
+        <PLRStatus obj={obj} taskRuns={PLRTaskRuns} />
       </TableData>
       <TableData className={tableColumnClasses[4]}>
-        <LinkedPipelineRunTaskStatus pipelineRun={obj} />
+        <LinkedPipelineRunTaskStatus pipelineRun={obj} taskRuns={PLRTaskRuns} />
       </TableData>
       <TableData className={tableColumnClasses[5]}>
         <Timestamp timestamp={obj.status && obj.status.startTime} />
@@ -97,7 +104,7 @@ const RepositoryPipelineRunRow: React.FC<RowFunctionArgs<PipelineRunKind>> = ({ 
       </TableData>
       <TableData className={tableColumnClasses[8]}>
         <ResourceKebabWithUserLabel
-          actions={getPipelineRunKebabActions()}
+          actions={getPipelineRunKebabActions(operatorVersion, PLRTaskRuns)}
           kind={pipelinerunReference}
           resource={obj}
         />

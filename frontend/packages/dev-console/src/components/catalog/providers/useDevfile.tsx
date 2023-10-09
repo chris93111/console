@@ -1,7 +1,12 @@
 import * as React from 'react';
 import { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
-import { CatalogItem, ExtensionHook } from '@console/dynamic-plugin-sdk';
+import {
+  CatalogItem,
+  CatalogItemDetailsDescription,
+  CatalogItemDetailsProperty,
+  ExtensionHook,
+} from '@console/dynamic-plugin-sdk';
 import { coFetchJSON } from '@console/internal/co-fetch';
 import { ExternalLink } from '@console/internal/components/utils';
 import { APIError } from '@console/shared';
@@ -10,21 +15,32 @@ import { DevfileSample } from '../../import/devfile/devfile-types';
 const normalizeDevfile = (devfileSamples: DevfileSample[], t: TFunction): CatalogItem[] => {
   const normalizedDevfileSamples = devfileSamples?.map((sample) => {
     const { name: uid, displayName, description, tags, git, icon, provider } = sample;
-    const gitRepoUrl = Object.values(git.remotes)[0];
-    const href = `/import?importType=devfile&devfileName=${uid}&gitRepo=${gitRepoUrl}`;
+    const gitRepositoryUrl = Object.values(git.remotes)[0];
+
+    const searchParams = new URLSearchParams();
+    searchParams.set('importType', 'devfile');
+    searchParams.set('devfileName', uid);
+    searchParams.set('git.repository', gitRepositoryUrl);
+
+    const href = `/import?${searchParams}`;
     const createLabel = t('devconsole~Create');
     const type = 'Devfile';
 
-    const detailsProperties = [
-      {
+    const detailsProperties: CatalogItemDetailsProperty[] = [];
+    if (gitRepositoryUrl) {
+      detailsProperties.push({
         label: t('devconsole~Sample repository'),
         value: (
-          <ExternalLink href={gitRepoUrl} additionalClassName="co-break-all" text={gitRepoUrl} />
+          <ExternalLink
+            text={gitRepositoryUrl}
+            href={gitRepositoryUrl}
+            additionalClassName="co-break-all"
+          />
         ),
-      },
-    ];
+      });
+    }
 
-    const detailsDescriptions = [
+    const detailsDescriptions: CatalogItemDetailsDescription[] = [
       {
         value: <p>{description}</p>,
       },

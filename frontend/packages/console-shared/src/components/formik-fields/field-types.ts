@@ -112,10 +112,14 @@ export interface MultiColumnFieldProps extends FieldProps {
   tooltipAddRow?: string;
 }
 
-export interface YAMLEditorFieldProps extends FieldProps {
+export interface CodeEditorFieldProps extends FieldProps {
   model?: K8sKind;
+  minHeight?: string;
+  language?: string;
   schema?: JSONSchema7;
   showSamples: boolean;
+  showShortcuts?: boolean;
+  showMiniMap?: boolean;
   onSave?: () => void;
 }
 
@@ -152,6 +156,7 @@ export interface RadioButtonFieldProps extends FieldProps {
 
 export interface RadioGroupFieldProps extends FieldProps {
   isInline?: boolean;
+  labelIcon?: React.ReactElement;
   options: RadioGroupOption[];
   onChange?: (value: React.ReactText) => void;
 }

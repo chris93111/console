@@ -2,6 +2,7 @@ import { TFunction } from 'i18next';
 import * as _ from 'lodash';
 import * as yup from 'yup';
 import { GitProvider } from '@console/git-service/src';
+import { importFlowRepositoryValidationSchema } from '@console/pipelines-plugin/src/components/repository/repository-form-utils';
 import { nameValidationSchema, nameRegex } from '@console/shared';
 import { healthChecksProbesValidationSchema } from '../health-checks/health-checks-probe-validation-utils';
 import {
@@ -36,6 +37,7 @@ export const validationSchema = (t: TFunction) =>
     build: buildValidationSchema,
     resources: resourcesValidationSchema,
     healthChecks: healthChecksProbesValidationSchema(t),
+    pac: importFlowRepositoryValidationSchema(t),
   });
 
 const hasDomain = (url: string, domain: string): boolean => {
@@ -79,9 +81,6 @@ export const detectGitRepoName = (url: string): string | undefined => {
   if (!gitUrlRegex.test(url)) {
     return undefined;
   }
-  const name = url
-    .replace(/\/$/, '')
-    .split('/')
-    .pop();
+  const name = url.replace(/\/$/, '').split('/').pop();
   return createComponentName(name);
 };

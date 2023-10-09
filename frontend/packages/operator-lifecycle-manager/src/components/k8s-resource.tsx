@@ -33,7 +33,8 @@ import {
   K8sResourceCommon,
 } from '@console/internal/module/k8s';
 import { Status } from '@console/shared';
-import { CRDDescription, ClusterServiceVersionKind, ProvidedAPI } from '../types';
+import { RouteParams } from '@console/shared/src/types';
+import { CRDDescription, ProvidedAPI } from '../types';
 import { OperandLink } from './operand/operand-link';
 import { providedAPIForReference } from './index';
 
@@ -149,10 +150,12 @@ export const linkForCsvResource = (
     <ResourceLink kind={obj.kind} name={obj.metadata.name} namespace={obj.metadata.namespace} />
   );
 
+type ResourcesPageRouteParams = RouteParams<'plural'>;
+
 export const Resources: React.FC<ResourcesProps> = (props) => {
   const { t } = useTranslation();
-  const { plural } = useParams();
-  const providedAPI = providedAPIForReference(props.csv, plural);
+  const { plural } = useParams<ResourcesPageRouteParams>();
+  const providedAPI = providedAPIForReference(props.customData, plural);
 
   const firehoseResources = (providedAPI?.resources ?? DEFAULT_RESOURCES).map(
     ({ name, kind, version }): FirehoseResource => {
@@ -200,7 +203,7 @@ export const Resources: React.FC<ResourcesProps> = (props) => {
 
 export type ResourcesProps = {
   obj: K8sResourceKind;
-  csv: ClusterServiceVersionKind;
+  customData: any;
 };
 
 export type ResourceListProps = {};

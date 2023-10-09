@@ -44,6 +44,10 @@ export const documentationURLs: documentationURLsType = {
     downstream: 'html/operators/understanding-operators#olm-what-operators-are',
     upstream: 'operators/understanding/olm-what-operators-are.html',
   },
+  pipelines: {
+    downstream: 'html/cicd/pipelines#understanding-openshift-pipelines',
+    upstream: '', // intentionally blank as there is no upstream equivalent
+  },
   postInstallationMachineConfigurationTasks: {
     downstream: 'html/post-installation_configuration/index',
     upstream: 'post_installation_configuration/machine-configuration-tasks.html',
@@ -51,8 +55,7 @@ export const documentationURLs: documentationURLsType = {
   understandingUpgradeChannels: {
     downstream:
       'html/updating_clusters/understanding-upgrade-channels-releases#understanding-upgrade-channels_understanding-upgrade-channels-releases',
-    upstream:
-      'updating/understanding-upgrade-channels-release.html#understanding-upgrade-channels_understanding-upgrade-channels-releases',
+    upstream: 'updating/index.html#updating-clusters-overview-upgrade-channels-and-releases',
   },
   updateService: {
     downstream:
@@ -76,6 +79,10 @@ export const documentationURLs: documentationURLsType = {
   workingWithProjects: {
     downstream: 'html/building_applications/projects#working-with-projects',
     upstream: 'applications/projects/working-with-projects.html',
+  },
+  deprecatedDeploymentConfig: {
+    downstream: 'html/building_applications/deployments',
+    upstream: 'applications/deployments/what-deployments-are.html',
   },
 };
 

@@ -13,6 +13,7 @@ export enum NavigationMenu {
   ProjectDetails = 'Project Details',
   ProjectAccess = 'Project Access',
   Pipelines = 'Pipelines',
+  Functions = 'Functions',
 }
 
 export enum Perspective {
@@ -20,7 +21,7 @@ export enum Perspective {
   Administrator = ' Administrator Perspective',
 }
 
-export const naviagteTo = async function(opt: NavigationMenu) {
+export const naviagteTo = async function (opt: NavigationMenu) {
   switch (opt) {
     case NavigationMenu.Add: {
       await click($('[data-test-id="+Add-header"]'));
@@ -72,13 +73,19 @@ export const naviagteTo = async function(opt: NavigationMenu) {
       await browser.wait(EC.urlContains('project-access'), ELEMENT_WAIT);
       break;
     }
+    case NavigationMenu.Functions: {
+      await click($('a.pf-c-nav__link[data-component="pf-nav-expandable"]'));
+      await click($('[data-test-id="functions-details-header"]'));
+      await browser.wait(EC.urlContains('functions'), ELEMENT_WAIT);
+      break;
+    }
     default: {
       throw new Error('Option is not available');
     }
   }
 };
 
-export const switchPerspective = async function(perspective: Perspective) {
+export const switchPerspective = async function (perspective: Perspective) {
   await click(elementByDataTestID('perspective-switcher-toggle'));
   await browser.wait(
     EC.visibilityOf(elementByDataTestID('perspective-switcher-menu'), ELEMENT_WAIT),

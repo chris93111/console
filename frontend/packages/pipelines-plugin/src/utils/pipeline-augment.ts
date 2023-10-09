@@ -19,7 +19,7 @@ import {
   TriggerBindingModel,
   PipelineModel,
 } from '../models';
-import { ComputedStatus, PipelineKind, PipelineRunKind, PipelineTask } from '../types';
+import { ComputedStatus, PipelineKind, PipelineRunKind, PipelineTask, TaskRunKind } from '../types';
 import { pipelineRunFilterReducer, SucceedConditionReason } from './pipeline-filter-reducer';
 
 interface Metadata {
@@ -161,13 +161,22 @@ export const totalPipelineRunTasks = (executedPipeline: PipelineKind): number =>
   return totalTasks + finallyTasks;
 };
 
-export const getTaskStatus = (pipelinerun: PipelineRunKind, pipeline: PipelineKind): TaskStatus => {
+export const getTaskStatus = (
+  pipelinerun: PipelineRunKind,
+  pipeline: PipelineKind,
+  taskRuns: TaskRunKind[],
+): TaskStatus => {
   const totalTasks = totalPipelineRunTasks(pipeline);
-  const plrTasks =
-    pipelinerun && pipelinerun.status && pipelinerun.status.taskRuns
-      ? Object.keys(pipelinerun.status.taskRuns)
-      : [];
-  const plrTaskLength = plrTasks.length;
+  const plrTasks = (): string[] => {
+    if (pipelinerun?.status?.taskRuns) {
+      return Object.keys(pipelinerun.status.taskRuns);
+    }
+    if (taskRuns) {
+      return taskRuns?.map((tRun) => tRun.metadata.name);
+    }
+    return [];
+  };
+  const plrTaskLength = plrTasks().length;
   const skippedTaskLength = (pipelinerun?.status?.skippedTasks || []).length;
   const taskStatus: TaskStatus = {
     PipelineNotStarted: 0,
@@ -179,9 +188,12 @@ export const getTaskStatus = (pipelinerun: PipelineRunKind, pipeline: PipelineKi
     Skipped: skippedTaskLength,
   };
 
-  if (pipelinerun?.status?.taskRuns) {
-    plrTasks.forEach((taskRun) => {
-      const status = pipelineRunFilterReducer(pipelinerun.status.taskRuns[taskRun]);
+  if (pipelinerun?.status?.taskRuns || taskRuns) {
+    plrTasks().forEach((taskRun) => {
+      const status = pipelineRunFilterReducer(
+        taskRuns?.find((tRun) => tRun.metadata.name === taskRun) ||
+          pipelinerun.status.taskRuns[taskRun],
+      );
       if (status === 'Succeeded') {
         taskStatus[ComputedStatus.Succeeded]++;
       } else if (status === 'Running') {
@@ -261,21 +273,30 @@ export const getModelReferenceFromTaskKind = (kind: string): GroupVersionKind =>
   return referenceForModel(model);
 };
 
-export const countRunningTasks = (pipelineRun: PipelineRunKind): number => {
-  const taskStatuses = getTaskStatus(pipelineRun, undefined);
-  return taskStatuses.Running;
+export const countRunningTasks = (
+  pipelineRun: PipelineRunKind,
+  taskRuns: TaskRunKind[],
+): number => {
+  const taskStatuses = taskRuns && getTaskStatus(pipelineRun, undefined, taskRuns);
+  return taskStatuses?.Running;
 };
 
-export const shouldHidePipelineRunStop = (pipelineRun: PipelineRunKind): boolean =>
+export const shouldHidePipelineRunStop = (
+  pipelineRun: PipelineRunKind,
+  taskRuns: TaskRunKind[],
+): boolean =>
   !(
     pipelineRun &&
-    (countRunningTasks(pipelineRun) > 0 ||
+    (countRunningTasks(pipelineRun, taskRuns) > 0 ||
       pipelineRunFilterReducer(pipelineRun) === ComputedStatus.Running)
   );
 
-export const shouldHidePipelineRunCancel = (pipelineRun: PipelineRunKind): boolean =>
+export const shouldHidePipelineRunCancel = (
+  pipelineRun: PipelineRunKind,
+  taskRuns: TaskRunKind[],
+): boolean =>
   !(
     pipelineRun &&
-    countRunningTasks(pipelineRun) > 0 &&
+    countRunningTasks(pipelineRun, taskRuns) > 0 &&
     pipelineRunFilterReducer(pipelineRun) !== ComputedStatus.Cancelled
   );

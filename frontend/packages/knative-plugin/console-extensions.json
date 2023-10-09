@@ -412,6 +412,67 @@
   {
     "type": "console.page/route",
     "properties": {
+      "exact": true,
+      "path": ["/functions/all-namespaces", "/functions/ns/:ns"],
+      "component": {
+        "$codeRef": "overviewComponent.FunctionsPage"
+      }
+    },
+    "flags": {
+      "required": ["KNATIVE_SERVING"]
+    }
+  },
+  {
+    "type": "console.page/route",
+    "properties": {
+      "exact": true,
+      "path": ["/functions"],
+      "component": {
+        "$codeRef": "knativeComponent.NamespaceRedirect"
+      }
+    },
+    "flags": {
+      "required": ["KNATIVE_SERVING"]
+    }
+  },
+  {
+    "type": "console.navigation/href",
+    "properties": {
+      "id": "functions",
+      "perspective": "dev",
+      "section": "resources",
+      "name": "%knative-plugin~Functions%",
+      "href": "/functions",
+      "namespaced": true,
+      "insertBefore": "builds",
+      "dataAttributes": {
+        "data-quickstart-id": "qs-nav-functions",
+        "data-test-id": "functions-details-header"
+      }
+    },
+    "flags": {
+      "required": ["KNATIVE_SERVING", "KNATIVE_SERVING_SERVICE"]
+    }
+  },
+  {
+    "type": "console.page/route",
+    "properties": {
+      "exact": false,
+      "path": ["/functions/ns/:ns/:name"],
+      "model": {
+        "group": "serving.knative.dev",
+        "version": "v1",
+        "kind": "Service"
+      },
+      "component": { "$codeRef": "overviewComponent.FunctionDetailsPage" }
+    },
+    "flags": {
+      "required": ["KNATIVE_SERVING", "KNATIVE_SERVING_SERVICE"]
+    }
+  },
+  {
+    "type": "console.page/route",
+    "properties": {
       "exact": false,
       "path": ["/serving/all-namespaces", "/serving/ns/:ns"],
       "component": {
@@ -675,13 +736,13 @@
       "name": "knative-serving",
       "model": {
         "group": "operator.knative.dev",
-        "version": "v1alpha1",
+        "version": "v1beta1",
         "kind": "KnativeServing"
       },
       "namespace": "knative-serving"
     },
     "flags": {
-      "required": ["KNATIVE_SERVING"]
+      "required": ["KNATIVE_SERVING", "KNATIVE_SERVING_SERVICE"]
     }
   },
   {
@@ -1473,7 +1534,7 @@
     "properties": {
       "model": {
         "group": "serving.knative.dev",
-        "version": "v1alpha1",
+        "version": "v1beta1",
         "kind": "DomainMapping"
       },
       "label": "%knative-plugin~DomainMapping%",

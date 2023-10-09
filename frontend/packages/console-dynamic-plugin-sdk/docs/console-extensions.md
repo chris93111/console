@@ -1,82 +1,82 @@
 # OpenShift Console Extension Types
 
-1.  [`console.action/filter`](#consoleactionfilter)
-2.  [`console.action/group`](#consoleactiongroup)
-3.  [`console.action/provider`](#consoleactionprovider)
-4.  [`console.action/resource-provider`](#consoleactionresource-provider)
-5.  [`console.alert-action`](#consolealert-action)
-6.  [`console.catalog/item-filter`](#consolecatalogitem-filter)
-7.  [`console.catalog/item-metadata`](#consolecatalogitem-metadata)
-8.  [`console.catalog/item-provider`](#consolecatalogitem-provider)
-9.  [`console.catalog/item-type`](#consolecatalogitem-type)
-10.  [`console.catalog/item-type-metadata`](#consolecatalogitem-type-metadata)
-11.  [`console.cluster-overview/inventory-item`](#consolecluster-overviewinventory-item)
-12.  [`console.cluster-overview/multiline-utilization-item`](#consolecluster-overviewmultiline-utilization-item)
-13.  [`console.cluster-overview/utilization-item`](#consolecluster-overviewutilization-item)
-14.  [`console.context-provider`](#consolecontext-provider)
-15.  [`console.dashboards/card`](#consoledashboardscard)
-16.  [`console.dashboards/custom/overview/detail/item`](#consoledashboardscustomoverviewdetailitem)
-17.  [`console.dashboards/overview/activity/resource`](#consoledashboardsoverviewactivityresource)
-18.  [`console.dashboards/overview/health/operator`](#consoledashboardsoverviewhealthoperator)
-19.  [`console.dashboards/overview/health/prometheus`](#consoledashboardsoverviewhealthprometheus)
-20.  [`console.dashboards/overview/health/resource`](#consoledashboardsoverviewhealthresource)
-21.  [`console.dashboards/overview/health/url`](#consoledashboardsoverviewhealthurl)
-22.  [`console.dashboards/overview/inventory/item`](#consoledashboardsoverviewinventoryitem)
-23.  [`console.dashboards/overview/inventory/item/group`](#consoledashboardsoverviewinventoryitemgroup)
-24.  [`console.dashboards/overview/inventory/item/replacement`](#consoledashboardsoverviewinventoryitemreplacement)
-25.  [`console.dashboards/overview/prometheus/activity/resource`](#consoledashboardsoverviewprometheusactivityresource)
-26.  [`console.dashboards/project/overview/item`](#consoledashboardsprojectoverviewitem)
-27.  [`console.dashboards/tab`](#consoledashboardstab)
-28.  [`console.file-upload`](#consolefile-upload)
-29.  [`console.flag`](#consoleflag)
-30.  [`console.flag/hookProvider`](#consoleflaghookProvider)
-31.  [`console.flag/model`](#consoleflagmodel)
-32.  [`console.global-config`](#consoleglobal-config)
-33.  [`console.model-metadata`](#consolemodel-metadata)
-34.  [`console.navigation/href`](#consolenavigationhref)
-35.  [`console.navigation/resource-cluster`](#consolenavigationresource-cluster)
-36.  [`console.navigation/resource-ns`](#consolenavigationresource-ns)
-37.  [`console.navigation/section`](#consolenavigationsection)
-38.  [`console.navigation/separator`](#consolenavigationseparator)
-39.  [`console.page/resource/details`](#consolepageresourcedetails)
-40.  [`console.page/resource/list`](#consolepageresourcelist)
-41.  [`console.page/route`](#consolepageroute)
-42.  [`console.page/route/standalone`](#consolepageroutestandalone)
-43.  [`console.perspective`](#consoleperspective)
-44.  [`console.project-overview/inventory-item`](#consoleproject-overviewinventory-item)
-45.  [`console.project-overview/utilization-item`](#consoleproject-overviewutilization-item)
-46.  [`console.pvc/alert`](#consolepvcalert)
-47.  [`console.pvc/create-prop`](#consolepvccreate-prop)
-48.  [`console.pvc/delete`](#consolepvcdelete)
-49.  [`console.pvc/status`](#consolepvcstatus)
-50.  [`console.redux-reducer`](#consoleredux-reducer)
-51.  [`console.resource/create`](#consoleresourcecreate)
-52.  [`console.storage-class/provisioner`](#consolestorage-classprovisioner)
-53.  [`console.storage-provider`](#consolestorage-provider)
-54.  [`console.tab`](#consoletab)
-55.  [`console.tab/horizontalNav`](#consoletabhorizontalNav)
-56.  [`console.telemetry/listener`](#consoletelemetrylistener)
-57.  [`console.topology/adapter/build`](#consoletopologyadapterbuild)
-58.  [`console.topology/adapter/network`](#consoletopologyadapternetwork)
-59.  [`console.topology/adapter/pod`](#consoletopologyadapterpod)
-60.  [`console.topology/component/factory`](#consoletopologycomponentfactory)
-61.  [`console.topology/create/connector`](#consoletopologycreateconnector)
-62.  [`console.topology/data/factory`](#consoletopologydatafactory)
-63.  [`console.topology/decorator/provider`](#consoletopologydecoratorprovider)
-64.  [`console.topology/details/resource-alert`](#consoletopologydetailsresource-alert)
-65.  [`console.topology/details/resource-link`](#consoletopologydetailsresource-link)
-66.  [`console.topology/details/tab`](#consoletopologydetailstab)
-67.  [`console.topology/details/tab-section`](#consoletopologydetailstab-section)
-68.  [`console.topology/display/filters`](#consoletopologydisplayfilters)
-69.  [`console.topology/relationship/provider`](#consoletopologyrelationshipprovider)
-70.  [`console.user-preference/group`](#consoleuser-preferencegroup)
-71.  [`console.user-preference/item`](#consoleuser-preferenceitem)
-72.  [`console.yaml-template`](#consoleyaml-template)
-73.  [`dev-console.add/action`](#dev-consoleaddaction)
-74.  [`dev-console.add/action-group`](#dev-consoleaddaction-group)
-75.  [`dev-console.import/environment`](#dev-consoleimportenvironment)
-76. [DEPRECATED] [`console.dashboards/overview/detail/item`](#consoledashboardsoverviewdetailitem)
-77. [DEPRECATED] [`console.page/resource/tab`](#consolepageresourcetab)
+1.  [console.action/filter](#consoleactionfilter)
+2.  [console.action/group](#consoleactiongroup)
+3.  [console.action/provider](#consoleactionprovider)
+4.  [console.action/resource-provider](#consoleactionresource-provider)
+5.  [console.alert-action](#consolealert-action)
+6.  [console.catalog/item-filter](#consolecatalogitem-filter)
+7.  [console.catalog/item-metadata](#consolecatalogitem-metadata)
+8.  [console.catalog/item-provider](#consolecatalogitem-provider)
+9.  [console.catalog/item-type](#consolecatalogitem-type)
+10.  [console.catalog/item-type-metadata](#consolecatalogitem-type-metadata)
+11.  [console.cluster-overview/inventory-item](#consolecluster-overviewinventory-item)
+12.  [console.cluster-overview/multiline-utilization-item](#consolecluster-overviewmultiline-utilization-item)
+13.  [console.cluster-overview/utilization-item](#consolecluster-overviewutilization-item)
+14.  [console.context-provider](#consolecontext-provider)
+15.  [console.dashboards/card](#consoledashboardscard)
+16.  [console.dashboards/custom/overview/detail/item](#consoledashboardscustomoverviewdetailitem)
+17.  [console.dashboards/overview/activity/resource](#consoledashboardsoverviewactivityresource)
+18.  [console.dashboards/overview/health/operator](#consoledashboardsoverviewhealthoperator)
+19.  [console.dashboards/overview/health/prometheus](#consoledashboardsoverviewhealthprometheus)
+20.  [console.dashboards/overview/health/resource](#consoledashboardsoverviewhealthresource)
+21.  [console.dashboards/overview/health/url](#consoledashboardsoverviewhealthurl)
+22.  [console.dashboards/overview/inventory/item](#consoledashboardsoverviewinventoryitem)
+23.  [console.dashboards/overview/inventory/item/group](#consoledashboardsoverviewinventoryitemgroup)
+24.  [console.dashboards/overview/inventory/item/replacement](#consoledashboardsoverviewinventoryitemreplacement)
+25.  [console.dashboards/overview/prometheus/activity/resource](#consoledashboardsoverviewprometheusactivityresource)
+26.  [console.dashboards/project/overview/item](#consoledashboardsprojectoverviewitem)
+27.  [console.dashboards/tab](#consoledashboardstab)
+28.  [console.file-upload](#consolefile-upload)
+29.  [console.flag](#consoleflag)
+30.  [console.flag/hookProvider](#consoleflaghookProvider)
+31.  [console.flag/model](#consoleflagmodel)
+32.  [console.global-config](#consoleglobal-config)
+33.  [console.model-metadata](#consolemodel-metadata)
+34.  [console.navigation/href](#consolenavigationhref)
+35.  [console.navigation/resource-cluster](#consolenavigationresource-cluster)
+36.  [console.navigation/resource-ns](#consolenavigationresource-ns)
+37.  [console.navigation/section](#consolenavigationsection)
+38.  [console.navigation/separator](#consolenavigationseparator)
+39.  [console.page/resource/details](#consolepageresourcedetails)
+40.  [console.page/resource/list](#consolepageresourcelist)
+41.  [console.page/route](#consolepageroute)
+42.  [console.page/route/standalone](#consolepageroutestandalone)
+43.  [console.perspective](#consoleperspective)
+44.  [console.project-overview/inventory-item](#consoleproject-overviewinventory-item)
+45.  [console.project-overview/utilization-item](#consoleproject-overviewutilization-item)
+46.  [console.pvc/alert](#consolepvcalert)
+47.  [console.pvc/create-prop](#consolepvccreate-prop)
+48.  [console.pvc/delete](#consolepvcdelete)
+49.  [console.pvc/status](#consolepvcstatus)
+50.  [console.redux-reducer](#consoleredux-reducer)
+51.  [console.resource/create](#consoleresourcecreate)
+52.  [console.storage-class/provisioner](#consolestorage-classprovisioner)
+53.  [console.storage-provider](#consolestorage-provider)
+54.  [console.tab](#consoletab)
+55.  [console.tab/horizontalNav](#consoletabhorizontalNav)
+56.  [console.telemetry/listener](#consoletelemetrylistener)
+57.  [console.topology/adapter/build](#consoletopologyadapterbuild)
+58.  [console.topology/adapter/network](#consoletopologyadapternetwork)
+59.  [console.topology/adapter/pod](#consoletopologyadapterpod)
+60.  [console.topology/component/factory](#consoletopologycomponentfactory)
+61.  [console.topology/create/connector](#consoletopologycreateconnector)
+62.  [console.topology/data/factory](#consoletopologydatafactory)
+63.  [console.topology/decorator/provider](#consoletopologydecoratorprovider)
+64.  [console.topology/details/resource-alert](#consoletopologydetailsresource-alert)
+65.  [console.topology/details/resource-link](#consoletopologydetailsresource-link)
+66.  [console.topology/details/tab](#consoletopologydetailstab)
+67.  [console.topology/details/tab-section](#consoletopologydetailstab-section)
+68.  [console.topology/display/filters](#consoletopologydisplayfilters)
+69.  [console.topology/relationship/provider](#consoletopologyrelationshipprovider)
+70.  [console.user-preference/group](#consoleuser-preferencegroup)
+71.  [console.user-preference/item](#consoleuser-preferenceitem)
+72.  [console.yaml-template](#consoleyaml-template)
+73.  [dev-console.add/action](#dev-consoleaddaction)
+74.  [dev-console.add/action-group](#dev-consoleaddaction-group)
+75.  [dev-console.import/environment](#dev-consoleimportenvironment)
+76. [DEPRECATED] [console.dashboards/overview/detail/item](#consoledashboardsoverviewdetailitem)
+77. [DEPRECATED] [console.page/resource/tab](#consolepageresourcetab)
 
 ---
 
@@ -768,13 +768,13 @@ Adds new resource list page to Console router.
 
 ### Summary 
 
-Adds new page to Console router.<br/><br/>Under the hood we use React Router.<br/>See https://v5.reactrouter.com/
+Adds new page to Console router.<br/><br/>Under the hood we use React Router.<br/>See https://v5.reactrouter.com/<br/><br/>Note: This extension should not be used for resource list and details page. For adding both list and details page for a resource use the<br/>[console.navigation/resource-ns](#consolenavigationresource-ns) extension, instead, which renders elementary fields.
 
 ### Properties
 
 | Name | Value Type | Optional | Description |
 | ---- | ---------- | -------- | ----------- |
-| `component` | `CodeRef<React.ComponentType<RouteComponentProps<{}, StaticContext, any>>>` | no | The component to be rendered when the route matches. |
+| `component` | `CodeRef<React.ComponentType<RouteComponentProps<{}, StaticContext, unknown>>>` | no | The component to be rendered when the route matches. |
 | `path` | `string \| string[]` | no | Valid URL path or array of paths that `path-to-regexp@^1.7.0` understands. |
 | `perspective` | `string` | yes | The perspective to which this page belongs to. If not specified, contributes to all perspectives. |
 | `exact` | `boolean` | yes | When true, will only match if the path matches the `location.pathname` exactly. |
@@ -791,7 +791,7 @@ Adds new standalone page (rendered outside the common page layout) to Console ro
 
 | Name | Value Type | Optional | Description |
 | ---- | ---------- | -------- | ----------- |
-| `component` | `CodeRef<React.ComponentType<RouteComponentProps<{}, StaticContext, any>>>` | no | The component to be rendered when the route matches. |
+| `component` | `CodeRef<React.ComponentType<RouteComponentProps<{}, StaticContext, unknown>>>` | no | The component to be rendered when the route matches. |
 | `path` | `string \| string[]` | no | Valid URL path or array of paths that `path-to-regexp@^1.7.0` understands. |
 | `exact` | `boolean` | yes | When true, will only match if the path matches the `location.pathname` exactly. |
 
@@ -969,7 +969,7 @@ This extension can be used to contribute a new storage provider to select,<br/>w
 | Name | Value Type | Optional | Description |
 | ---- | ---------- | -------- | ----------- |
 | `name` | `string` | no | Displayed name of the provider. |
-| `Component` | `CodeRef<React.ComponentType<Partial<RouteComponentProps<{}, StaticContext, any>>>>` | no | Provider specific component to render. |
+| `Component` | `CodeRef<React.ComponentType<Partial<RouteComponentProps<{}, StaticContext, unknown>>>>` | no | Provider specific component to render. |
 
 ---
 
@@ -1024,13 +1024,13 @@ This component can be used to register a listener function receiving telemetry e
 
 ### Summary 
 
-BuildAdapter contributes an adapter to adapt element to data that can be used by Pod component
+BuildAdapter contributes an adapter to adapt element to data that can be used by Build component
 
 ### Properties
 
 | Name | Value Type | Optional | Description |
 | ---- | ---------- | -------- | ----------- |
-| `adapt` | `CodeRef<(element: GraphElement) => AdapterDataType<BuildConfigData> \| undefined>` | no | adapter to adapt element to data that can be used by Networking component. |
+| `adapt` | `CodeRef<(element: GraphElement) => AdapterDataType<BuildConfigData> \| undefined>` | no | adapter to adapt element to data that can be used by Build component. |
 
 ---
 
@@ -1357,7 +1357,7 @@ This extension can be used to specify extra build environment variable fields un
 | Name | Value Type | Optional | Description |
 | ---- | ---------- | -------- | ----------- |
 | `model` | `ExtensionK8sGroupKindModel` | no | The model for which this resource page links to. |
-| `component` | `CodeRef<React.ComponentType<RouteComponentProps<{}, StaticContext, any>>>` | no | The component to be rendered when the route matches. |
+| `component` | `CodeRef<React.ComponentType<RouteComponentProps<{}, StaticContext, unknown>>>` | no | The component to be rendered when the route matches. |
 | `name` | `string` | no | The name of the tab. |
 | `href` | `string` | yes | The optional href for the tab link. If not provided, the first `path` is used. |
 | `exact` | `boolean` | yes | When true, will only match if the path matches the `location.pathname` exactly. |

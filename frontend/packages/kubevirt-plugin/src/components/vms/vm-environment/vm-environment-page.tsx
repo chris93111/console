@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import * as React from 'react';
 import * as _ from 'lodash';
 import { useTranslation } from 'react-i18next';
@@ -25,7 +26,7 @@ import {
   ServiceAccountKind,
   TemplateKind,
 } from '@console/internal/module/k8s';
-import { useActiveNamespace } from '@console/shared/src';
+import { useActiveNamespace } from '@console/shared/src/hooks/useActiveNamespace';
 import { PatchBuilder } from '@console/shared/src/k8s/patch';
 import { getVMLikePatches } from '../../../k8s/patches/vm-template';
 import { VMWrapper } from '../../../k8s/wrapper/vm/vm-wrapper';

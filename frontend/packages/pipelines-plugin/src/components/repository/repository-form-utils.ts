@@ -4,20 +4,23 @@ import { Base64 } from 'js-base64';
 import * as _ from 'lodash';
 import * as yup from 'yup';
 import { gitUrlRegex } from '@console/dev-console/src/components/import/validation-schema';
+import { bitBucketUserNameRegex } from '@console/dev-console/src/utils/yup-validation-util';
 import {
   k8sCreateResource,
   k8sGetResource,
   k8sListResourceItems,
   k8sPatchResource,
 } from '@console/dynamic-plugin-sdk/src/utils/k8s';
-import { GitProvider } from '@console/git-service/src';
+import { getGitService, GitProvider } from '@console/git-service/src';
 import { SecretType } from '@console/internal/components/secrets/create-secret';
 import { ConfigMapModel, SecretModel } from '@console/internal/models';
 import { ConfigMapKind, SecretKind, K8sResourceKind } from '@console/internal/module/k8s';
 import { nameRegex } from '@console/shared/src';
 import { RepositoryModel } from '../../models';
+import { PipelineType } from '../import/import-types';
 import { PAC_TEMPLATE_DEFAULT } from '../pac/const';
 import { PIPELINERUN_TEMPLATE_NAMESPACE } from '../pipelines/const';
+import { RepositoryRuntimes, gitProviderTypesHosts } from './consts';
 import { RepositoryFormValues } from './types';
 
 export const dryRunOpt = { dryRun: 'All' };
@@ -38,105 +41,77 @@ export const repositoryValidationSchema = (t: TFunction) =>
       .matches(gitUrlRegex, t('pipelines-plugin~Invalid Git URL.'))
       .required(t('pipelines-plugin~Required')),
     accessToken: yup.string(),
+    webhook: yup
+      .object()
+      .when('gitProvider', {
+        is: GitProvider.BITBUCKET,
+        then: yup.object().shape({
+          user: yup
+            .string()
+            .matches(bitBucketUserNameRegex, {
+              message: t(
+                'pipelines-plugin~Name must consist of lower-case letters, numbers, underscores and hyphens. It must start with a letter and end with a letter or number.',
+              ),
+              excludeEmptyString: true,
+            })
+            .required(t('pipelines-plugin~Required')),
+        }),
+      })
+      .when(['method', 'gitProvider', 'gitUrl'], {
+        is: (method, gitProvider, gitUrl) =>
+          gitUrl && !(gitProvider === GitProvider.GITHUB && method === GitProvider.GITHUB),
+        then: yup.object().shape({
+          token: yup.string().test('oneOfRequired', 'Required', function () {
+            return this.parent.token || this.parent.secretRef;
+          }),
+          secretRef: yup.string().test('oneOfRequired', 'Required', function () {
+            return this.parent.token || this.parent.secretRef;
+          }),
+        }),
+      }),
   });
 
-const createTokenSecret = async (
-  repositoryName: string,
-  token: string,
-  namespace: string,
-  webhookSecret?: string,
-  dryRun?: boolean,
-) => {
-  const data: SecretKind = {
-    apiVersion: SecretModel.apiVersion,
-    kind: SecretModel.kind,
-    metadata: {
-      generateName: `${repositoryName}-token-`,
-      namespace,
-    },
-    type: SecretType.opaque,
-    stringData: {
-      'provider.token': token,
-      ...(webhookSecret && { 'webhook.secret': webhookSecret }),
-    },
-  };
-
-  return k8sCreateResource({
-    model: SecretModel,
-    data,
-    ns: namespace,
-    queryParams: dryRun ? dryRunOpt : {},
-  });
-};
-
-export const createRepositoryResources = async (
-  values: RepositoryFormValues,
-  namespace: string,
-  dryRun?: boolean,
-): Promise<K8sResourceKind> => {
-  const {
-    name,
-    gitUrl,
-    webhook: { secretObj, method, token, secret: webhookSecret },
-  } = values;
-  const encodedSecret = Base64.encode(webhookSecret);
-  let secret: SecretKind;
-  if (token && method === 'token') {
-    secret = await createTokenSecret(name, token, namespace, webhookSecret, dryRun);
-  } else if (
-    method === 'secret' &&
-    secretObj &&
-    secretObj?.data?.['webhook.secret'] !== encodedSecret
-  ) {
-    await k8sPatchResource({
-      model: SecretModel,
-      resource: secretObj,
-      data: [{ op: 'replace', path: `/data/webhook.secret`, value: Base64.encode(webhookSecret) }],
-    });
-  }
-  const gitHost = GitUrlParse(gitUrl).source;
-  const secretRef = secret || secretObj;
-  const data = {
-    kind: RepositoryModel.kind,
-    apiVersion: 'pipelinesascode.tekton.dev/v1alpha1',
-    metadata: {
-      name,
-      namespace,
-    },
-    spec: {
-      url: gitUrl,
-      ...(secretRef || gitHost !== 'github.com'
-        ? {
-            // eslint-disable-next-line @typescript-eslint/camelcase
-            git_provider: {
-              ...(gitHost !== 'github.com' ? { url: gitHost } : {}),
-              ...(secretRef
-                ? {
-                    secret: {
-                      name: secretRef?.metadata?.name,
-                      key: 'provider.token',
-                    },
-                    // eslint-disable-next-line @typescript-eslint/camelcase
-                    webhook_secret: {
-                      name: secretRef?.metadata?.name,
-                      key: 'webhook.secret',
-                    },
-                  }
-                : {}),
-            },
-          }
-        : {}),
-    },
-  };
-
-  const resource = await k8sCreateResource({
-    model: RepositoryModel,
-    data,
-    ns: namespace,
-    queryParams: dryRun ? dryRunOpt : {},
+export const pipelinesAccessTokenValidationSchema = (t: TFunction) =>
+  yup.object().shape({
+    webhook: yup
+      .object()
+      .when('gitProvider', {
+        is: GitProvider.BITBUCKET,
+        then: yup.object().shape({
+          user: yup
+            .string()
+            .matches(nameRegex, {
+              message: t(
+                'pipelines-plugin~Name must consist of lower-case letters, numbers and hyphens. It must start with a letter and end with a letter or number.',
+              ),
+              excludeEmptyString: true,
+            })
+            .required(t('pipelines-plugin~Required')),
+        }),
+      })
+      .when(['method', 'gitProvider', 'gitUrl'], {
+        is: (method, gitProvider, gitUrl) =>
+          gitUrl &&
+          gitProvider &&
+          !(gitProvider === GitProvider.GITHUB && method === GitProvider.GITHUB),
+        then: yup.object().shape({
+          token: yup.string().test('oneOfRequired', 'Required', function () {
+            return this.parent.token || this.parent.secretRef;
+          }),
+          secretRef: yup.string().test('oneOfRequired', 'Required', function () {
+            return this.parent.token || this.parent.secretRef;
+          }),
+        }),
+      }),
   });
 
-  return resource;
+export const importFlowRepositoryValidationSchema = (t: TFunction) => {
+  return yup.object().shape({
+    repository: yup.object().when(['pipelineType', 'pipelineEnabled'], {
+      is: (pipelineType, pipelineEnabled) => pipelineType === PipelineType.PAC && pipelineEnabled,
+      then: pipelinesAccessTokenValidationSchema(t),
+    }),
+  });
 };
 
 const hasDomain = (url: string, domain: string): boolean => {
@@ -165,6 +140,163 @@ export const detectGitType = (url: string): GitProvider => {
   return GitProvider.UNSURE;
 };
 
+const createTokenSecret = async (
+  repositoryName: string,
+  user: string,
+  token: string,
+  namespace: string,
+  detectedGitType: GitProvider,
+  webhookSecret?: string,
+  dryRun?: boolean,
+) => {
+  const data: SecretKind = {
+    apiVersion: SecretModel.apiVersion,
+    kind: SecretModel.kind,
+    metadata: {
+      generateName: `${repositoryName}-token-`,
+      namespace,
+    },
+    type: SecretType.opaque,
+    stringData: {
+      'provider.token': token,
+      ...(webhookSecret && { 'webhook.secret': webhookSecret }),
+      ...(detectedGitType === GitProvider.BITBUCKET && {
+        'webhook.auth': Base64.encode(`${user}:${token}`),
+      }),
+    },
+  };
+
+  return k8sCreateResource({
+    model: SecretModel,
+    data,
+    ns: namespace,
+    queryParams: dryRun ? dryRunOpt : {},
+  });
+};
+
+export const createRepositoryResources = async (
+  values: RepositoryFormValues,
+  namespace: string,
+  labels: { [key: string]: string } = {},
+  dryRun?: boolean,
+): Promise<K8sResourceKind> => {
+  const {
+    name,
+    gitUrl,
+    webhook: { secretObj, method, token, secret: webhookSecret, user },
+  } = values;
+  const encodedSecret = Base64.encode(webhookSecret);
+  const detectedGitType = detectGitType(gitUrl);
+  let secret: SecretKind;
+  if (token && method === 'token') {
+    secret = await createTokenSecret(
+      name,
+      user,
+      token,
+      namespace,
+      detectedGitType,
+      webhookSecret,
+      dryRun,
+    );
+  } else if (
+    method === 'secret' &&
+    secretObj &&
+    secretObj?.data?.['webhook.secret'] !== encodedSecret
+  ) {
+    await k8sPatchResource({
+      model: SecretModel,
+      resource: secretObj,
+      data: [{ op: 'replace', path: `/data/webhook.secret`, value: Base64.encode(webhookSecret) }],
+    });
+  }
+  const gitHost = GitUrlParse(gitUrl).source;
+  const secretRef = secret || secretObj;
+  const data = {
+    kind: RepositoryModel.kind,
+    apiVersion: 'pipelinesascode.tekton.dev/v1alpha1',
+    metadata: {
+      name,
+      namespace,
+      ...(labels || {}),
+    },
+    spec: {
+      url: gitUrl,
+      ...(secretRef || gitHost !== 'github.com'
+        ? {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            git_provider: {
+              ...(!gitProviderTypesHosts.includes(gitHost) ? { url: gitHost } : {}),
+              ...(gitHost === 'bitbucket.org'
+                ? {
+                    user,
+                  }
+                : {}),
+              ...(secretRef
+                ? {
+                    secret: {
+                      name: secretRef?.metadata?.name,
+                      key: 'provider.token',
+                    },
+                    // eslint-disable-next-line @typescript-eslint/naming-convention
+                    webhook_secret: {
+                      name: secretRef?.metadata?.name,
+                      key: 'webhook.secret',
+                    },
+                  }
+                : {}),
+            },
+          }
+        : {}),
+    },
+  };
+
+  const resource = await k8sCreateResource({
+    model: RepositoryModel,
+    data,
+    ns: namespace,
+    queryParams: dryRun ? dryRunOpt : {},
+  });
+
+  return resource;
+};
+
+export const createRemoteWebhook = async (
+  values: RepositoryFormValues,
+  pac: ConfigMapKind,
+  loaded: boolean,
+): Promise<boolean> => {
+  const {
+    gitUrl,
+    webhook: { method, token, secret: webhookSecret, url: webhookURL, secretObj, user },
+  } = values;
+  const detectedGitType = detectGitType(gitUrl);
+  const gitService = getGitService(gitUrl, detectedGitType);
+
+  let sslVerification = true;
+  if (loaded && pac?.data?.['webhook-ssl-verification'] === 'false') {
+    sslVerification = false;
+  }
+
+  let authToken: string;
+  if (detectedGitType === GitProvider.BITBUCKET) {
+    authToken =
+      method === 'token'
+        ? Base64.encode(`${user}:${token}`)
+        : Base64.decode(secretObj?.data?.['webhook.auth']);
+  } else {
+    authToken = method === 'token' ? token : Base64.decode(secretObj?.data?.['provider.token']);
+  }
+
+  const webhookCreationStatus = await gitService.createRepoWebhook(
+    authToken,
+    webhookURL,
+    sslVerification,
+    webhookSecret,
+  );
+
+  return webhookCreationStatus;
+};
+
 export const createRepositoryName = (nameString: string): string => {
   if (nameRegex.test(nameString)) {
     return `git-${nameString}`;
@@ -176,10 +308,7 @@ export const recommendRepositoryName = (url: string): string | undefined => {
   if (!gitUrlRegex.test(url)) {
     return undefined;
   }
-  const name = url
-    .replace(/\/$/, '')
-    .split('/')
-    .pop();
+  const name = url.replace(/\/$/, '').split('/').pop();
   return createRepositoryName(name);
 };
 
@@ -194,11 +323,11 @@ metadata:
 
     # The branch or tag we are targeting (ie: main, refs/tags/*)
     pipelinesascode.tekton.dev/on-target-branch: "main"
-    
+
     # Fetch the git-clone task from hub, we are able to reference later on it
     # with taskRef and it will automatically be embedded into our pipeline.
     pipelinesascode.tekton.dev/task: "git-clone"
-    
+
     # You can add more tasks in here to reuse, browse the one you like from here
     # https://hub.tekton.dev/
     # example:
@@ -235,7 +364,7 @@ spec:
             value: $(params.repo_url)
           - name: revision
             value: $(params.revision)
-  
+
       # Customize this task if you like, or just do a taskRef
       # to one of the hub task.
       - name: noop-task
@@ -298,7 +427,7 @@ export const getPipelineRunTemplate = async (
         ns: PIPELINERUN_TEMPLATE_NAMESPACE,
         labelSelector: {
           matchLabels: {
-            'pipelinesascode.openshift.io/runtime': runtime,
+            'pipelinesascode.openshift.io/runtime': RepositoryRuntimes[runtime] || runtime,
           },
         },
       },

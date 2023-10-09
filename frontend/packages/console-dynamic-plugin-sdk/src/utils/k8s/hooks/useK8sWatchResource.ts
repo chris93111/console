@@ -1,6 +1,7 @@
+// TODO remove multicluster
 import * as React from 'react';
 import { Map as ImmutableMap } from 'immutable';
-// eslint-disable-next-line @typescript-eslint/ban-ts-ignore
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: FIXME missing exports due to out-of-sync @types/react-redux version
 import { useSelector, useDispatch } from 'react-redux';
 import { getActiveCluster } from '../../../app/core/reducers/coreSelectors';
@@ -14,8 +15,8 @@ import { useK8sModel } from './useK8sModel';
 import { useModelsLoaded } from './useModelsLoaded';
 
 /**
- * Hook that retrieves the k8s resource along with status for loaded and error.
- * @param initResource options needed to watch for resource.
+ * Hook that retrieves the Kubernetes resource along with their respective status for loaded and error.
+ * @param initResource resources need to be watched as key-value pair, wherein key will be unique to resource and value will be options needed to watch for the respective resource.
  * @returns An array with first item as resource(s), second item as loaded status and third item as error state if any.
  * @example
  * ```ts
@@ -28,6 +29,7 @@ import { useModelsLoaded } from './useModelsLoaded';
  * }
  * ```
  */
+// TODO remove multicluster
 export const useK8sWatchResource: UseK8sWatchResource = (initResource) => {
   const cluster = useSelector((state) => getActiveCluster(state));
   const resource = useDeepCompareMemoize(initResource, true);

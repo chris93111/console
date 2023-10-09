@@ -1,8 +1,8 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import * as React from 'react';
 import * as _ from 'lodash-es';
 import * as classNames from 'classnames';
 import * as semver from 'semver';
-import { Helmet } from 'react-helmet';
 import {
   Alert,
   AlertActionLink,
@@ -122,6 +122,7 @@ import {
   useCanClusterUpgrade,
   YellowExclamationTriangleIcon,
 } from '@console/shared';
+import { PageTitleContext } from '@console/shared/src/components/pagetitle/PageTitleContext';
 import { useFlag } from '@console/shared/src/hooks/flag';
 import { FLAGS } from '@console/shared/src/constants';
 
@@ -689,24 +690,15 @@ export const NodesUpdatesGroup: React.FC<NodesUpdatesGroupProps> = ({
             )}
           </UpdatesType>
           <UpdatesBar>
-            {!isMaster && isPaused && !isUpdated ? (
-              <p>
-                <PauseCircleIcon />{' '}
-                {/* TODO:  change second sentence to 'Must resume before MM/DD/YY.'
-                once https://issues.redhat.com/browse/MCO-77 is complete */}
-                {t('public~Update is paused. Resume update as soon as possible.')}
-              </p>
-            ) : (
-              <Progress
-                title={t('public~{{updatedMCPNodes}} of {{totalMCPNodes}}', {
-                  updatedMCPNodes,
-                  totalMCPNodes,
-                })}
-                value={!_.isNaN(percentMCPNodes) ? percentMCPNodes : null}
-                size={ProgressSize.sm}
-                variant={percentMCPNodes === 100 ? ProgressVariant.success : null}
-              />
-            )}
+            <Progress
+              title={t('public~{{updatedMCPNodes}} of {{totalMCPNodes}}', {
+                updatedMCPNodes,
+                totalMCPNodes,
+              })}
+              value={!_.isNaN(percentMCPNodes) ? percentMCPNodes : null}
+              size={ProgressSize.sm}
+              variant={percentMCPNodes === 100 ? ProgressVariant.success : null}
+            />
           </UpdatesBar>
           {!isMaster && !isUpdated && machineConfigPoolIsEditable && (
             <Button
@@ -1028,14 +1020,7 @@ export const MachineConfigPoolsArePausedAlert: React.FC<MachineConfigPoolsArePau
       }
       className="co-alert"
       data-test-id="cluster-settings-alerts-paused-nodes"
-    >
-      <p>
-        {t(
-          'public~You can update your cluster, but make sure to resume your {{resource}} updates quickly to avoid failures.',
-          { resource: NodeModel.label },
-        )}
-      </p>
-    </Alert>
+    />
   ) : null;
 };
 
@@ -1353,30 +1338,34 @@ export const ClusterSettingsPage: React.FC<ClusterSettingsPageProps> = ({ match 
   const pages = [
     {
       href: '',
-      name: t('public~Details'),
+      // t('public~Details')
+      nameKey: 'public~Details',
       component: ClusterVersionDetailsTable,
     },
     {
       href: 'clusteroperators',
-      name: t(ClusterOperatorModel.labelPluralKey),
+      // t(ClusterOperatorModel.labelPluralKey)
+      nameKey: ClusterOperatorModel.labelPluralKey,
       component: ClusterOperatorTabPage,
     },
     {
       href: 'globalconfig',
-      name: t('public~Configuration'),
+      // t('public~Configuration')
+      nameKey: 'public~Configuration',
       component: GlobalConfigPage,
     },
   ];
+  const titleProviderValues = {
+    telemetryPrefix: 'Cluster Settings',
+    titlePrefix: title,
+  };
   return (
-    <>
-      <Helmet>
-        <title>{title}</title>
-      </Helmet>
+    <PageTitleContext.Provider value={titleProviderValues}>
       <PageHeading title={<div data-test-id="cluster-settings-page-heading">{title}</div>} />
       <Firehose resources={resources}>
         <HorizontalNav pages={pages} match={match} resourceKeys={resourceKeys} />
       </Firehose>
-    </>
+    </PageTitleContext.Provider>
   );
 };
 

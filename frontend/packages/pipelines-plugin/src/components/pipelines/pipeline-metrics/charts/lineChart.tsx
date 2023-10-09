@@ -13,6 +13,8 @@ import {
 import * as _ from 'lodash';
 import { DEFAULT_CHART_HEIGHT } from '../../const';
 
+import './lineChart.scss';
+
 type LineChartProps = {
   tickValues?: string[];
   hiddenSeries?: Set<number>;
@@ -31,17 +33,16 @@ export const LineChart: React.FC<LineChartProps> = ({
   hiddenSeries,
   yTickFormatter,
   legendComponent,
-  legendPosition,
   events,
   tickValues,
 }) => {
   const domain = { x: undefined, y: undefined };
   const yTickFormat = yTickFormatter || null;
   const filteredData = _.filter(data, (values) => !!values);
-  const findMin = (series) => _.minBy(series, 'y');
-  const findMax = (series) => _.maxBy(series, 'y');
-  let minY: number = findMin(filteredData.map(findMin))?.['y'] ?? 0;
-  let maxY: number = findMax(filteredData.map(findMax))?.['y'] ?? 0;
+  const findMin = (series) => _.minBy(series, 'y') as any;
+  const findMax = (series) => _.maxBy(series, 'y') as any;
+  let minY: number = findMin(filteredData.map(findMin))?.y ?? 0;
+  let maxY: number = findMax(filteredData.map(findMax))?.y ?? 0;
   if (minY === 0 && maxY === 0) {
     minY = -1;
     maxY = 1;
@@ -72,8 +73,6 @@ export const LineChart: React.FC<LineChartProps> = ({
       height={height || DEFAULT_CHART_HEIGHT}
       domain={domain}
       events={events}
-      legendComponent={legendComponent}
-      legendPosition={legendPosition}
       domainPadding={{ x: 10, y: 10 }}
       padding={{
         bottom: 80,
@@ -118,6 +117,7 @@ export const LineChart: React.FC<LineChartProps> = ({
           />
         ))}
       </ChartGroup>
+      {legendComponent}
     </Chart>
   );
 

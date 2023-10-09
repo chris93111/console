@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import * as _ from 'lodash-es';
 import * as React from 'react';
 import { render } from 'react-dom';
@@ -5,10 +6,11 @@ import { Helmet } from 'react-helmet';
 import { linkify } from 'react-linkify';
 import { Provider, useSelector } from 'react-redux';
 import { Route, Router, Switch } from 'react-router-dom';
+import { CompatRouter } from 'react-router-dom-v5-compat';
 // AbortController is not supported in some older browser versions
 import 'abort-controller/polyfill';
 import store, { applyReduxExtensions } from '../redux';
-import { withTranslation, useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { coFetchJSON, appInternalFetch } from '../co-fetch';
 
 import { detectFeatures } from '../actions/features';
@@ -23,10 +25,10 @@ import { fetchSwagger, getCachedResources } from '../module/k8s';
 import { receivedResources, startAPIDiscovery } from '../actions/k8s';
 import { pluginStore } from '../plugins';
 // cloud shell imports must come later than features
-import CloudShell from '@console/app/src/components/cloud-shell/CloudShell';
-import CloudShellTab from '@console/app/src/components/cloud-shell/CloudShellTab';
+import CloudShell from '@console/webterminal-plugin/src/components/cloud-shell/CloudShell';
+import CloudShellTab from '@console/webterminal-plugin/src/components/cloud-shell/CloudShellTab';
 import DetectPerspective from '@console/app/src/components/detect-perspective/DetectPerspective';
-import DetectCluster from '@console/app/src/components/detect-cluster/DetectCluster';
+import DetectCluster from '@console/app/src/components/detect-cluster/DetectCluster'; // TODO remove multicluster
 import DetectNamespace from '@console/app/src/components/detect-namespace/DetectNamespace';
 import DetectLanguage from '@console/app/src/components/detect-language/DetectLanguage';
 import FeatureFlagExtensionLoader from '@console/app/src/components/flags/FeatureFlagExtensionLoader';
@@ -38,6 +40,7 @@ import {
   isStandaloneRoutePage,
   AppInitSDK,
   getUser,
+  useActivePerspective,
 } from '@console/dynamic-plugin-sdk';
 import { initConsolePlugins } from '@console/dynamic-plugin-sdk/src/runtime/plugin-init';
 import { GuidedTour } from '@console/app/src/components/tour';
@@ -48,10 +51,12 @@ import ToastProvider from '@console/shared/src/components/toast/ToastProvider';
 import { useToast } from '@console/shared/src/components/toast';
 import { useTelemetry } from '@console/shared/src/hooks/useTelemetry';
 import { useDebounceCallback } from '@console/shared/src/hooks/debounce';
+import { LOGIN_ERROR_PATH } from '@console/internal/module/auth';
 import { URL_POLL_DEFAULT_DELAY } from '@console/internal/components/utils/url-poll-hook';
 import { ThemeProvider } from './ThemeProvider';
 import { init as initI18n } from '../i18n';
 import { Page, SkipToContent, AlertVariant } from '@patternfly/react-core'; // PF4 Imports
+import { AuthenticationErrorPage } from './error';
 import '../vendor.scss';
 import '../style.scss';
 import '@patternfly/quickstarts/dist/quickstarts.min.css';
@@ -63,7 +68,7 @@ const PF_BREAKPOINT_XL = 1200;
 const NOTIFICATION_DRAWER_BREAKPOINT = 1800;
 // Edge lacks URLSearchParams
 import 'url-search-params-polyfill';
-import { withoutSensitiveInformations } from './utils/telemetry';
+import { withoutSensitiveInformations, getTelemetryTitle } from './utils/telemetry';
 import { graphQLReady } from '../graphql/client';
 
 initI18n();
@@ -77,37 +82,57 @@ const EnhancedProvider = ({ provider: ContextProvider, useValueHook, children })
   return <ContextProvider value={value}>{children}</ContextProvider>;
 };
 
-class App_ extends React.PureComponent {
-  constructor(props) {
-    super(props);
+const App = (props) => {
+  const { contextProviderExtensions } = props;
 
-    this._onNavToggle = this._onNavToggle.bind(this);
-    this._onNavSelect = this._onNavSelect.bind(this);
-    this._onNotificationDrawerToggle = this._onNotificationDrawerToggle.bind(this);
-    this._isDesktop = this._isDesktop.bind(this);
-    this._isMobile = this._isMobile.bind(this);
-    this._onResize = this._onResize.bind(this);
-    this.previousDesktopState = this._isDesktop();
-    this.previousMobileState = this._isMobile();
-    this.previousDrawerInlineState = this._isLargeLayout();
+  const isLargeLayout = () => {
+    return window.innerWidth >= NOTIFICATION_DRAWER_BREAKPOINT;
+  };
 
-    this.state = {
-      isMastheadStacked: this._isMobile(),
-      isNavOpen: this._isDesktop(),
-      isDrawerInline: this._isLargeLayout(),
+  const isDesktop = () => {
+    return window.innerWidth >= PF_BREAKPOINT_XL;
+  };
+
+  const isMobile = () => {
+    return window.innerWidth < PF_BREAKPOINT_MD;
+  };
+
+  const [prevProps, setPrevProps] = React.useState(props);
+
+  const [isMastheadStacked, setIsMastheadStacked] = React.useState(isMobile());
+  const [isNavOpen, setIsNavOpen] = React.useState(isDesktop());
+  const [isDrawerInline, setIsDrawerInline] = React.useState(isLargeLayout());
+
+  const previousDesktopState = React.useRef(isDesktop());
+  const previousMobileState = React.useRef(isMobile());
+  const previousDrawerInlineState = React.useRef(isLargeLayout());
+
+  const onResize = React.useCallback(() => {
+    const desktop = isDesktop();
+    const mobile = isMobile();
+    const drawerInline = isLargeLayout();
+    if (previousDesktopState.current !== desktop) {
+      setIsNavOpen(desktop);
+      previousDesktopState.current = desktop;
+    }
+    if (previousMobileState.current !== mobile) {
+      setIsMastheadStacked(mobile);
+      previousMobileState.current = mobile;
+    }
+    if (previousDrawerInlineState.current !== drawerInline) {
+      setIsDrawerInline(drawerInline);
+      previousDrawerInlineState.current = drawerInline;
+    }
+  }, []);
+
+  React.useEffect(() => {
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
     };
-  }
+  }, [onResize]);
 
-  UNSAFE_componentWillMount() {
-    window.addEventListener('resize', this._onResize);
-  }
-
-  componentWillUnmount() {
-    window.removeEventListener('resize', this._onResize);
-  }
-
-  componentDidUpdate(prevProps) {
-    const props = this.props;
+  React.useLayoutEffect(() => {
     // Prevent infinite loop in case React Router decides to destroy & recreate the component (changing key)
     const oldLocation = _.omit(prevProps.location, ['key']);
     const newLocation = _.omit(props.location, ['key']);
@@ -117,187 +142,156 @@ class App_ extends React.PureComponent {
     // two way data binding :-/
     const { pathname } = props.location;
     store.dispatch(UIActions.setCurrentLocation(pathname));
-  }
+    setPrevProps(props);
+  }, [props, prevProps.location, prevProps.match]);
 
-  _isLargeLayout() {
-    return window.innerWidth >= NOTIFICATION_DRAWER_BREAKPOINT;
-  }
-
-  _isDesktop() {
-    return window.innerWidth >= PF_BREAKPOINT_XL;
-  }
-
-  _isMobile() {
-    return window.innerWidth < PF_BREAKPOINT_MD;
-  }
-
-  _onNavToggle() {
+  const onNavToggle = () => {
     // Some components, like svg charts, need to reflow when nav is toggled.
     // Fire event after a short delay to allow nav animation to complete.
     setTimeout(() => {
       window.dispatchEvent(new Event('sidebar_toggle'));
     }, 100);
 
-    this.setState((prevState) => {
-      return {
-        isNavOpen: !prevState.isNavOpen,
-      };
-    });
-  }
+    setIsNavOpen((prevState) => !prevState);
+  };
 
-  _onNotificationDrawerToggle() {
-    if (this._isLargeLayout()) {
+  const onNotificationDrawerToggle = () => {
+    if (isLargeLayout()) {
       // Fire event after the drawer animation speed delay.
       setTimeout(() => {
         window.dispatchEvent(new Event('sidebar_toggle'));
       }, 250);
     }
-  }
+  };
 
-  _onNavSelect() {
+  const onNavSelect = () => {
     //close nav on mobile nav selects
-    if (!this._isDesktop()) {
-      this.setState({ isNavOpen: false });
+    if (!isDesktop()) {
+      setIsNavOpen(false);
     }
-  }
+  };
 
-  _onResize() {
-    const isDesktop = this._isDesktop();
-    const isMobile = this._isMobile();
-    const isDrawerInline = this._isLargeLayout();
-    if (this.previousDesktopState !== isDesktop) {
-      this.setState({ isNavOpen: isDesktop });
-      this.previousDesktopState = isDesktop;
-    }
-    if (this.previousMobileState !== isMobile) {
-      this.setState({ isMastheadStacked: isMobile });
-      this.previousMobileState = isMobile;
-    }
-    if (this.previousDrawerInlineState !== isDrawerInline) {
-      this.setState({ isDrawerInline });
-      this.previousDrawerInlineState = isDrawerInline;
-    }
-  }
+  const { productName } = getBrandingDetails();
 
-  render() {
-    const { isNavOpen, isDrawerInline, isMastheadStacked } = this.state;
-    const { contextProviderExtensions } = this.props;
-    const { productName } = getBrandingDetails();
-
-    const content = (
-      <>
-        <Helmet titleTemplate={`%s · ${productName}`} defaultTitle={productName} />
-        <ConsoleNotifier location="BannerTop" />
-        <QuickStartDrawer>
-          <div id="app-content" className="co-m-app__content">
-            <Page
-              // Need to pass mainTabIndex=null to enable keyboard scrolling as default tabIndex is set to -1 by patternfly
-              mainTabIndex={null}
-              header={
-                <Masthead
-                  isNavOpen={isNavOpen}
-                  onNavToggle={this._onNavToggle}
-                  isMastheadStacked={isMastheadStacked}
-                />
-              }
-              sidebar={
-                <Navigation
-                  isNavOpen={isNavOpen}
-                  onNavSelect={this._onNavSelect}
-                  onPerspectiveSelected={this._onNavSelect}
-                />
-              }
-              skipToContent={
-                <SkipToContent
-                  href={`${this.props.location.pathname}${this.props.location.search}#content`}
-                >
-                  Skip to Content
-                </SkipToContent>
-              }
+  const content = (
+    <>
+      <Helmet titleTemplate={`%s · ${productName}`} defaultTitle={productName} />
+      <ConsoleNotifier location="BannerTop" />
+      <QuickStartDrawer>
+        <div id="app-content" className="co-m-app__content">
+          <Page
+            // Need to pass mainTabIndex=null to enable keyboard scrolling as default tabIndex is set to -1 by patternfly
+            mainTabIndex={null}
+            header={
+              <Masthead
+                isNavOpen={isNavOpen}
+                onNavToggle={onNavToggle}
+                isMastheadStacked={isMastheadStacked}
+              />
+            }
+            sidebar={
+              <Navigation
+                isNavOpen={isNavOpen}
+                onNavSelect={onNavSelect}
+                onPerspectiveSelected={onNavSelect}
+              />
+            }
+            skipToContent={
+              <SkipToContent href={`${props.location.pathname}${props.location.search}#content`}>
+                Skip to Content
+              </SkipToContent>
+            }
+          >
+            <ConnectedNotificationDrawer
+              isDesktop={isDrawerInline}
+              onDrawerChange={onNotificationDrawerToggle}
             >
-              <ConnectedNotificationDrawer
-                isDesktop={isDrawerInline}
-                onDrawerChange={this._onNotificationDrawerToggle}
-              >
-                <AppContents />
-              </ConnectedNotificationDrawer>
-            </Page>
-            <CloudShell />
-            <GuidedTour />
-          </div>
-          <div id="modal-container" role="dialog" aria-modal="true" />
-        </QuickStartDrawer>
-        <ConsoleNotifier location="BannerBottom" />
-        <FeatureFlagExtensionLoader />
-      </>
-    );
+              <AppContents />
+            </ConnectedNotificationDrawer>
+          </Page>
+          <CloudShell />
+          <GuidedTour />
+        </div>
+        <div id="modal-container" role="dialog" aria-modal="true" />
+      </QuickStartDrawer>
+      <ConsoleNotifier location="BannerBottom" />
+      <FeatureFlagExtensionLoader />
+    </>
+  );
 
-    return (
-      <DetectPerspective>
-        <DetectNamespace>
-          <DetectCluster>
-            <ModalProvider>
-              {contextProviderExtensions.reduce(
-                (children, e) => (
-                  <EnhancedProvider key={e.uid} {...e.properties}>
-                    {children}
-                  </EnhancedProvider>
-                ),
-                content,
-              )}
-            </ModalProvider>
-          </DetectCluster>
-        </DetectNamespace>
-        <DetectLanguage />
-      </DetectPerspective>
-    );
-  }
-}
+  return (
+    <DetectPerspective>
+      <CaptureTelemetry />
+      <DetectNamespace>
+        {/* TODO remove multicluster */}
+        <DetectCluster>
+          <ModalProvider>
+            {contextProviderExtensions.reduce(
+              (children, e) => (
+                <EnhancedProvider key={e.uid} {...e.properties}>
+                  {children}
+                </EnhancedProvider>
+              ),
+              content,
+            )}
+          </ModalProvider>
+        </DetectCluster>
+      </DetectNamespace>
+      <DetectLanguage />
+    </DetectPerspective>
+  );
+};
 
-const AppWithExtensions = withTranslation()(function AppWithExtensions(props) {
+const AppWithExtensions = (props) => {
   const [reduxReducerExtensions, reducersResolved] = useResolvedExtensions(isReduxReducer);
   const [contextProviderExtensions, providersResolved] = useResolvedExtensions(isContextProvider);
 
   if (reducersResolved && providersResolved) {
     applyReduxExtensions(reduxReducerExtensions);
-    return <App_ contextProviderExtensions={contextProviderExtensions} {...props} />;
+    return <App contextProviderExtensions={contextProviderExtensions} {...props} />;
   }
 
   return <LoadingBox />;
-});
+};
 
 render(<LoadingBox />, document.getElementById('app'));
 
 const AppRouter = () => {
   const standaloneRouteExtensions = useExtensions(isStandaloneRoutePage);
+  // Treat the authentication error page as a standalone route. There is no need to render the rest
+  // of the app if we know authentication has failed.
   return (
     <Router history={history} basename={window.SERVER_FLAGS.basePath}>
-      <Switch>
-        {standaloneRouteExtensions.map((e) => (
-          <Route
-            key={e.uid}
-            render={(componentProps) => (
-              <AsyncComponent loader={e.properties.component} {...componentProps} />
-            )}
-            path={e.properties.path}
-            exact={e.properties.exact}
-          />
-        ))}
-        <Route path="/terminal" component={CloudShellTab} />
-        <Route path="/" component={AppWithExtensions} />
-      </Switch>
+      <CompatRouter>
+        <Switch>
+          <Route path={LOGIN_ERROR_PATH} component={AuthenticationErrorPage} />
+          {standaloneRouteExtensions.map((e) => (
+            <Route
+              key={e.uid}
+              render={(componentProps) => (
+                <AsyncComponent loader={e.properties.component} {...componentProps} />
+              )}
+              path={e.properties.path}
+              exact={e.properties.exact}
+            />
+          ))}
+          <Route path="/terminal" component={CloudShellTab} />
+          <Route path="/" component={AppWithExtensions} />
+        </Switch>
+      </CompatRouter>
     </Router>
   );
 };
 
 const CaptureTelemetry = React.memo(function CaptureTelemetry() {
+  const [perspective] = useActivePerspective();
   const fireTelemetryEvent = useTelemetry();
 
   // notify of identity change
   const user = useSelector(getUser);
   React.useEffect(() => {
     if (user.metadata?.uid || user.metadata?.name) {
-      fireTelemetryEvent('identify', { user });
+      fireTelemetryEvent('identify', { perspective, user });
     }
     // Only trigger identify event when the user identifier changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -306,21 +300,26 @@ const CaptureTelemetry = React.memo(function CaptureTelemetry() {
   // notify url change events
   // Debouncing the url change events so that redirects don't fire multiple events.
   // Also because some pages update the URL as the user enters a search term.
-  const fireUrlChangeEvent = useDebounceCallback(fireTelemetryEvent);
+  const fireUrlChangeEvent = useDebounceCallback((location) => {
+    fireTelemetryEvent('page', {
+      perspective,
+      title: getTelemetryTitle(),
+      ...withoutSensitiveInformations(location),
+    });
+  });
   React.useEffect(() => {
-    fireUrlChangeEvent('page', withoutSensitiveInformations(history.location));
-
+    fireUrlChangeEvent(history.location);
     let { pathname, search } = history.location;
     const unlisten = history.listen((location) => {
       const { pathname: nextPathname, search: nextSearch } = history.location;
       if (pathname !== nextPathname || search !== nextSearch) {
         pathname = nextPathname;
         search = nextSearch;
-        fireUrlChangeEvent('page', withoutSensitiveInformations(location));
+        fireUrlChangeEvent(location);
       }
     });
     return () => unlisten();
-  }, [fireUrlChangeEvent]);
+  }, [perspective, fireUrlChangeEvent]);
 
   return null;
 });
@@ -338,7 +337,9 @@ const PollConsoleUpdates = React.memo(function PollConsoleUpdates() {
 
   const [updateData, setUpdateData] = React.useState();
   const [updateError, setUpdateError] = React.useState();
+  const [newPlugins, setNewPlugins] = React.useState();
   const [pluginManifestsData, setPluginManifestsData] = React.useState();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const safeFetch = React.useCallback(useSafeFetch(), []);
   const fetchPluginManifest = (pluginName) =>
     coFetchJSON(
@@ -373,26 +374,41 @@ const PollConsoleUpdates = React.memo(function PollConsoleUpdates() {
   const prevUpdateData = prevUpdateDataRef.current;
   const prevPluginManifestsData = prevPluginManifestsDataRef.current;
   const stateInitialized = _.isEmpty(updateError) && !_.isEmpty(prevUpdateData);
+  const pluginsAddedList = updateData?.plugins.filter((x) => !prevUpdateData?.plugins.includes(x));
+  const pluginsRemovedList = prevUpdateData?.plugins.filter(
+    (x) => !updateData?.plugins.includes(x),
+  );
+  const pluginsAdded = !_.isEmpty(pluginsAddedList);
+  const pluginsRemoved = !_.isEmpty(pluginsRemovedList);
 
-  const pluginsListChanged = !_.isEmpty(_.xor(prevUpdateData?.plugins, updateData?.plugins));
-  if (stateInitialized && pluginsListChanged && !pluginsChanged) {
+  if (stateInitialized && pluginsAdded && !pluginsChanged) {
     setPluginsChanged(true);
+    setNewPlugins(pluginsAddedList);
+  }
+
+  if (stateInitialized && pluginsRemoved && !consoleChanged) {
+    setConsoleChanged(true);
   }
 
   if (pluginsChanged && !allPluginEndpointsReady && !isFetchingPluginEndpoints) {
-    const pluginEndpointsReady = updateData?.plugins?.map((pluginName) =>
-      fetchPluginManifest(pluginName),
-    );
-    Promise.all(pluginEndpointsReady)
-      .then(() => {
+    const pluginEndpointsReady =
+      newPlugins?.map((pluginName) => fetchPluginManifest(pluginName)) ?? [];
+    if (!_.isEmpty(pluginEndpointsReady)) {
+      settleAllPromises(pluginEndpointsReady).then(([, rejectedReasons]) => {
+        if (!_.isEmpty(rejectedReasons)) {
+          setAllPluginEndpointsReady(false);
+          setTimeout(() => setIsFetchingPluginEndpoints(false), URL_POLL_DEFAULT_DELAY);
+          return;
+        }
         setAllPluginEndpointsReady(true);
         setIsFetchingPluginEndpoints(false);
-      })
-      .catch(() => {
-        setAllPluginEndpointsReady(false);
-        setTimeout(() => setIsFetchingPluginEndpoints(false), URL_POLL_DEFAULT_DELAY);
+        setNewPlugins(null);
       });
-    setIsFetchingPluginEndpoints(true);
+      setIsFetchingPluginEndpoints(true);
+    } else {
+      setAllPluginEndpointsReady(true);
+      setIsFetchingPluginEndpoints(false);
+    }
   }
 
   const pluginManifestsVersionsChanged = pluginManifestsData?.some((manifest) => {
@@ -416,6 +432,7 @@ const PollConsoleUpdates = React.memo(function PollConsoleUpdates() {
     setConsoleChanged(true);
   }
 
+  // TODO remove multicluster
   const managedClustersChanged = !_.isEmpty(
     _.xor(prevUpdateData?.managedClusters, updateData?.managedClusters),
   );
@@ -575,7 +592,6 @@ graphQLReady.onReady(() => {
               initPlugins,
             }}
           >
-            <CaptureTelemetry />
             <ToastProvider>
               <PollConsoleUpdates />
               <AppRouter />

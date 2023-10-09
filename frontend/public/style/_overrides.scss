@@ -146,6 +146,12 @@ form.pf-c-form {
   --pf-c-button--PaddingRight: 0;
 }
 
+@media print {
+  .pf-c-data-list__cell {
+    padding: 1px !important;
+  }
+}
+
 //set pf datalist item background to transparent
 .pf-c-data-list__item--transparent-bg {
   --pf-c-data-list__item--BackgroundColor: transparent;
@@ -218,6 +224,10 @@ form.pf-c-form {
 }
 
 .pf-c-page__sidebar {
+  
+  @media print {
+    display: none !important;
+  }
 
   // Perspective switcher
   &.pf-m-dark .pf-c-dropdown {
@@ -249,6 +259,7 @@ form.pf-c-form {
       }
     }
   }
+
 }
 
 // Reset our tables to our base font-size
@@ -333,4 +344,12 @@ ul.pf-c-tree-view__list {
 // TODO Remove this override when skip to content CSS is figured out.
 .pf-c-skip-to-content {
   position: absolute !important;
+}
+
+
+.properties-side-panel-pf-property-value {
+  .pf-c-alert__title,
+  .pf-c-select__toggle {
+    font-size: $font-size-base;
+  }
 }

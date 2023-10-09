@@ -1,10 +1,15 @@
 import * as React from 'react';
-import { Formik, FormikHelpers } from 'formik';
+import { Formik } from 'formik';
 import { useTranslation } from 'react-i18next';
 import { RouteComponentProps } from 'react-router-dom';
 import { history } from '@console/internal/components/utils';
 import { defaultRepositoryFormValues } from './consts';
-import { createRepositoryResources, repositoryValidationSchema } from './repository-form-utils';
+import { usePacInfo } from './hooks/pac-hook';
+import {
+  createRemoteWebhook,
+  createRepositoryResources,
+  repositoryValidationSchema,
+} from './repository-form-utils';
 import { RepositoryForm } from './RepositoryForm';
 import { RepositoryFormValues } from './types';
 
@@ -16,13 +21,16 @@ const RepositoryFormPage: React.FC<RepositoryFormPageProps> = ({
   },
 }) => {
   const { t } = useTranslation();
+  const [pac, loaded] = usePacInfo();
 
-  const handleSubmit = (
-    values: RepositoryFormValues,
-    actions: FormikHelpers<RepositoryFormValues>,
-  ): void => {
+  const handleSubmit = (values: RepositoryFormValues, actions): void => {
     createRepositoryResources(values, ns)
-      .then(() => {
+      .then(async () => {
+        const isWebHookAttached = await createRemoteWebhook(values, pac, loaded);
+        if (isWebHookAttached) {
+          actions.setFieldValue('webhook.autoAttach', true);
+        }
+
         actions.setFieldValue('showOverviewPage', true);
         actions.setStatus({
           submitError: '',

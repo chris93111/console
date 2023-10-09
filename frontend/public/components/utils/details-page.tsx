@@ -3,8 +3,9 @@ import { useTranslation } from 'react-i18next';
 import * as _ from 'lodash-es';
 import { Button } from '@patternfly/react-core';
 import { PencilAltIcon } from '@patternfly/react-icons';
-import { useCanClusterUpgrade } from '@console/shared';
-
+import { useCanClusterUpgrade } from '@console/shared/src/hooks/useCanClusterUpgrade';
+import { useAnnotationsModal } from '@console/shared/src/hooks/useAnnotationsModal';
+import { useLabelsModal } from '@console/shared/src/hooks/useLabelsModal';
 import { DetailsItem } from './details-item';
 import { Kebab } from './kebab';
 import { LabelList } from './label-list';
@@ -21,12 +22,7 @@ import {
   referenceFor,
   Toleration,
 } from '../../module/k8s';
-import { configureClusterUpstreamModal, labelsModal } from '../modals';
-
-export const editLabelsModal = (e, props) => {
-  e.preventDefault();
-  labelsModal(props);
-};
+import { configureClusterUpstreamModal } from '../modals';
 
 export const pluralize = (
   i: number,
@@ -67,6 +63,8 @@ export const ResourceSummary: React.FC<ResourceSummaryProps> = ({
   const model = modelFor(reference);
   const tolerationsPath = getTolerationsPath(resource);
   const tolerations: Toleration[] = _.get(resource, tolerationsPath);
+  const annotationsModalLauncher = useAnnotationsModal(resource);
+  const labelsModalLauncher = useLabelsModal(resource);
   const canUpdateAccess = useAccessReview({
     group: model.apiGroup,
     resource: model.plural,
@@ -98,7 +96,7 @@ export const ResourceSummary: React.FC<ResourceSummaryProps> = ({
         obj={resource}
         path="metadata.labels"
         valueClassName="details-item__value--labels"
-        onEdit={(e) => editLabelsModal(e, { resource, kind: model })}
+        onEdit={labelsModalLauncher}
         canEdit={showLabelEditor && canUpdate}
         editAsGroup
       >
@@ -141,7 +139,7 @@ export const ResourceSummary: React.FC<ResourceSummaryProps> = ({
               data-test="edit-annotations"
               type="button"
               isInline
-              onClick={Kebab.factory.ModifyAnnotations(model, resource).callback}
+              onClick={annotationsModalLauncher}
               variant="link"
             >
               {t('public~{{count}} annotation', { count: _.size(metadata.annotations) })}

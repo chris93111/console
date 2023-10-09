@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+
 export enum devNavigationMenu {
   Add = '+Add',
   Topology = 'Topology',
@@ -15,6 +17,7 @@ export enum devNavigationMenu {
   Routes = 'Routes',
   Deployments = 'Deployments',
   Consoles = 'Consoles',
+  Functions = 'Functions',
 }
 
 export enum adminNavigationBar {

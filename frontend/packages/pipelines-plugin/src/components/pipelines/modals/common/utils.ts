@@ -68,6 +68,14 @@ export const getPipelineName = (pipeline?: PipelineKind, latestRun?: PipelineRun
   return null;
 };
 
+export const getPipelineRunGenerateName = (pipelineRun: PipelineRunKind): string => {
+  if (pipelineRun.metadata.generateName) {
+    return pipelineRun.metadata.generateName;
+  }
+
+  return `${pipelineRun.metadata.name?.replace(/-[a-z0-9]{5,6}$/, '')}-`;
+};
+
 export const getPipelineRunData = (
   pipeline: PipelineKind = null,
   latestRun?: PipelineRunKind,
@@ -81,7 +89,6 @@ export const getPipelineRunData = (
 
   const pipelineName = getPipelineName(pipeline, latestRun);
 
-  const resources = latestRun?.spec.resources;
   const workspaces = latestRun?.spec.workspaces;
 
   const latestRunParams = latestRun?.spec.params;
@@ -102,6 +109,7 @@ export const getPipelineRunData = (
       },
   );
   delete annotations['kubectl.kubernetes.io/last-applied-configuration'];
+  delete annotations['tekton.dev/v1beta1TaskRuns'];
 
   const newPipelineRun = {
     apiVersion: pipeline ? pipeline.apiVersion : latestRun.apiVersion,
@@ -112,7 +120,10 @@ export const getPipelineRunData = (
             generateName: `${pipelineName}-`,
           }
         : {
-            name: `${pipelineName}-${getRandomChars()}`,
+            name:
+              latestRun?.metadata?.name !== undefined
+                ? `${getPipelineRunGenerateName(latestRun)}${getRandomChars()}`
+                : `${pipelineName}-${getRandomChars()}`,
           }),
       annotations,
       namespace: pipeline ? pipeline.metadata.namespace : latestRun.metadata.namespace,
@@ -132,7 +143,6 @@ export const getPipelineRunData = (
           name: pipelineName,
         },
       }),
-      resources,
       ...(params && { params }),
       workspaces,
       status: null,
@@ -255,7 +265,7 @@ export const convertMapToNameValueArray = (map: {
   });
 };
 
-const convertResources = (resource: PipelineModalFormResource): PipelineRunResource => {
+export const convertResources = (resource: PipelineModalFormResource): PipelineRunResource => {
   if (resource.selection === CREATE_PIPELINE_RESOURCE) {
     return {
       name: resource.name,
@@ -281,7 +291,7 @@ export const getPipelineRunFromForm = (
   annotations?: { [key: string]: string },
   options?: { generateName: boolean },
 ) => {
-  const { parameters, resources, workspaces } = formValues;
+  const { parameters, workspaces } = formValues;
 
   const pipelineRunData: PipelineRunKind = {
     metadata: {
@@ -293,7 +303,6 @@ export const getPipelineRunFromForm = (
         name: pipeline.metadata.name,
       },
       params: parameters.map(({ name, value }): PipelineRunParam => ({ name, value })),
-      resources: resources.map(convertResources),
       workspaces: getPipelineRunWorkspaces(workspaces),
     },
   };

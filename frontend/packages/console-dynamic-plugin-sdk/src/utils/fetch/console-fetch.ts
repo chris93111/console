@@ -6,12 +6,12 @@ import { TimeoutError } from '../error/http-error';
 import { getConsoleRequestHeaders } from './console-fetch-utils';
 
 /**
- * A custom wrapper around `fetch` that adds console specific headers and allows for retries and timeouts.
- * It also validates the response status code and throws appropriate error or logs out the user if required.
+ * A custom wrapper around `fetch` that adds console-specific headers and allows for retries and timeouts.
+ * It also validates the response status code and throws an appropriate error or logs out the user if required.
  * @param url The URL to fetch
  * @param options The options to pass to fetch
  * @param timeout The timeout in milliseconds
- * @returns A promise that resolves to the response
+ * @returns A promise that resolves to the response.
  */
 export const consoleFetch: ConsoleFetch = async (url, options = {}, timeout = 60000) => {
   const fetchPromise = getUtilsConfig().appFetch(url, options);
@@ -27,6 +27,7 @@ export const consoleFetch: ConsoleFetch = async (url, options = {}, timeout = 60
   return Promise.race([fetchPromise, timeoutPromise]);
 };
 
+// TODO remove multicluster
 const consoleFetchCommon = async (
   url: string,
   method: string = 'GET',
@@ -47,8 +48,8 @@ const consoleFetchCommon = async (
 };
 
 /**
- * A custom wrapper around `fetch` that adds console specific headers and allows for retries and timeouts.
- * It also validates the response status code and throws appropriate error or logs out the user if required.
+ * A custom wrapper around `fetch` that adds console-specific headers and allows for retries and timeouts.
+ * It also validates the response status code and throws an appropriate error or logs out the user if required.
  * It returns the response as a JSON object.
  * Uses consoleFetch internally.
  * @param url The URL to fetch
@@ -58,6 +59,7 @@ const consoleFetchCommon = async (
  * @param cluster The name of the cluster to make the request to. Defaults to the active cluster the user has selected
  * @returns A promise that resolves to the response as JSON object.
  */
+// TODO remove multicluster
 export const consoleFetchJSON: ConsoleFetchJSON = (
   url,
   method = 'GET',
@@ -72,16 +74,17 @@ export const consoleFetchJSON: ConsoleFetchJSON = (
 };
 
 /**
- * A custom wrapper around `fetch` that adds console specific headers and allows for retries and timeouts.
- * It also validates the response status code and throws appropriate error or logs out the user if required.
+ * A custom wrapper around `fetch` that adds console-specific headers and allows for retries and timeouts.
+ * It also validates the response status code and throws an appropriate error or logs out the user if required.
  * It returns the response as a text.
- * Uses consoleFetch internally.
+ * Uses `consoleFetch` internally.
  * @param url The URL to fetch
  * @param options The options to pass to fetch
  * @param timeout The timeout in milliseconds
  * @param cluster The name of the cluster to make the request to. Defaults to the active cluster the user has selected
  * @returns A promise that resolves to the response as text.
  */
+// TODO remove multicluster
 export const consoleFetchText: ConsoleFetchText = (url, options = {}, timeout, cluster) => {
   return consoleFetchCommon(url, 'GET', options, timeout, cluster);
 };
@@ -92,7 +95,7 @@ const consoleFetchSendJSON = (
   json = null,
   options: RequestInit = {},
   timeout: number,
-  cluster?: string,
+  cluster?: string, // TODO remove multicluster
 ) => {
   const allOptions: Record<string, any> = {
     headers: {
@@ -117,6 +120,7 @@ const consoleFetchSendJSON = (
  * @param timeout The timeout in milliseconds
  * @param cluster The name of the cluster to make the request to. Defaults to the active cluster the user has selected
  */
+// TODO remove multicluster
 consoleFetchJSON.delete = (url, json = null, options = {}, timeout, cluster) => {
   return json
     ? consoleFetchSendJSON(url, 'DELETE', json, options, timeout, cluster)
@@ -132,6 +136,7 @@ consoleFetchJSON.delete = (url, json = null, options = {}, timeout, cluster) => 
  * @param timeout The timeout in milliseconds
  * @param cluster The name of the cluster to make the request to. Defaults to the active cluster the user has selected
  */
+// TODO remove multicluster
 consoleFetchJSON.post = (url: string, json, options = {}, timeout, cluster) =>
   consoleFetchSendJSON(url, 'POST', json, options, timeout, cluster);
 
@@ -144,6 +149,7 @@ consoleFetchJSON.post = (url: string, json, options = {}, timeout, cluster) =>
  * @param timeout The timeout in milliseconds
  * @param cluster The name of the cluster to make the request to. Defaults to the active cluster the user has selected
  */
+// TODO remove multicluster
 consoleFetchJSON.put = (url: string, json, options = {}, timeout, cluster) =>
   consoleFetchSendJSON(url, 'PUT', json, options, timeout, cluster);
 
@@ -156,5 +162,6 @@ consoleFetchJSON.put = (url: string, json, options = {}, timeout, cluster) =>
  * @param timeout The timeout in milliseconds
  * @param cluster The name of the cluster to make the request to. Defaults to the active cluster the user has selected
  */
+// TODO remove multicluster
 consoleFetchJSON.patch = (url: string, json, options = {}, timeout, cluster) =>
   consoleFetchSendJSON(url, 'PATCH', json, options, timeout, cluster);

@@ -156,8 +156,11 @@ const config = {
 export default config;
 ```
 
-`ConsoleRemotePlugin` has no configuration options; it automatically detects your plugin's metadata and
-extension declarations and generates the corresponding assets.
+`ConsoleRemotePlugin` automatically detects your plugin's metadata and extension declarations and
+generates the corresponding assets.
+
+`ConsoleRemotePlugin` constructor supports an options object used to tweak its behavior. Refer to
+`ConsoleRemotePluginOptions` type for details on supported options.
 
 ## Generated assets
 
@@ -191,8 +194,6 @@ to your local plugin asset server (web server hosting the plugin's generated ass
 
 Your plugin should start loading automatically upon Console application startup. Inspect the value of
 `window.SERVER_FLAGS.consolePlugins` to see the list of plugins which Console loads upon its startup.
-
-Note running plugins in this way will likely result in incorrect data in the Cluster Dashboard Dynamic Plugins popover.
 
 ## Plugin detection and management
 
